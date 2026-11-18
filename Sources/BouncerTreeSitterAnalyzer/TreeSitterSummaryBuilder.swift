@@ -4,7 +4,7 @@ import BouncerRules
 
 /// Walks a tree-sitter parse tree once, collecting everything the AST rules need.
 final class TreeSitterSummaryBuilder {
-    private let spec: TreeSitterLanguageSpec
+    let spec: TreeSitterLanguageSpec
     private let source: String
     private var functions: [CollectedFunction] = []
     private var types: [CollectedType] = []
@@ -25,7 +25,7 @@ final class TreeSitterSummaryBuilder {
     ///
     /// - Parameter node: The node whose text to extract.
     /// - Returns: The node's text, or `nil` if its range doesn't map onto `source`.
-    private func text(of node: Node) -> String? {
+    func text(of node: Node) -> String? {
         guard let range = Range(node.range, in: source) else { return nil }
         return String(source[range])
     }
@@ -60,7 +60,19 @@ final class TreeSitterSummaryBuilder {
         if spec.functionNodeTypes.contains(type) { collectFunction(node) }
         if spec.classNodeTypes.contains(type) { collectType(node) }
         if spec.switchNodeTypes.contains(type) { collectSwitch(node) }
-        if spec.importNodeTypes.contains(type) { importCount += 1 }
+        if spec.importNodeTypes.contains(type) || isImportCall(node, type: type) { importCount += 1 }
+    }
+
+    /// Reports whether a node is a module-loading call such as `require("x")`.
+    ///
+    /// - Parameters:
+    ///   - node: The node to check.
+    ///   - type: The node's type, already resolved by the caller.
+    /// - Returns: Whether it matches this language's import call, if it has one.
+    private func isImportCall(_ node: Node, type: String) -> Bool {
+        guard let call = spec.importCall, type == call.nodeType else { return false }
+        guard let callee = node.child(byFieldName: "function").flatMap(text) else { return false }
+        return call.functionNames.contains(callee)
     }
 
     /// Collects a function-like node's name, extent, branch count, and doc status.
@@ -78,11 +90,11 @@ final class TreeSitterSummaryBuilder {
     ///   - body: Its body block, already resolved by the caller.
     /// - Returns: The collected function.
     private func makeCollectedFunction(_ node: Node, body: Node) -> CollectedFunction {
-        let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
+        let name = functionName(of: node)
         return CollectedFunction(
             name: name, startLine: line(of: node.pointRange.lowerBound), endLine: line(of: node.pointRange.upperBound),
             branchCount: countBranches(in: body), hasDocComment: isDocumented(node),
-            visibility: visibility(ofName: name)
+            visibility: visibility(of: node, name: name)
         )
     }
 
@@ -126,17 +138,20 @@ final class TreeSitterSummaryBuilder {
     /// - Returns: Whether its `operator` field is `&&` or `||`.
     private func isLogicalOperator(_ node: Node) -> Bool {
         let op = node.child(byFieldName: "operator").flatMap(text)
-        return op == "&&" || op == "||"
+        return op == "&&" || op == "||" || op == "??"
     }
 
-    /// Determines a declaration's access level from its name, per this language's convention.
+    /// Determines a declaration's access level, per this language's convention.
     ///
-    /// - Parameter name: The declared identifier.
-    /// - Returns: The identifier's inferred visibility.
-    private func visibility(ofName name: String) -> DeclarationVisibility {
+    /// - Parameters:
+    ///   - node: The declaration node, for conventions that read modifiers or wrappers.
+    ///   - name: The declared identifier.
+    /// - Returns: The declaration's inferred visibility.
+    private func visibility(of node: Node, name: String) -> DeclarationVisibility {
         switch spec.visibilityConvention {
         case .leadingUnderscore: return visibilityByLeadingUnderscore(name)
         case .leadingCase: return (name.first?.isUppercase ?? false) ? .public : .internal
+        case .exportKeyword: return visibilityByExport(node, name: name)
         }
     }
 
@@ -174,6 +189,7 @@ final class TreeSitterSummaryBuilder {
         switch spec.documentationStyle {
         case .docstring: return hasDocstring(node)
         case .precedingComment: return hasPrecedingComment(node)
+        case .jsdoc: return hasPrecedingComment(declarationAnchor(of: node), prefix: "/**")
         }
     }
 
@@ -189,10 +205,13 @@ final class TreeSitterSummaryBuilder {
 
     /// Checks whether a comment sits directly above a declaration with no blank line gap.
     ///
-    /// - Parameter node: The declaration node.
+    /// - Parameters:
+    ///   - node: The declaration node.
+    ///   - prefix: Text the comment must start with, such as `/**`, or empty for any comment.
     /// - Returns: Whether an adjacent comment documents it.
-    private func hasPrecedingComment(_ node: Node) -> Bool {
+    private func hasPrecedingComment(_ node: Node, prefix: String = "") -> Bool {
         guard let previous = node.previousNamedSibling, previous.nodeType == "comment" else { return false }
+        guard prefix.isEmpty || (text(of: previous)?.hasPrefix(prefix) ?? false) else { return false }
         return previous.pointRange.upperBound.row + 1 == node.pointRange.lowerBound.row
     }
 

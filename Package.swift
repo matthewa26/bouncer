@@ -34,11 +34,29 @@ let package = Package(
             cSettings: [.headerSearchPath(".")]
         ),
         .target(
+            name: "CTreeSitterTypeScript",
+            exclude: ["LICENSE", "NOTICE.md"],
+            cSettings: [.headerSearchPath("typescript/src")]
+        ),
+        .target(
+            name: "CTreeSitterTSX",
+            exclude: ["LICENSE", "NOTICE.md"],
+            cSettings: [.headerSearchPath("tsx/src")]
+        ),
+        .target(
+            name: "CTreeSitterJavaScript",
+            exclude: ["LICENSE", "NOTICE.md"],
+            cSettings: [.headerSearchPath("src")]
+        ),
+        .target(
             name: "BouncerTreeSitterAnalyzer",
             dependencies: [
                 "BouncerCore",
                 "BouncerRules",
                 "CTreeSitterPython",
+                "CTreeSitterTypeScript",
+                "CTreeSitterTSX",
+                "CTreeSitterJavaScript",
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterGo", package: "tree-sitter-go")
             ]

@@ -2,6 +2,9 @@ import BouncerCore
 
 /// A function or method collected from a file's syntax tree.
 public struct CollectedFunction: Sendable {
+    /// The name recorded for a function expression nothing binds a name to, such as an inline callback.
+    public static let anonymousName = "<anonymous>"
+
     public let name: String
     public let startLine: Int
     public let endLine: Int

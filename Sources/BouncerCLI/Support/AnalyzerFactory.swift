@@ -6,17 +6,19 @@ import BouncerTreeSitterAnalyzer
 /// Builds the language-to-analyzer mapping every subcommand's engine uses.
 enum AnalyzerFactory {
     private static let heuristicLanguages: [Language] = [
-        .zsh, .bash, .powershell, .typescript, .javascript, .cpp, .java, .sql, .c
+        .zsh, .bash, .powershell, .cpp, .java, .sql, .c
     ]
 
     /// Builds an analyzer for every language with dedicated support.
     ///
-    /// - Returns: Swift's and Python's/Go's real-AST analyzers, plus a heuristic analyzer per other language.
+    /// - Returns: The real-AST analyzers (Swift, Python, Go, TS, JS), plus a heuristic one per other language.
     static func makeKnownAnalyzers() -> [Language: LanguageAnalyzer] {
         var analyzers: [Language: LanguageAnalyzer] = [
             .swift: SwiftSyntaxAnalyzer(),
             .python: TreeSitterAnalyzer(spec: .python),
-            .go: TreeSitterAnalyzer(spec: .go)
+            .go: TreeSitterAnalyzer(spec: .go),
+            .typescript: TreeSitterAnalyzer(spec: .typescript),
+            .javascript: TreeSitterAnalyzer(spec: .javascript)
         ]
         for language in heuristicLanguages { analyzers[language] = HeuristicAnalyzer(language: language) }
         return analyzers

@@ -1,6 +1,6 @@
 # Bouncer
 
-Bouncer is a configurable coding-standards and code-smell checker. It analyzes Swift, Python, and Go with real parse trees, and everything else (zsh, bash, PowerShell, TypeScript, JavaScript, C++, Java, SQL, C, and best-effort anything else) heuristically, all through the same dependency-injected rule engine. It runs as a Husky pre-commit hook, as an ad-hoc audit of any codebase, and as a self-check a coding agent can run after every edit.
+Bouncer is a configurable coding-standards and code-smell checker. It analyzes TypeScript (including TSX), JavaScript (including JSX), Swift, Python, and Go with real parse trees, and everything else (zsh, bash, PowerShell, C++, Java, SQL, C, and best-effort anything else) heuristically, all through the same dependency-injected rule engine. It runs as a Husky pre-commit hook, as an ad-hoc audit of any codebase, and as a self-check a coding agent can run after every edit.
 
 Full documentation, including the config reference and rule catalog, is at [matthewayers.github.io/bouncer](https://matthewayers.github.io/bouncer/).
 

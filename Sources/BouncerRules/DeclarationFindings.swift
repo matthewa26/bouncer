@@ -63,7 +63,7 @@ public enum DeclarationFindings {
         return summary.functions.compactMap { complexityFinding($0, file: file, max: max, severity: settings.severity) }
     }
 
-    /// Flags every function without a doc comment.
+    /// Flags every named function without a doc comment; anonymous callbacks have nothing to document.
     ///
     /// - Parameters:
     ///   - summary: The declarations collected from the file's syntax tree.
@@ -76,11 +76,21 @@ public enum DeclarationFindings {
         let settings = context.settings(for: MissingDocumentationRule.ruleID)
         guard settings.enabled else { return [] }
         let scope = settings.parameters.string("scope", default: "public")
-        let undocumented = summary.functions.filter { !$0.hasDocComment && $0.visibility.isIncluded(inScope: scope) }
-        return undocumented.map { function in
+        return summary.functions.filter { needsDocumentation($0, scope: scope) }.map { function in
             let message = "Function \"\(function.name)\" has no doc comment above its declaration."
             return finding(MissingDocumentationRule.ruleID, function.startLine, message, settings.severity, file)
         }
+    }
+
+    /// Reports whether a function is named, undocumented, and inside the configured visibility scope.
+    ///
+    /// - Parameters:
+    ///   - function: The collected function.
+    ///   - scope: The `missing-documentation` rule's `scope` parameter.
+    /// - Returns: Whether the function should be flagged.
+    private static func needsDocumentation(_ function: CollectedFunction, scope: String) -> Bool {
+        guard !function.hasDocComment, function.name != CollectedFunction.anonymousName else { return false }
+        return function.visibility.isIncluded(inScope: scope)
     }
 
     /// Flags every function or type name that doesn't match this language's naming pattern.

@@ -4,9 +4,10 @@ Every built-in rule, what it checks, its default severity, and its parameters.
 
 ## Where each rule runs
 
-Swift, Python, and Go get most of these rules computed exactly from a real parse tree.
-Every other supported language (zsh, bash, PowerShell, TypeScript, JavaScript, C++, Java,
-SQL, C, and anything unrecognized) gets the same checks computed heuristically instead, from
+Swift, TypeScript (`.ts`, `.mts`, `.cts`, and `.tsx` via the TSX grammar), JavaScript
+(`.js`, `.mjs`, `.cjs`, `.jsx`), Python, and Go get most of these rules computed exactly from
+a real parse tree. Every other supported language (zsh, bash, PowerShell, C++, Java, SQL, C,
+and anything unrecognized) gets the same checks computed heuristically instead, from
 indentation and regular expressions rather than a real grammar. The rule IDs, defaults, and
 config keys are identical either way; only the precision of the check differs. `missing-documentation`'s
 `scope` parameter is the one exception worth calling out: heuristic languages can't reliably
@@ -44,7 +45,7 @@ These five come from the design-pattern and code-quality catalog taught in OSU C
 | `high-coupling` | A file's import/using/require count, as a coupling proxy | warning | `maxImports` (15) |
 | `switch-on-type-smell` | A switch/match statement's branch count | warning | `maxBranches` (6) |
 | `missing-documentation` | Whether a declaration has a doc comment | warning | `scope` (`public`), see below |
-| `god-class` (Swift and Python only) | A type's member count combined with its file's import count | warning | `maxMembers` (20), `maxImportsForGodClass` (10) |
+| `god-class` (Swift, TypeScript, JavaScript, Python) | A type's member count combined with its file's import count | warning | `maxMembers` (20), `maxImportsForGodClass` (10) |
 
 `god-class` only applies where the language has classes with a real member list Bouncer can
 count; Go, for instance, has no equivalent. `high-coupling` counts import statements as a
@@ -53,12 +54,20 @@ scope for a rule engine that only ever looks at one file at a time.
 
 ### `missing-documentation`'s `scope` parameter
 
-Three values: `"public"` (the default), `"internal"`, or `"all"`. On Swift, Python, and Go,
-this is checked against the declaration's real access level: Swift's `public`/`open` versus
-`internal` versus `private`/`fileprivate`; Python's leading-underscore convention (no
-underscore is public, one is internal, two is private); Go's exported-by-capitalization
-convention (uppercase first letter is public, lowercase is internal, since Go has no true
-private). Every other language always behaves as `scope: all`, since a heuristic pass over the
+Three values: `"public"` (the default), `"internal"`, or `"all"`. On Swift, TypeScript,
+JavaScript, Python, and Go, this is checked against the declaration's real access level:
+Swift's `public`/`open` versus `internal` versus `private`/`fileprivate`; TypeScript and
+JavaScript's `export` (an exported function, or any class member, is public; an unexported
+top-level function or `protected` member is internal; a `private` or `#name` member is
+private); Python's leading-underscore convention (no underscore is public, one is internal,
+two is private); Go's exported-by-capitalization convention (uppercase first letter is
+public, lowercase is internal, since Go has no true private).
+
+TypeScript and JavaScript count only a `/** */` JSDoc comment as documentation, directly above
+the declaration or the `export`/`const` that wraps it. Anonymous inline callbacks are never
+flagged, since there's nothing to name in a doc comment; they still count toward
+`long-function` and `cyclomatic-complexity`. Functions exported through a separate
+`export { name }` list are treated as internal. Every other language always behaves as `scope: all`, since a heuristic pass over the
 text can't determine access level reliably enough to filter on it.
 
 ## Per-language extras

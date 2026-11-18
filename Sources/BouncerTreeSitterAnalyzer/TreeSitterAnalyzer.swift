@@ -39,7 +39,7 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
     private func buildSummary(for file: SourceFile) throws -> DeclarationSummary {
         let parser = Parser()
-        try parser.setLanguage(spec.language)
+        try parser.setLanguage(spec.grammar(forExtension: file.path.pathExtension))
         guard let tree = parser.parse(file.contents), let root = tree.rootNode else {
             throw TreeSitterAnalyzerError.parseFailed
         }

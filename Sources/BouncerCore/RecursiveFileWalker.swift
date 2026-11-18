@@ -11,7 +11,7 @@ public struct RecursiveFileWalker: TargetFileProvider {
     ]
 
     private let rootDirectory: URL
-    private let excludeGlobs: [String]
+    private let excludeFilter: ExcludeFilter
 
     /// Creates a recursive file walker.
     ///
@@ -20,7 +20,7 @@ public struct RecursiveFileWalker: TargetFileProvider {
     ///   - excludeGlobs: Glob patterns, relative to `rootDirectory`, to exclude.
     public init(rootDirectory: URL, excludeGlobs: [String] = []) {
         self.rootDirectory = rootDirectory
-        self.excludeGlobs = excludeGlobs
+        self.excludeFilter = ExcludeFilter(root: rootDirectory, globs: excludeGlobs)
     }
 
     /// Walks the directory tree and returns every non-excluded regular file.
@@ -28,7 +28,7 @@ public struct RecursiveFileWalker: TargetFileProvider {
     /// - Returns: The matched files' absolute locations.
     /// - Throws: Never, but conforms to `TargetFileProvider`'s throwing signature.
     public func targetFiles() throws -> [URL] {
-        guard isDirectory(rootDirectory) else { return isExcluded(rootDirectory) ? [] : [rootDirectory] }
+        guard isDirectory(rootDirectory) else { return excludeFilter.excludes(rootDirectory) ? [] : [rootDirectory] }
         guard let enumerator = makeEnumerator() else { return [] }
         var results: [URL] = []
         for case let url as URL in enumerator {
@@ -57,7 +57,7 @@ public struct RecursiveFileWalker: TargetFileProvider {
             enumerator.skipDescendants()
             return
         }
-        guard !isDirectory(url), !isExcluded(url) else { return }
+        guard !isDirectory(url), !excludeFilter.excludes(url) else { return }
         results.append(url)
     }
 
@@ -75,24 +75,5 @@ public struct RecursiveFileWalker: TargetFileProvider {
     /// - Returns: Whether the path is a directory.
     private func isDirectory(_ url: URL) -> Bool {
         (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-    }
-
-    /// Checks whether a path matches any configured exclude glob.
-    ///
-    /// - Parameter url: The path to check.
-    /// - Returns: Whether the path should be excluded.
-    private func isExcluded(_ url: URL) -> Bool {
-        let relative = relativePath(of: url)
-        return excludeGlobs.contains { GlobMatcher.matches(path: relative, pattern: $0) }
-    }
-
-    /// Expresses a path relative to `rootDirectory`.
-    ///
-    /// - Parameter url: The absolute path.
-    /// - Returns: The path relative to `rootDirectory`.
-    private func relativePath(of url: URL) -> String {
-        let root = rootDirectory.path
-        guard url.path.hasPrefix(root) else { return url.path }
-        return String(url.path.dropFirst(root.count + 1))
     }
 }

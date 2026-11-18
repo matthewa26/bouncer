@@ -85,18 +85,30 @@ struct Check: AsyncParsableCommand {
     /// - Throws: If the file provider can't be built (an unreadable `--stdin` list, for example).
     private func makeRunner(repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?) throws -> AnalysisRunner {
         AnalysisRunner(
-            repoRoot: repoRoot, fileProvider: try makeFileProvider(repoRoot: repoRoot), mergedConfig: resolution.merged,
+            repoRoot: repoRoot, fileProvider: try makeFileProvider(repoRoot: repoRoot, resolution: resolution),
+            mergedConfig: resolution.merged,
             hooks: hooks, coverageConfig: coverage ? resolution.merged.coverage : nil, format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
             severityThreshold: severityThreshold, useBaseline: !noBaseline
         )
     }
 
-    /// Builds the file provider matching how this invocation was made.
+    /// Builds the file provider matching how this invocation was made, honoring `exclude`.
+    ///
+    /// - Parameters:
+    ///   - repoRoot: The repository root: the staged provider's base and what `exclude` globs are relative to.
+    ///   - resolution: The resolved config layers, for their `exclude` globs.
+    /// - Returns: The `--files`/`--stdin` list or the staged files, minus any excluded ones.
+    private func makeFileProvider(repoRoot: URL, resolution: ConfigResolution) throws -> TargetFileProvider {
+        let filter = ExcludeFilter(root: repoRoot, globs: resolution.merged.exclude ?? [])
+        return ExcludingFileProvider(base: makeBaseFileProvider(repoRoot: repoRoot), filter: filter)
+    }
+
+    /// Builds the unfiltered file provider matching how this invocation was made.
     ///
     /// - Parameter repoRoot: The repository root, used as the git-staged provider's base.
     /// - Returns: An explicit-list provider for `--files`/`--stdin`, or the staged-files provider.
-    private func makeFileProvider(repoRoot: URL) throws -> TargetFileProvider {
+    private func makeBaseFileProvider(repoRoot: URL) -> TargetFileProvider {
         if !files.isEmpty { return ExplicitFileListProvider(files: files.map { URL(fileURLWithPath: $0) }) }
         if stdin { return ExplicitFileListProvider(files: readStdinFileList()) }
         return GitStagedFilesProvider(repoRoot: repoRoot)

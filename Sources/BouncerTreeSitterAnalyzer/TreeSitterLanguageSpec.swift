@@ -27,55 +27,6 @@ enum VisibilityConvention: Sendable {
     case exportKeyword
 }
 
-/// A node type that always marks a smell, optionally only when its text matches exactly.
-struct NodeMarker: Sendable {
-    let nodeType: String
-    let text: String?
-    let kind: MarkerKind
-}
-
-/// The node types behind the function metrics and marker rules, for languages that support them.
-///
-/// Languages without one (currently Python and Go) skip `long-parameter-list`, `too-many-returns`,
-/// `cognitive-complexity`, `nesting-depth`, and every marker rule.
-struct TreeSitterQualitySpec: Sendable {
-    let nestingNodeTypes: Set<String>
-    let elseNodeType: String
-    let ternaryNodeType: String
-    let returnNodeType: String
-    let catchNodeType: String
-    let blockNodeTypes: Set<String>
-    let jumpNodeTypes: Set<String>
-    let hoistedNodeTypes: Set<String>
-    let numberNodeType: String
-    let allowedNumbers: Set<String>
-    let numberNamingParents: Set<String>
-    let numberTransparentParents: Set<String>
-    let markers: [NodeMarker]
-    let booleanParameter: BooleanParameterSpec
-    let cohesion: CohesionSpec
-    /// Method names that initialize an instance, which skip flag-parameter counting and LCOM4.
-    let initializerNames: Set<String>
-}
-
-/// How a parameter shows it's a boolean flag: its type annotation, or a `true`/`false` default.
-struct BooleanParameterSpec: Sendable {
-    let typeField: String
-    let typeText: String
-    let defaultFields: [String]
-    let literalNodeTypes: Set<String>
-}
-
-/// The class-member node types LCOM4 needs: methods, fields that hold functions, and `this.x` access.
-struct CohesionSpec: Sendable {
-    let methodNodeTypes: Set<String>
-    /// Field node types mapped to their name field; a field whose value is a function counts as a method.
-    let fieldNameFields: [String: String]
-    let memberAccessNodeType: String
-    let receiverText: String
-    let staticKeyword: String
-}
-
 /// A call expression that loads a module, such as CommonJS `require("x")`.
 struct ImportCall: Sendable {
     let nodeType: String
@@ -139,7 +90,8 @@ extension TreeSitterLanguageSpec {
         functionNamePattern: "^[a-z_][a-z0-9_]*$",
         typeNamePattern: "^[A-Z][A-Za-z0-9_]*$",
         documentationStyle: .docstring,
-        visibilityConvention: .leadingUnderscore
+        visibilityConvention: .leadingUnderscore,
+        quality: .python
     )
 
     /// The Go grammar's node types and conventions.
@@ -156,7 +108,8 @@ extension TreeSitterLanguageSpec {
         functionNamePattern: "^[A-Za-z][A-Za-z0-9]*$",
         typeNamePattern: nil,
         documentationStyle: .precedingComment,
-        visibilityConvention: .leadingCase
+        visibilityConvention: .leadingCase,
+        quality: .go
     )
 
     /// The JavaScript grammar's node types and conventions; the grammar parses JSX natively.
@@ -169,7 +122,7 @@ extension TreeSitterLanguageSpec {
         typeNamePattern: "^[A-Z][A-Za-z0-9]*$", documentationStyle: .jsdoc, visibilityConvention: .exportKeyword,
         importCall: ImportCall(nodeType: "call_expression", functionNames: ["require"]),
         declarationWrapperNodeTypes: javascriptWrapperNodeTypes, nameSourceParents: javascriptNameSourceParents,
-        quality: javascriptQuality
+        quality: .javascript
     )
 
     /// The TypeScript grammar's node types and conventions, with TSX for `.tsx` files.
@@ -183,41 +136,6 @@ extension TreeSitterLanguageSpec {
         spec.grammarOverrides = ["tsx": SwiftTreeSitter.Language(language: tree_sitter_tsx())]
         return spec
     }()
-
-    private static let javascriptQuality = TreeSitterQualitySpec(
-        nestingNodeTypes: [
-            "if_statement", "for_statement", "for_in_statement", "while_statement", "do_statement",
-            "switch_statement", "catch_clause"
-        ],
-        elseNodeType: "else_clause", ternaryNodeType: "ternary_expression", returnNodeType: "return_statement",
-        catchNodeType: "catch_clause", blockNodeTypes: ["statement_block", "switch_case", "switch_default"],
-        jumpNodeTypes: ["return_statement", "throw_statement", "break_statement", "continue_statement"],
-        hoistedNodeTypes: ["function_declaration", "generator_function_declaration", "comment", "empty_statement"],
-        numberNodeType: "number", allowedNumbers: ["0", "1", "2"],
-        numberNamingParents: [
-            "variable_declarator", "pair", "public_field_definition", "field_definition", "enum_assignment",
-            "assignment_pattern", "required_parameter", "optional_parameter", "assignment_expression",
-            "switch_case", "literal_type"
-        ],
-        numberTransparentParents: [
-            "parenthesized_expression", "unary_expression", "binary_expression", "arguments", "call_expression",
-            "new_expression", "array"
-        ],
-        markers: [
-            NodeMarker(nodeType: "non_null_expression", text: nil, kind: .nonNullAssertion),
-            NodeMarker(nodeType: "predefined_type", text: "any", kind: .explicitAny)
-        ],
-        booleanParameter: BooleanParameterSpec(
-            typeField: "type", typeText: ": boolean", defaultFields: ["value", "right"],
-            literalNodeTypes: ["true", "false"]
-        ),
-        cohesion: CohesionSpec(
-            methodNodeTypes: ["method_definition"],
-            fieldNameFields: ["public_field_definition": "name", "field_definition": "property"],
-            memberAccessNodeType: "member_expression", receiverText: "this", staticKeyword: "static"
-        ),
-        initializerNames: ["constructor"]
-    )
 
     private static let javascriptClassNodeTypes: Set<String> = [
         "class_declaration", "abstract_class_declaration", "class"

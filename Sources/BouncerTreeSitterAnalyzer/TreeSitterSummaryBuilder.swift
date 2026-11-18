@@ -128,7 +128,7 @@ final class TreeSitterSummaryBuilder {
         let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
         types.append(CollectedType(
             name: name, memberCount: body.namedChildCount, startLine: startLine, endLine: endLine,
-            cohesionGroups: quality?.cohesionGroups(of: body)
+            cohesionGroups: quality.flatMap { $0.cohesionGroups(of: body) }
         ))
     }
 

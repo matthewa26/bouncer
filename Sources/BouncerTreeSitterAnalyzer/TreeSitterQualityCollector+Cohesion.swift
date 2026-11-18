@@ -6,8 +6,9 @@ extension TreeSitterQualityCollector {
     /// Counts how many unrelated groups a class's instance methods split into.
     ///
     /// - Parameter body: The class body node.
-    /// - Returns: The LCOM4 group count, per `CohesionGraph`.
-    func cohesionGroups(of body: Node) -> Int {
+    /// - Returns: The LCOM4 group count, per `CohesionGraph`, or `nil` for a language without a cohesion spec.
+    func cohesionGroups(of body: Node) -> Int? {
+        guard quality.cohesion != nil else { return nil }
         let members = (0..<body.namedChildCount).compactMap { body.namedChild(at: $0) }
         let methods = members.compactMap(method(from:)).filter { !quality.initializerNames.contains($0.name) }
         return CohesionGraph.groupCount(methods.map {
@@ -20,8 +21,7 @@ extension TreeSitterQualityCollector {
     /// - Parameter member: A class-body member node.
     /// - Returns: The method's name and node: a method, or a field holding a function.
     private func method(from member: Node) -> (name: String, node: Node)? {
-        guard let type = member.nodeType, !isStatic(member) else { return nil }
-        let cohesion = quality.cohesion
+        guard let type = member.nodeType, !isStatic(member), let cohesion = quality.cohesion else { return nil }
         if cohesion.methodNodeTypes.contains(type) {
             return member.child(byFieldName: "name").flatMap(text).map { ($0, member) }
         }
@@ -48,10 +48,9 @@ extension TreeSitterQualityCollector {
     /// - Parameter node: Any node.
     /// - Returns: The member name if the node is a `this.name` access, otherwise `nil`.
     private func thisMember(of node: Node) -> String? {
-        let cohesion = quality.cohesion
-        guard node.nodeType == cohesion.memberAccessNodeType,
-              node.child(byFieldName: "object").flatMap(text) == cohesion.receiverText else { return nil }
-        return node.child(byFieldName: "property").flatMap(text)
+        guard let cohesion = quality.cohesion, node.nodeType == cohesion.memberAccessNodeType,
+              node.child(byFieldName: cohesion.objectField).flatMap(text) == cohesion.receiverText else { return nil }
+        return node.child(byFieldName: cohesion.propertyField).flatMap(text)
     }
 
     /// Reports whether a class member is declared `static`.
@@ -59,6 +58,7 @@ extension TreeSitterQualityCollector {
     /// - Parameter member: The class-body member node.
     /// - Returns: Whether one of its tokens is the `static` keyword.
     private func isStatic(_ member: Node) -> Bool {
-        (0..<member.childCount).contains { member.child(at: $0)?.nodeType == quality.cohesion.staticKeyword }
+        guard let keyword = quality.cohesion?.staticKeyword else { return false }
+        return (0..<member.childCount).contains { member.child(at: $0)?.nodeType == keyword }
     }
 }

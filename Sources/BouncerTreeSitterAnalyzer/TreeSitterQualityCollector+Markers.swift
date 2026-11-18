@@ -11,9 +11,9 @@ extension TreeSitterQualityCollector {
     /// - Returns: The smells found at this node; usually none.
     func markers(at node: Node, type: String) -> [MarkerKind] {
         var found = quality.markers.filter { matches($0, node: node, type: type) }.map(\.kind)
-        if type == quality.ternaryNodeType, hasTernaryAncestor(node) { found.append(.nestedTernary) }
-        if type == quality.catchNodeType, isEmptyBlock(node.child(byFieldName: "body")) { found.append(.emptyCatch) }
-        if type == quality.numberNodeType, isMagicNumber(node) { found.append(.magicNumber) }
+        if type == quality.complexity.ternaryNodeType, hasTernaryAncestor(node) { found.append(.nestedTernary) }
+        if type == quality.statements.catchNodeType, isEmptyBlock(catchBody(of: node)) { found.append(.emptyCatch) }
+        if quality.numbers.literalNodeTypes.contains(type), isMagicNumber(node) { found.append(.magicNumber) }
         return found
     }
 
@@ -24,12 +24,13 @@ extension TreeSitterQualityCollector {
     ///   - type: Its type.
     /// - Returns: The unreachable statement, or `nil` if the block has none.
     func unreachableStatement(in node: Node, type: String) -> Node? {
-        guard quality.blockNodeTypes.contains(type) else { return nil }
+        let spec = quality.statements
+        guard spec.blockNodeTypes.contains(type) else { return nil }
         let children = (0..<node.namedChildCount).compactMap { node.namedChild(at: $0) }
-        guard let jump = children.firstIndex(where: { quality.jumpNodeTypes.contains($0.nodeType ?? "") }) else {
+        guard let jump = children.firstIndex(where: { spec.jumpNodeTypes.contains($0.nodeType ?? "") }) else {
             return nil
         }
-        return children[(jump + 1)...].first { !quality.hoistedNodeTypes.contains($0.nodeType ?? "") }
+        return children[(jump + 1)...].first { !spec.hoistedNodeTypes.contains($0.nodeType ?? "") }
     }
 
     /// Reports whether a node matches a marker rule's type and, if given, exact text.
@@ -51,18 +52,30 @@ extension TreeSitterQualityCollector {
     private func hasTernaryAncestor(_ node: Node) -> Bool {
         var current = node.parent
         while let parent = current, let type = parent.nodeType, !spec.functionNodeTypes.contains(type) {
-            if type == quality.ternaryNodeType { return true }
+            if type == quality.complexity.ternaryNodeType { return true }
             current = parent.parent
         }
         return false
     }
 
-    /// Reports whether a block has no statements and no explanatory comment.
+    /// Finds a `catch` clause's body: its `body` field, or else its first block child, as in Python.
+    ///
+    /// - Parameter node: The catch clause.
+    /// - Returns: The body block, if found.
+    private func catchBody(of node: Node) -> Node? {
+        if let body = node.child(byFieldName: "body") { return body }
+        let children = (0..<node.namedChildCount).compactMap { node.namedChild(at: $0) }
+        return children.first { quality.statements.blockNodeTypes.contains($0.nodeType ?? "") }
+    }
+
+    /// Reports whether a block does nothing: no statements beyond no-ops like `pass`, and no comment.
     ///
     /// - Parameter block: The block, if present.
     /// - Returns: Whether it's present and empty.
     private func isEmptyBlock(_ block: Node?) -> Bool {
-        block?.namedChildCount == 0
+        guard let block else { return false }
+        let children = (0..<block.namedChildCount).compactMap { block.namedChild(at: $0) }
+        return children.allSatisfy { quality.statements.noOpNodeTypes.contains($0.nodeType ?? "") }
     }
 
     /// Reports whether a number literal is neither trivially small nor named by what holds it.
@@ -70,13 +83,22 @@ extension TreeSitterQualityCollector {
     /// - Parameter node: The number literal.
     /// - Returns: Whether it's a magic number.
     private func isMagicNumber(_ node: Node) -> Bool {
-        guard let value = text(node), !quality.allowedNumbers.contains(value) else { return false }
+        guard let value = text(node), !quality.numbers.allowed.contains(value) else { return false }
+        return !isNamed(node)
+    }
+
+    /// Walks up through arithmetic, grouping, and call arguments to see whether something names a number.
+    ///
+    /// - Parameter node: The number literal.
+    /// - Returns: Whether a naming parent, such as a declaration or keyword argument, encloses it.
+    private func isNamed(_ node: Node) -> Bool {
+        let spec = quality.numbers
         var current = node.parent
         while let parent = current, let type = parent.nodeType {
-            if quality.numberNamingParents.contains(type) { return false }
-            guard quality.numberTransparentParents.contains(type) else { return true }
+            if spec.namingParents.contains(type) { return true }
+            guard spec.transparentParents.contains(type) else { return false }
             current = parent.parent
         }
-        return true
+        return false
     }
 }

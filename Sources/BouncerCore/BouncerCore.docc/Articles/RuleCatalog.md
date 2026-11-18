@@ -52,10 +52,13 @@ count; Go, for instance, has no equivalent. `high-coupling` counts import statem
 coupling proxy, not an actual dependency graph; a real cross-file coupling metric is out of
 scope for a rule engine that only ever looks at one file at a time.
 
-## Function shape and single-location smells (Swift, TypeScript, JavaScript)
+## Function shape and single-location smells
 
-These run on the parse trees of Swift, TypeScript (including TSX), and JavaScript (including
-JSX) only; Python, Go, and the heuristic languages don't get them yet.
+These run on every parsed language: Swift, TypeScript (including TSX), JavaScript (including
+JSX), Python, and Go, wherever the language has the construct. Go has no classes, ternaries, or
+`catch`, so `lack-of-cohesion`, `nested-ternary`, and `empty-catch` don't apply to it; in Python,
+an `except` that only `pass`es counts as empty, and methods take `self`, which isn't counted as a
+parameter. The heuristic languages don't get these rules.
 
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|

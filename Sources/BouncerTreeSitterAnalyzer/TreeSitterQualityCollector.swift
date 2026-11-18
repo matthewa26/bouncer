@@ -34,12 +34,12 @@ struct TreeSitterQualityCollector {
         var tally = Tally()
         walkChildren(of: body, depth: Depth(), tally: &tally)
         return FunctionMetrics(
-            parameterCount: parameters(of: node).count, booleanParameterCount: flagCount(of: node),
+            parameterCount: weight(of: parameters(of: node)), booleanParameterCount: flagCount(of: node),
             returnCount: tally.returns, cognitiveComplexity: tally.score, maxNestingDepth: tally.maxDepth
         )
     }
 
-    /// Lists a function's declared parameters, ignoring comments between them.
+    /// Lists a function's declared parameters, skipping comments, separators, and receivers like `self`.
     ///
     /// - Parameter node: The function node.
     /// - Returns: The parameter nodes; an arrow function's bare `x => …` parameter is the one entry.
@@ -47,8 +47,21 @@ struct TreeSitterQualityCollector {
         guard let list = node.child(byFieldName: "parameters") else {
             return node.child(byFieldName: "parameter").map { [$0] } ?? []
         }
+        let spec = quality.parameters
         let children = (0..<list.namedChildCount).compactMap { list.namedChild(at: $0) }
-        return children.filter { $0.nodeType != "comment" }
+        return children.filter { !spec.ignoredNodeTypes.contains($0.nodeType ?? "") }
+            .filter { !spec.receiverNames.contains(text($0) ?? "") }
+    }
+
+    /// Counts the parameters in a list of parameter nodes, where one Go node can declare several names.
+    ///
+    /// - Parameter parameters: Parameter nodes.
+    /// - Returns: How many parameters they declare.
+    private func weight(of parameters: [Node]) -> Int {
+        guard let nameType = quality.parameters.groupedNameNodeType else { return parameters.count }
+        return parameters.map { parameter in
+            max(1, (0..<parameter.namedChildCount).filter { parameter.namedChild(at: $0)?.nodeType == nameType }.count)
+        }.reduce(0, +)
     }
 
     /// Counts a function's boolean flag parameters; an initializer has none, since storing a flag
@@ -58,7 +71,7 @@ struct TreeSitterQualityCollector {
     /// - Returns: The flag parameter count.
     private func flagCount(of node: Node) -> Int {
         let name = node.child(byFieldName: "name").flatMap(text) ?? ""
-        return quality.initializerNames.contains(name) ? 0 : parameters(of: node).filter(isBooleanFlag).count
+        return quality.initializerNames.contains(name) ? 0 : weight(of: parameters(of: node).filter(isBooleanFlag))
     }
 
     /// Reports whether a parameter is a boolean flag, by its type annotation or a `true`/`false` default.
@@ -66,13 +79,11 @@ struct TreeSitterQualityCollector {
     /// - Parameter parameter: The parameter node.
     /// - Returns: Whether it's a boolean flag.
     private func isBooleanFlag(_ parameter: Node) -> Bool {
-        let flag = quality.booleanParameter
-        let type = parameter.child(byFieldName: flag.typeField).flatMap(text)
-        if type?.replacingOccurrences(of: " ", with: "") == flag.typeText.replacingOccurrences(of: " ", with: "") {
-            return true
-        }
-        let defaults = flag.defaultFields.compactMap { parameter.child(byFieldName: $0)?.nodeType }
-        return defaults.contains { flag.literalNodeTypes.contains($0) }
+        let spec = quality.parameters
+        let type = parameter.child(byFieldName: spec.booleanTypeField).flatMap(text)?.filter { $0 != " " }
+        if type == spec.booleanTypeText.filter({ $0 != " " }) { return true }
+        let defaults = spec.defaultFields.compactMap { parameter.child(byFieldName: $0)?.nodeType }
+        return defaults.contains { spec.booleanLiteralNodeTypes.contains($0) }
     }
 
     /// Walks every child of a node at a given depth.
@@ -97,7 +108,7 @@ struct TreeSitterQualityCollector {
     private func walk(_ node: Node, depth: Depth, tally: inout Tally) {
         guard let type = node.nodeType else { return }
         tally.score += increment(for: node, type: type, nesting: depth.nesting)
-        if type == quality.returnNodeType, !depth.inNestedFunction { tally.returns += 1 }
+        if type == quality.complexity.returnNodeType, !depth.inNestedFunction { tally.returns += 1 }
         let childDepth = nestedDepth(below: node, type: type, from: depth)
         tally.maxDepth = max(tally.maxDepth, childDepth.control)
         walkChildren(of: node, depth: childDepth, tally: &tally)
@@ -109,12 +120,16 @@ struct TreeSitterQualityCollector {
     ///   - node: The node.
     ///   - type: Its type.
     ///   - nesting: Its nesting level.
-    /// - Returns: One plus nesting for a nesting structure or ternary, one for `else` or a new run of
-    ///   logical operators, and zero otherwise; an `else if`'s `if` scores nothing, since its `else` did.
+    /// - Returns: One plus nesting for a nesting structure or ternary, plus one for each `else` (a clause,
+    ///   or Go's `alternative` field) or new run of logical operators; an `else if`'s own `if` adds nothing
+    ///   for itself, since its `else` already did.
     private func increment(for node: Node, type: String, nesting: Int) -> Int {
-        if isNestingStructure(node, type: type) || type == quality.ternaryNodeType { return 1 + nesting }
-        if type == quality.elseNodeType || startsLogicalRun(node, type: type) { return 1 }
-        return 0
+        let spec = quality.complexity
+        var score = isNestingStructure(node, type: type) || type == spec.ternaryNodeType ? 1 + nesting : 0
+        if spec.elseNodeTypes.contains(type) || startsLogicalRun(node, type: type) { score += 1 }
+        if let field = spec.alternativeField, spec.nestingNodeTypes.contains(type),
+           node.child(byFieldName: field) != nil { score += 1 }
+        return score
     }
 
     /// Computes the depth a node's children sit at.
@@ -129,7 +144,7 @@ struct TreeSitterQualityCollector {
         if isNestingStructure(node, type: type) {
             next.nesting += 1
             next.control += 1
-        } else if spec.functionNodeTypes.contains(type) {
+        } else if spec.functionNodeTypes.contains(type) || quality.complexity.closureNodeTypes.contains(type) {
             next.nesting += 1
             next.inNestedFunction = true
         }
@@ -143,7 +158,8 @@ struct TreeSitterQualityCollector {
     ///   - type: Its type.
     /// - Returns: Whether it scores with a nesting penalty and deepens nesting.
     private func isNestingStructure(_ node: Node, type: String) -> Bool {
-        quality.nestingNodeTypes.contains(type) && node.parent?.nodeType != quality.elseNodeType
+        let spec = quality.complexity
+        return spec.nestingNodeTypes.contains(type) && !spec.elseIfParentTypes.contains(node.parent?.nodeType ?? "")
     }
 
     /// Reports whether a node starts a new run of logical operators.
@@ -153,7 +169,7 @@ struct TreeSitterQualityCollector {
     ///   - type: Its type.
     /// - Returns: Whether it's a logical operator whose parent isn't the same operator.
     private func startsLogicalRun(_ node: Node, type: String) -> Bool {
-        guard type == spec.logicalOperatorNodeType, let op = logicalOperator(of: node) else { return false }
+        guard type == quality.complexity.logicalNodeType, let op = logicalOperator(of: node) else { return false }
         guard let parent = node.parent, parent.nodeType == type else { return true }
         return logicalOperator(of: parent) != op
     }
@@ -161,9 +177,9 @@ struct TreeSitterQualityCollector {
     /// Reads a binary node's operator, if it's a logical one.
     ///
     /// - Parameter node: The binary-expression node.
-    /// - Returns: `&&`, `||`, or `??`, or `nil` for any other operator.
+    /// - Returns: The operator if it's one of the language's logical operators, otherwise `nil`.
     private func logicalOperator(of node: Node) -> String? {
         let op = node.child(byFieldName: "operator").flatMap(text)
-        return ["&&", "||", "??"].contains(op) ? op : nil
+        return op.flatMap { quality.complexity.logicalOperators.contains($0) ? $0 : nil }
     }
 }

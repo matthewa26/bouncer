@@ -103,3 +103,14 @@ swift package generate-documentation --target BouncerCore --output-path docs
 ```
 
 It deploys automatically to GitHub Pages on every push to `main` (see `.github/workflows/docs.yml`).
+
+### Windows tests on a Mac
+
+`Scripts/windows-vm/windows-vm.sh` runs the Windows tests locally, in a QEMU Windows 11 ARM64 VM on Apple Silicon (`brew install qemu wimlib`). Download the Windows 11 Arm64 ISO from Microsoft, then:
+
+```sh
+Scripts/windows-vm/windows-vm.sh create ~/Downloads/Windows11_*_arm64_*.iso   # once: hands-off install and provisioning, about 20 minutes
+Scripts/windows-vm/windows-vm.sh test                                          # every run: build, test, package, and installer tests
+```
+
+`create` installs Windows unattended (accepting its license and creating a local `bouncer` account), then the VS Build Tools, Swift, Git, PowerShell 7, and OpenSSH. `test` boots a throwaway copy, copies in your working tree over SSH, and runs `swift build`, `swift test`, the release packaging script, and both installer tests under Windows PowerShell 5.1 and PowerShell 7. After editing the provisioning script, `reprovision` applies the change without reinstalling. VM state lives in `~/.cache/bouncer-windows-vm`.

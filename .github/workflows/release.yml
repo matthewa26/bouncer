@@ -74,24 +74,9 @@ jobs:
         with:
           swift-version: swift-${{ env.SWIFT_VERSION }}-release
           swift-build: ${{ env.SWIFT_VERSION }}-RELEASE
-      - run: swift build -c release
-      - name: Package with the Swift runtime
+      - name: Build and package with the Swift runtime
         shell: pwsh
-        run: |
-          # The swift.org installer puts the runtime DLLs on PATH; ship them next to the exe so
-          # bouncer.exe runs on machines without Swift.
-          $runtime = Split-Path (where.exe swiftCore.dll | Select-Object -First 1)
-          $bin = swift build -c release --show-bin-path
-          New-Item -ItemType Directory -Force -Path package, dist | Out-Null
-          Copy-Item (Join-Path $bin 'bouncer.exe') package/
-          Copy-Item (Join-Path $runtime '*.dll') package/
-          Compress-Archive -Path package/* -DestinationPath dist/bouncer-windows-x86_64.zip
-      - name: Check the packaged exe runs without the toolchain on PATH
-        shell: pwsh
-        run: |
-          Expand-Archive dist/bouncer-windows-x86_64.zip -DestinationPath check
-          $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
-          ./check/bouncer.exe --version
+        run: ./Scripts/package-windows.ps1 -Output dist/bouncer-windows-x86_64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: bouncer-windows-x86_64

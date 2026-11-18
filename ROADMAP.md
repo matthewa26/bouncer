@@ -10,11 +10,26 @@ The **Scope** column says what analysis a check needs:
 
 ## 0. What's enforced today
 
-**This repo's `.bouncer`:** `long-function` ≤ 10 lines (error) and `missing-documentation` with scope `all` (error). Excludes `Tests/**`, `**/*.md`, `.build/**`, and `Sources/CTreeSitterPython/**`.
+**This repo's `.bouncer`:** `long-function` ≤ 10 lines (error) and `missing-documentation` with scope `all` (error); `swift-debug-print` is off, since a CLI writes its output with `print`. Excludes `Tests/**`, `**/*.md`, `.build/**`, and the vendored `Sources/CTreeSitter*` grammars.
 
-**Kirby profile:** coverage ≥ 90%, function ≤ 10 lines, cyclomatic complexity ≤ 6, ≤ 8 imports, ≤ 3 switch branches, and naming, docs and god-class checks, all as errors.
+**Kirby profile:** coverage ≥ 90%, function ≤ 10 lines, cyclomatic complexity ≤ 6, cognitive complexity ≤ 8, ≤ 3 parameters, ≤ 3 returns, nesting ≤ 3, ≤ 8 imports, ≤ 3 switch branches, naming, docs and god-class checks, and every single-location smell rule (`force-unwrap`, `force-try`, `force-cast`, `implicitly-unwrapped-optional`, `non-null-assertion`, `explicit-any`, `nested-ternary`, `empty-catch`, `unreachable-code`, `magic-number`), all as errors.
 
-**Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example).
+**Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16 by indentation, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example). On Swift, TypeScript and JavaScript also: ≤ 5 parameters, ≤ 4 returns, cognitive complexity ≤ 15, control-flow nesting ≤ 4.
+
+**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Python and Go are parsed too, but don't yet get the function-shape and single-location rules added for TS/JS/Swift. Everything else is heuristic.
+
+### 0.1 TypeScript type safety
+
+| ✓ | Check | Scope | Notes |
+|---|---|---|---|
+| ✅ | Explicit `any` (`explicit-any`) | F | |
+| ✅ | Non-null assertion `x!` (`non-null-assertion`) | F | |
+| ✅ | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no reason (`ts-ignore-without-reason`) | F | |
+| ✅ | Double cast `as unknown as T` (`ts-double-cast`) | F | |
+| ✅ | `var` (`js-var`) | F | |
+| ⬜ | Floating promise (missing `await`/`.catch`) | T | Needs type information; see section 10 |
+| ⬜ | `enum` where a union type would do | F | Style preference; would be opt-in |
+| ⬜ | Unused exports | X | |
 
 ---
 
@@ -25,12 +40,12 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Long function (`long-function`) | F | |
 | ✅ | Long file (`file-length`) | F | |
 | ✅ | Long line (`long-lines`) | F | |
-| ⬜ | Long parameter list | F | Usually > 3–4 params. Kirby-style limit: 3 |
+| ✅ | Long parameter list (`long-parameter-list`) | F | Default 5, Kirby 3. Swift, TS, JS |
 | ⬜ | Large class: line count per type | F | `god-class` counts members, not lines |
 | ⬜ | Too many methods per type | F | |
 | ⬜ | Too many fields / stored properties per type | F | |
 | ⬜ | Too many types per file | F | One primary type per file |
-| ⬜ | Too many return statements per function | F | |
+| ✅ | Too many return statements per function (`too-many-returns`) | F | Default 4, Kirby 3. Swift, TS, JS |
 | ⬜ | Long lambda/closure body | F | |
 | ⬜ | Long boolean expression (number of `&&`/`\|\|` operands) | F | |
 | ⬜ | Long method chain (train wreck) | F | Also a Law of Demeter signal |
@@ -43,12 +58,12 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|---|
 | ✅ | Cyclomatic complexity | F | Exact for Swift, heuristic elsewhere |
 | ✅ | Deep nesting by indentation (`deep-nesting`) | F | |
-| ⬜ | Cognitive complexity (SonarSource) | F | Penalizes nesting and breaks in linear flow. A better readability signal than cyclomatic |
-| ⬜ | Nesting by control-flow depth, not indentation | T | Default 16 is very loose. Typical limit is 3–4 |
+| ✅ | Cognitive complexity, SonarSource-style (`cognitive-complexity`) | F | Default 15, Kirby 8. Swift, TS, JS |
+| ✅ | Nesting by control-flow depth, not indentation (`nesting-depth`) | T | Default 4, Kirby 3. Swift, TS, JS |
 | ⬜ | NPath complexity | F | Number of acyclic execution paths |
 | ⬜ | Halstead volume / difficulty / effort | F | |
 | ⬜ | Maintainability Index | F | Combines Halstead, cyclomatic and LOC |
-| ⬜ | Nested ternaries | F | |
+| ✅ | Nested ternaries (`nested-ternary`) | F | Swift, TS, JS |
 | ⬜ | Arrow code: deep `if` pyramids; suggest guard clauses | F | |
 | ⬜ | `else` after `return`/`throw` | F | |
 | ⬜ | Too many `break`/`continue` in a loop | F | |
@@ -59,9 +74,9 @@ The **Scope** column says what analysis a check needs:
 ### Bloaters
 | ✓ | Smell | Scope | How to detect |
 |---|---|---|---|
-| ✅ | Large class / god class | F | `god-class` (Swift and Python only) |
+| ✅ | Large class / god class | F | `god-class` (Swift, TS, JS, Python) |
 | ✅ | Long method | F | `long-function` |
-| ⬜ | Long parameter list | F | Parameter count |
+| ✅ | Long parameter list | F | `long-parameter-list` |
 | ⬜ | Primitive obsession | T | Many `String`/`Int` params; stringly-typed IDs, money, dates |
 | ⬜ | Data clumps | X | The same 3+ params or fields appearing together repeatedly |
 
@@ -89,7 +104,7 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Duplicate code across files | X | Token-based clone detection |
 | ⬜ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) | F/X | Normalize identifiers and literals before comparing |
 | ⬜ | Dead code: unused private functions, vars, params, imports | F/T | |
-| ⬜ | Unreachable code after `return`/`throw`/`break` | F | |
+| ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS |
 | ⬜ | Speculative generality: protocol/interface with one implementation, unused params, hooks | X | Matches your "no single-implementation interfaces" principle |
 | ⬜ | Lazy class: a type that does almost nothing | F | Very few members |
 | ⬜ | Data class: only fields and accessors, no behavior | F | |
@@ -161,7 +176,8 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Negated booleans (`isNotEnabled`, `!notReady`) | F |
 | ⬜ | Hungarian notation or type-in-name (`strName`, `userList`) | F |
 | ⬜ | Abbreviations not in an allowlist | F |
-| ⬜ | Magic numbers / magic strings | F |
+| ✅ | Magic numbers (`magic-number`); Swift, TS, JS | F |
+| ⬜ | Magic strings | F |
 | ⬜ | Boolean parameters (flag arguments) | F |
 | ⬜ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) | X |
 | ⬜ | Inconsistent file name vs. primary type name | F |
@@ -183,10 +199,12 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Python bare `except:` | F |
 | ✅ | Java broad `catch (Exception)` | F |
 | ✅ | Go `panic()` and discarded returns | F |
-| ⬜ | Empty catch block (swallowed errors), all languages | F |
-| ⬜ | Swift `try!`, force-unwrap `!`, `as!`, implicitly unwrapped optionals | F |
-| ⬜ | Swift `fatalError`/`precondition` in library code | F |
-| ⬜ | `try?` that silently discards errors | F |
+| ✅ | Empty catch block (`empty-catch`); Swift, TS, JS | F |
+| ⬜ | Empty catch block in the remaining languages | F |
+| ✅ | Swift `try!`, force-unwrap `!`, `as!`, implicitly unwrapped optionals (`force-try`, `force-unwrap`, `force-cast`, `implicitly-unwrapped-optional`) | F |
+| ✅ | Swift `fatalError` (`swift-fatal-error`) | F |
+| ⬜ | Swift `precondition`, and limiting either to library (non-app) code | F |
+| ✅ | Swift `try?` that silently discards errors (`swift-discarded-try`) | F |
 | ⬜ | Go `if err != nil { return err }` with no wrapping context | F |
 | ⬜ | Returning `null`/`nil` where an empty collection would do | T |
 | ⬜ | Error message without context | F |
@@ -196,7 +214,7 @@ The **Scope** column says what analysis a check needs:
 
 | ✓ | Check | Scope |
 |---|---|---|
-| ⬜ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` | F |
+| ✅ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` (`swift-unchecked-sendable`) | F |
 | ⬜ | `DispatchQueue.main.sync` and `semaphore.wait()` on async paths | F |
 | ⬜ | Mutable shared state without a lock or actor | T |
 | ⬜ | Fire-and-forget `Task {}` with no cancellation handling | F |
@@ -218,7 +236,8 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Disabled TLS verification | F |
 | ⬜ | Path traversal: user input joined into a file path | T |
 | ⬜ | Unsafe deserialization (`pickle.loads`, `yaml.load`) | F |
-| ⬜ | Python `eval`/`exec`; JS `eval`/`new Function`/`innerHTML` | F |
+| ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F |
+| ⬜ | Python `eval`/`exec` | F |
 | ⬜ | Logging of secrets or PII | T |
 
 ## 12. Testing
@@ -245,7 +264,8 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | CRLF line endings | F |
 | ⬜ | Multiple consecutive blank lines | F |
 | ⬜ | Unsorted or duplicate imports | F |
-| ⬜ | Debug leftovers in all languages (`print`, `dump`, `NSLog`, `fmt.Println`) | F. Only JS is covered today |
+| ✅ | Debug leftovers in Swift (`swift-debug-print`) and JS (`js-console-log`) | F |
+| ⬜ | Debug leftovers in the remaining languages (`NSLog`, `fmt.Println`, Python `print`) | F |
 
 ## 14. Process and churn (git-aware)
 
@@ -261,8 +281,7 @@ The **Scope** column says what analysis a check needs:
 
 ## Notes on the current implementation
 
-- **Doc gap:** `c-gets-usage` and `c-unsafe-string-function` exist in `LanguageProfiles.swift` but are missing from the Rule Catalog page.
-- **Coverage gap:** `god-class` runs only on Swift and Python.
+- **Coverage gap:** `god-class` doesn't run on Go (no classes). The function-shape and single-location rules run only on Swift, TypeScript and JavaScript; Python and Go have parse trees, so extending them means writing a `TreeSitterQualitySpec` for each, with no new rule code.
 - **Precision gap:** duplicate detection is exact-match and intra-file only, and coupling is an import count. Both are labelled as proxies in the docs.
 - **Architecture constraint:** every ⬜ marked **X** needs a repo-wide analysis pass, because the rule engine sees only one file at a time. Adding that pass is the main structural change before the cross-file smells (clones, data clumps, cycles, DIT, shotgun surgery) become possible.
-- **Easiest wins:** the **F** items can be added as pattern rules. For example magic numbers, empty catch, Swift `try!`/`!`/`as!`, weak crypto, missing EOF newline, and debug prints are each a few lines of `LanguageProfiles` data. Parameter count, cognitive complexity, and LCOM4 fit the existing AST analyzers.
+- **Easiest wins:** many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto, missing EOF newline, and the remaining debug prints. Shared AST rules live once in `DeclarationFindings`: a new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it. LCOM4 and boolean flag parameters fit this model next.

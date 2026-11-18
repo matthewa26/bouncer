@@ -10,7 +10,8 @@ import BouncerRules
 /// from the parsed tree instead of approximated from indentation.
 public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     public let supportedLanguage: Language = .swift
-    private static let profile = LanguageProfile(lineCommentPrefixes: ["//"])
+    private static let profile = LanguageProfiles.profile(for: .swift)
+    private static let naming = NamingPatterns(function: "^[a-z_][A-Za-z0-9_]*$", type: "^[A-Z][A-Za-z0-9_]*$")
 
     /// Creates a Swift syntax analyzer.
     public init() {}
@@ -26,8 +27,11 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
         let converter = SourceLocationConverter(fileName: file.path.path, tree: tree)
         let builder = SwiftDeclarationSummaryBuilder(converter: converter)
         builder.walk(tree)
-        let summary = builder.summary()
-        return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
+        let markers = SwiftMarkerCollector(converter: converter)
+        markers.walk(tree)
+        let summary = builder.summary(markers: markers.markers)
+        return genericFindings(file: file, context: context)
+            + DeclarationFindings.all(summary, file: file, context: context, naming: Self.naming)
     }
 
     /// Runs the language-agnostic heuristic rules shared with every other language.
@@ -41,26 +45,7 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
             FileLengthRule(profile: Self.profile), LongLineRule(), TodoDensityRule(),
             DuplicateBlockRule(), TrailingWhitespaceRule(), SecretPatternRule(), DeepNestingRule()
         ]
-        return rules.flatMap { $0.evaluate(file: file, context: context) }
-    }
-
-    private typealias ASTRule = @Sendable (SwiftDeclarationSummary, SourceFile, AnalysisContext) -> [Finding]
-
-    /// Every AST-based Swift rule, run in this order against a collected declaration summary.
-    private static let astRules: [ASTRule] = [
-        SwiftASTFindings.forceUnwrap, SwiftASTFindings.forceTry, SwiftASTFindings.shared
-    ]
-
-    /// Runs every AST-based Swift rule against a collected declaration summary.
-    ///
-    /// - Parameters:
-    ///   - summary: The declarations collected from the file's syntax tree.
-    ///   - file: The file being analyzed.
-    ///   - context: Repo-wide state, including every rule's resolved settings.
-    /// - Returns: The combined findings from every AST-based rule.
-    private func astFindings(
-        _ summary: SwiftDeclarationSummary, file: SourceFile, context: AnalysisContext
-    ) -> [Finding] {
-        Self.astRules.flatMap { $0(summary, file, context) }
+        let customRules = CustomRuleFactory.makeRules(from: Self.profile.extraPatternRules)
+        return (rules + customRules).flatMap { $0.evaluate(file: file, context: context) }
     }
 }

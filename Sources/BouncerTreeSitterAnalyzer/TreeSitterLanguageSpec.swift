@@ -5,6 +5,7 @@ import CTreeSitterTypeScript
 import CTreeSitterTSX
 import CTreeSitterJavaScript
 import BouncerCore
+import BouncerRules
 
 /// How a language marks a declaration as documented.
 enum DocumentationStyle: Sendable {
@@ -24,6 +25,33 @@ enum VisibilityConvention: Sendable {
     case leadingCase
     /// An `export` wrapper or public class member is public; `private`/`#name` is private, as in TypeScript.
     case exportKeyword
+}
+
+/// A node type that always marks a smell, optionally only when its text matches exactly.
+struct NodeMarker: Sendable {
+    let nodeType: String
+    let text: String?
+    let kind: MarkerKind
+}
+
+/// The node types behind the function metrics and marker rules, for languages that support them.
+///
+/// Languages without one (currently Python and Go) skip `long-parameter-list`, `too-many-returns`,
+/// `cognitive-complexity`, `nesting-depth`, and every marker rule.
+struct TreeSitterQualitySpec: Sendable {
+    let nestingNodeTypes: Set<String>
+    let elseNodeType: String
+    let ternaryNodeType: String
+    let returnNodeType: String
+    let catchNodeType: String
+    let blockNodeTypes: Set<String>
+    let jumpNodeTypes: Set<String>
+    let hoistedNodeTypes: Set<String>
+    let numberNodeType: String
+    let allowedNumbers: Set<String>
+    let numberNamingParents: Set<String>
+    let numberTransparentParents: Set<String>
+    let markers: [NodeMarker]
 }
 
 /// A call expression that loads a module, such as CommonJS `require("x")`.
@@ -59,6 +87,8 @@ public struct TreeSitterLanguageSpec: Sendable {
     var declarationWrapperNodeTypes: Set<String> = []
     /// Parent node types that name an otherwise anonymous function, mapped to the naming field.
     var nameSourceParents: [String: String] = [:]
+    /// The node types behind the function metrics and marker rules, or `nil` to skip them.
+    var quality: TreeSitterQualitySpec?
 
     /// Picks the grammar for a file, honoring any per-extension override.
     ///
@@ -116,7 +146,8 @@ extension TreeSitterLanguageSpec {
         switchBranchNodeTypes: ["switch_case"], functionNamePattern: "^[_$]*[A-Za-z][A-Za-z0-9$]*$",
         typeNamePattern: "^[A-Z][A-Za-z0-9]*$", documentationStyle: .jsdoc, visibilityConvention: .exportKeyword,
         importCall: ImportCall(nodeType: "call_expression", functionNames: ["require"]),
-        declarationWrapperNodeTypes: javascriptWrapperNodeTypes, nameSourceParents: javascriptNameSourceParents
+        declarationWrapperNodeTypes: javascriptWrapperNodeTypes, nameSourceParents: javascriptNameSourceParents,
+        quality: javascriptQuality
     )
 
     /// The TypeScript grammar's node types and conventions, with TSX for `.tsx` files.
@@ -130,6 +161,31 @@ extension TreeSitterLanguageSpec {
         spec.grammarOverrides = ["tsx": SwiftTreeSitter.Language(language: tree_sitter_tsx())]
         return spec
     }()
+
+    private static let javascriptQuality = TreeSitterQualitySpec(
+        nestingNodeTypes: [
+            "if_statement", "for_statement", "for_in_statement", "while_statement", "do_statement",
+            "switch_statement", "catch_clause"
+        ],
+        elseNodeType: "else_clause", ternaryNodeType: "ternary_expression", returnNodeType: "return_statement",
+        catchNodeType: "catch_clause", blockNodeTypes: ["statement_block", "switch_case", "switch_default"],
+        jumpNodeTypes: ["return_statement", "throw_statement", "break_statement", "continue_statement"],
+        hoistedNodeTypes: ["function_declaration", "generator_function_declaration", "comment", "empty_statement"],
+        numberNodeType: "number", allowedNumbers: ["0", "1", "2"],
+        numberNamingParents: [
+            "variable_declarator", "pair", "public_field_definition", "field_definition", "enum_assignment",
+            "assignment_pattern", "required_parameter", "optional_parameter", "assignment_expression",
+            "switch_case", "literal_type"
+        ],
+        numberTransparentParents: [
+            "parenthesized_expression", "unary_expression", "binary_expression", "arguments", "call_expression",
+            "new_expression", "array"
+        ],
+        markers: [
+            NodeMarker(nodeType: "non_null_expression", text: nil, kind: .nonNullAssertion),
+            NodeMarker(nodeType: "predefined_type", text: "any", kind: .explicitAny)
+        ]
+    )
 
     private static let javascriptClassNodeTypes: Set<String> = [
         "class_declaration", "abstract_class_declaration", "class"

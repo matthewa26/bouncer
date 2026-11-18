@@ -19,13 +19,84 @@ public enum DeclarationFindings {
     public static func all(
         _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext, naming: NamingPatterns
     ) -> [Finding] {
-        longFunction(summary, file: file, context: context)
+        markerFindings(summary, file: file, context: context)
+            + longFunction(summary, file: file, context: context)
             + cyclomaticComplexity(summary, file: file, context: context)
             + missingDocumentation(summary, file: file, context: context)
             + namingConvention(summary, file: file, context: context, naming: naming)
             + highCoupling(summary, file: file, context: context)
             + switchOnTypeSmell(summary, file: file, context: context)
             + godClass(summary, file: file, context: context)
+            + metricRules.flatMap { metricFindings($0, summary, file: file, context: context) }
+    }
+
+    /// Flags every collected marker, grouped by kind in `MarkerKind.allCases` order.
+    ///
+    /// - Parameters:
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including each marker rule's resolved settings.
+    /// - Returns: One finding per marker whose rule is enabled.
+    public static func markerFindings(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
+    ) -> [Finding] {
+        MarkerKind.allCases.flatMap { kind -> [Finding] in
+            let settings = context.settings(for: kind.ruleID)
+            guard settings.enabled else { return [] }
+            return summary.markers.filter { $0.kind == kind }.map {
+                finding(kind.ruleID, $0.line, kind.message, settings.severity, file)
+            }
+        }
+    }
+
+    /// A per-function limit on one `FunctionMetrics` measurement.
+    struct MetricRule: Sendable {
+        let ruleID: String
+        let parameter: String
+        let defaultLimit: Int
+        let value: @Sendable (FunctionMetrics) -> Int
+        let describe: @Sendable (Int) -> String
+    }
+
+    static let metricRules: [MetricRule] = [
+        MetricRule(
+            ruleID: "long-parameter-list", parameter: "maxParameters", defaultLimit: 5,
+            value: { $0.parameterCount }, describe: { "\($0) parameters" }
+        ),
+        MetricRule(
+            ruleID: "too-many-returns", parameter: "maxReturns", defaultLimit: 4,
+            value: { $0.returnCount }, describe: { "\($0) return statements" }
+        ),
+        MetricRule(
+            ruleID: "cognitive-complexity", parameter: "max", defaultLimit: 15,
+            value: { $0.cognitiveComplexity }, describe: { "cognitive complexity \($0)" }
+        ),
+        MetricRule(
+            ruleID: "nesting-depth", parameter: "maxDepth", defaultLimit: 4,
+            value: { $0.maxNestingDepth }, describe: { "control flow nested \($0) deep" }
+        )
+    ]
+
+    /// Flags every measured function over one metric rule's limit.
+    ///
+    /// - Parameters:
+    ///   - rule: The metric and its configured limit.
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including this rule's resolved settings.
+    /// - Returns: One finding per function over the limit.
+    static func metricFindings(
+        _ rule: MetricRule, _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
+    ) -> [Finding] {
+        let settings = context.settings(for: rule.ruleID)
+        guard settings.enabled else { return [] }
+        let limit = settings.parameters.int(rule.parameter, default: rule.defaultLimit)
+        return summary.functions.compactMap { function in
+            guard let metrics = function.metrics, rule.value(metrics) > limit else { return nil }
+            let measured = rule.describe(rule.value(metrics))
+            let message = "Function \"\(function.name)\" has \(measured), over the \(limit) limit."
+            return finding(rule.ruleID, function.startLine, message, settings.severity, file)
+        }
     }
 
     /// Flags every function whose logical line count exceeds `maxLines`.

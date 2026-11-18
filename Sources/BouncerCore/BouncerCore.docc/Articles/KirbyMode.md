@@ -25,6 +25,11 @@ not a lock.
 - `high-coupling` and `god-class` at tighter thresholds than the defaults.
 - `switch-on-type-smell` at a lower branch-count threshold, since a long type-switch is one of
   the clearest signals that a Strategy or State pattern is missing.
+- `long-parameter-list` to 3 parameters, `too-many-returns` to 3 returns,
+  `cognitive-complexity` to 8, and `nesting-depth` to 3 levels, all at `error`.
+- Every single-location smell (`force-unwrap`, `force-try`, `force-cast`,
+  `implicitly-unwrapped-optional`, `non-null-assertion`, `explicit-any`, `nested-ternary`,
+  `empty-catch`, `unreachable-code`, `magic-number`) at `error` rather than `warning`.
 - `coverage.threshold` raised above the generic default.
 
 These numbers are Bouncer's own calibration of that teaching, not published thresholds; the

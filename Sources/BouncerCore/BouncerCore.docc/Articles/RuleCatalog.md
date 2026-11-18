@@ -36,7 +36,7 @@ cheap approximation of clone detection, not a real one.
 
 ## Code quality
 
-These five come from the design-pattern and code-quality catalog taught in OSU CSE 3902.
+These six come from the design-pattern and code-quality catalog taught in OSU CSE 3902.
 
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
@@ -51,6 +51,41 @@ These five come from the design-pattern and code-quality catalog taught in OSU C
 count; Go, for instance, has no equivalent. `high-coupling` counts import statements as a
 coupling proxy, not an actual dependency graph; a real cross-file coupling metric is out of
 scope for a rule engine that only ever looks at one file at a time.
+
+## Function shape and single-location smells (Swift, TypeScript, JavaScript)
+
+These run on the parse trees of Swift, TypeScript (including TSX), and JavaScript (including
+JSX) only; Python, Go, and the heuristic languages don't get them yet.
+
+| Rule ID | Checks | Default severity | Parameters |
+|---|---|---|---|
+| `long-parameter-list` | A function's declared parameter count | warning | `maxParameters` (5) |
+| `too-many-returns` | A function's `return` count, excluding nested functions and closures | warning | `maxReturns` (4) |
+| `cognitive-complexity` | SonarSource-style cognitive complexity, which penalizes nesting | warning | `max` (15) |
+| `nesting-depth` | How deeply `if`/loop/`switch`/`catch` structures nest in a function | warning | `maxDepth` (4) |
+| `nested-ternary` | A ternary inside another ternary | warning | none |
+| `empty-catch` | A `catch` with no statements and no explanatory comment | warning | none |
+| `unreachable-code` | The first statement after `return`/`throw`/`break`/`continue` in a block | warning | none |
+| `magic-number` | A numeric literal other than 0, 1, or 2 that nothing names | warning | none |
+| `force-unwrap` (Swift) | A force unwrap, `x!` | warning | none |
+| `force-try` (Swift) | `try!` | warning | none |
+| `force-cast` (Swift) | `as!` | warning | none |
+| `implicitly-unwrapped-optional` (Swift) | An implicitly unwrapped optional type, `T!` | warning | none |
+| `non-null-assertion` (TypeScript) | A non-null assertion, `x!` | warning | none |
+| `explicit-any` (TypeScript) | An explicit `any` type | warning | none |
+
+`cognitive-complexity` follows SonarSource's scheme: each `if`, loop, `switch`, `catch`, and
+ternary adds one plus its nesting level; `else` and `else if` add one; each run of mixed
+`&&`/`||`/`??` adds one; and closures and nested functions deepen nesting without scoring.
+Recursion and labeled jumps aren't counted.
+
+`magic-number` treats a number as named, and doesn't flag it, when it's the value of a
+`let`/`var`/`const` (including arithmetic, as in `let secondsPerHour = 60 * 60`), a default
+argument, an enum raw value, an object property or dictionary entry, a Swift labeled argument
+such as `timeout: 30`, or a `case` label. A number passed straight into an unlabeled call, such
+as `setTimeout(run, 3000)`, is flagged.
+
+`empty-catch` accepts a comment inside the braces as a deliberate "nothing to do here".
 
 ### `missing-documentation`'s `scope` parameter
 
@@ -83,6 +118,17 @@ mistake in that language, layered on top of the shared rules above:
 | Python | `python-mutable-default-arg` | A mutable (`[]`/`{}`) default argument |
 | TypeScript/JavaScript | `js-console-log` | `console.log`/`debugger` left in |
 | TypeScript/JavaScript | `js-loose-equality` | `==`/`!=` instead of `===`/`!==` |
+| TypeScript/JavaScript | `ts-ignore-without-reason` | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no explanation |
+| TypeScript/JavaScript | `ts-double-cast` | `as unknown as T` |
+| TypeScript/JavaScript | `js-var` | `var` instead of `let`/`const` |
+| TypeScript/JavaScript | `js-eval` | `eval(...)` or `new Function(...)` |
+| TypeScript/JavaScript | `js-raw-html` | `innerHTML`/`outerHTML` assignment, `insertAdjacentHTML`, `dangerouslySetInnerHTML` |
+| Swift | `swift-fatal-error` | `fatalError(...)` |
+| Swift | `swift-unchecked-sendable` | `@unchecked Sendable` or `nonisolated(unsafe)` |
+| Swift | `swift-debug-print` | A `print`/`debugPrint`/`dump` statement |
+| Swift | `swift-discarded-try` | A `try?` whose result is thrown away |
+| C | `c-gets-usage` | `gets(...)`, which can't bound its input |
+| C | `c-unsafe-string-function` | `strcpy`/`strcat`/`sprintf` |
 | PowerShell | `powershell-invoke-expression` | `Invoke-Expression`/`iex` usage |
 | PowerShell | `powershell-plaintext-password` | `-AsPlainText` password conversion |
 | C++ | `cpp-raw-new-delete` | Raw `new`/`delete` instead of a smart pointer |

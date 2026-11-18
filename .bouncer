@@ -1,7 +1,8 @@
 {
   "rules": {
     "long-function": { "enabled": true, "severity": "error", "params": { "maxLines": 10 } },
-    "missing-documentation": { "enabled": true, "severity": "error", "params": { "scope": "all" } }
+    "missing-documentation": { "enabled": true, "severity": "error", "params": { "scope": "all" } },
+    "swift-debug-print": { "enabled": false }
   },
   "exclude": [
     "Tests/**", "**/*.md", ".build/**", "Sources/CTreeSitterPython/**", "Sources/CTreeSitterTypeScript/**",

@@ -1,4 +1,5 @@
 import BouncerCore
+import BouncerRules
 
 /// The `kirby` bundled preset, named for Professor Neil Kirby (OSU CSE 3902,
 /// formerly Bell Labs), whose teaching on simplicity, low coupling and high
@@ -17,8 +18,17 @@ public enum KirbyProfile {
             "missing-documentation": entry(severity: .error, params: ["scope": .string("all")]),
             "high-coupling": entry(severity: .error, params: ["maxImports": .int(8)]),
             "god-class": entry(severity: .error),
-            "switch-on-type-smell": entry(severity: .error, params: ["maxBranches": .int(3)])
-        ]
+            "switch-on-type-smell": entry(severity: .error, params: ["maxBranches": .int(3)]),
+            "long-parameter-list": entry(severity: .error, params: ["maxParameters": .int(3)]),
+            "too-many-returns": entry(severity: .error, params: ["maxReturns": .int(3)]),
+            "cognitive-complexity": entry(severity: .error, params: ["max": .int(8)]),
+            "nesting-depth": entry(severity: .error, params: ["maxDepth": .int(3)])
+        ].merging(smellsAsErrors) { explicit, _ in explicit }
+    )
+
+    /// Single-location smells Kirby mode treats as errors instead of warnings.
+    private static let smellsAsErrors: [String: RuleConfigEntry] = Dictionary(
+        uniqueKeysWithValues: MarkerKind.allCases.map { ($0.ruleID, entry(severity: .error)) }
     )
 
     /// Builds one rule's enabled, at-severity entry with optional parameters.

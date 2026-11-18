@@ -10,6 +10,10 @@ final class TreeSitterSummaryBuilder {
     private var types: [CollectedType] = []
     private var switches: [CollectedSwitch] = []
     private var importCount = 0
+    private var markers: [CollectedMarker] = []
+    private lazy var quality: TreeSitterQualityCollector? = spec.quality.map {
+        TreeSitterQualityCollector(spec: spec, quality: $0, text: { [unowned self] in self.text(of: $0) })
+    }
 
     /// Creates a summary builder for a given language's node-type conventions.
     ///
@@ -37,7 +41,7 @@ final class TreeSitterSummaryBuilder {
     func build(root: Node) -> DeclarationSummary {
         walk(root)
         return DeclarationSummary(
-            functions: functions, types: types, switches: switches, importCount: importCount
+            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers
         )
     }
 
@@ -61,6 +65,23 @@ final class TreeSitterSummaryBuilder {
         if spec.classNodeTypes.contains(type) { collectType(node) }
         if spec.switchNodeTypes.contains(type) { collectSwitch(node) }
         if spec.importNodeTypes.contains(type) || isImportCall(node, type: type) { importCount += 1 }
+        collectMarkers(node, type: type)
+    }
+
+    /// Records every smell this node exhibits, if the language has a quality spec.
+    ///
+    /// Only named nodes are checked, so a keyword token such as the `number` in `x: number`
+    /// isn't mistaken for a number literal.
+    ///
+    /// - Parameters:
+    ///   - node: The node to check.
+    ///   - type: Its type, already resolved by the caller.
+    private func collectMarkers(_ node: Node, type: String) {
+        guard node.isNamed, let quality else { return }
+        let here = line(of: node.pointRange.lowerBound)
+        markers += quality.markers(at: node, type: type).map { CollectedMarker(kind: $0, line: here) }
+        guard let unreachable = quality.unreachableStatement(in: node, type: type) else { return }
+        markers.append(CollectedMarker(kind: .unreachableCode, line: line(of: unreachable.pointRange.lowerBound)))
     }
 
     /// Reports whether a node is a module-loading call such as `require("x")`.
@@ -94,7 +115,7 @@ final class TreeSitterSummaryBuilder {
         return CollectedFunction(
             name: name, startLine: line(of: node.pointRange.lowerBound), endLine: line(of: node.pointRange.upperBound),
             branchCount: countBranches(in: body), hasDocComment: isDocumented(node),
-            visibility: visibility(of: node, name: name)
+            visibility: visibility(of: node, name: name), metrics: quality?.metrics(of: node, body: body)
         )
     }
 

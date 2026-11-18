@@ -17,7 +17,7 @@ public enum LanguageProfiles {
     private static let bestEffort = LanguageProfile(lineCommentPrefixes: ["#", "//", "--"])
 
     private static let byLanguage: [Language: LanguageProfile] = [
-        .swift: LanguageProfile(lineCommentPrefixes: ["//"]), .python: python, .zsh: shell, .bash: shell,
+        .swift: swift, .python: python, .zsh: shell, .bash: shell,
         .powershell: powershell, .typescript: javascriptLike, .javascript: javascriptLike,
         .cpp: cpp, .java: java, .go: go, .sql: sql, .c: c
     ]
@@ -122,6 +122,49 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "js-loose-equality", pattern: #"(?<![=!])==(?!=)|(?<![=!])!=(?!=)"#,
                 message: "Use === / !== instead of == / != to avoid type coercion."
+            ),
+            PatternRuleSpec(
+                id: "ts-ignore-without-reason", pattern: #"@ts-(ignore|nocheck|expect-error)\s*(\*/)?\s*$"#,
+                message: "Type-check suppression with no reason given; explain it, or fix the type error."
+            ),
+            PatternRuleSpec(
+                id: "ts-double-cast", pattern: #"\bas\s+unknown\s+as\b"#,
+                message: "Casting through unknown defeats type checking."
+            ),
+            PatternRuleSpec(
+                id: "js-var", pattern: #"^\s*(export\s+)?var\s"#,
+                message: "Use let or const instead of var."
+            ),
+            PatternRuleSpec(
+                id: "js-eval", pattern: #"\beval\s*\(|\bnew\s+Function\s*\("#,
+                message: "eval/new Function runs arbitrary code."
+            ),
+            PatternRuleSpec(
+                id: "js-raw-html",
+                pattern: #"\.(inner|outer)HTML\s*=|\bdangerouslySetInnerHTML\b|insertAdjacentHTML\s*\("#,
+                message: "Raw HTML injection risks XSS; set textContent or sanitize first."
+            )
+        ]
+    )
+
+    private static let swift = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "swift-fatal-error", pattern: #"\bfatalError\("#,
+                message: "fatalError crashes the process; throw or handle the error instead."
+            ),
+            PatternRuleSpec(
+                id: "swift-unchecked-sendable", pattern: #"@unchecked\s+Sendable|nonisolated\(unsafe\)"#,
+                message: "Opts out of data-race checking; prove it's safe, or use an actor or lock."
+            ),
+            PatternRuleSpec(
+                id: "swift-debug-print", pattern: #"^\s*(print|debugPrint|dump)\("#,
+                message: "Remove debug output, or use a logger."
+            ),
+            PatternRuleSpec(
+                id: "swift-discarded-try", pattern: #"^\s*(_\s*=\s*)?try\?\s"#,
+                message: "try? discards the error here; handle or log it."
             )
         ]
     )

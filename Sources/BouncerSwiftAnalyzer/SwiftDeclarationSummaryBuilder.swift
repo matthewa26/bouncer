@@ -8,8 +8,6 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     private var types: [CollectedType] = []
     private var switches: [CollectedSwitch] = []
     private var importCount = 0
-    private var forceUnwrapLines: [Int] = []
-    private var forceTryLines: [Int] = []
     private let converter: SourceLocationConverter
 
     /// Creates a summary builder for a parsed file.
@@ -22,13 +20,11 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
 
     /// Assembles the collected summary. Call after visiting the whole tree.
     ///
+    /// - Parameter markers: The file's single-location smells, from `SwiftMarkerCollector`.
     /// - Returns: Everything gathered during the walk.
-    func summary() -> SwiftDeclarationSummary {
-        let declarations = DeclarationSummary(
-            functions: functions, types: types, switches: switches, importCount: importCount
-        )
-        return SwiftDeclarationSummary(
-            declarations: declarations, forceUnwrapLines: forceUnwrapLines, forceTryLines: forceTryLines
+    func summary(markers: [CollectedMarker]) -> DeclarationSummary {
+        DeclarationSummary(
+            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers
         )
     }
 
@@ -37,12 +33,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameter node: The function declaration being visited.
     /// - Returns: `.visitChildren`, so nested declarations are also visited.
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
-        guard let body = node.body else { return .visitChildren }
-        let function = collectFunction(
-            name: node.name.text, body: body, leadingTrivia: node.leadingTrivia, modifiers: node.modifiers
-        )
-        functions.append(function)
-        return .visitChildren
+        collect(name: node.name.text, node: node, signature: node.signature, body: node.body)
     }
 
     /// Collects an initializer's body and doc comment status, under the name `"init"`.
@@ -50,11 +41,26 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameter node: The initializer declaration being visited.
     /// - Returns: `.visitChildren`, so nested declarations are also visited.
     override func visit(_ node: InitializerDeclSyntax) -> SyntaxVisitorContinueKind {
-        guard let body = node.body else { return .visitChildren }
-        let function = collectFunction(
-            name: "init", body: body, leadingTrivia: node.leadingTrivia, modifiers: node.modifiers
+        collect(name: "init", node: node, signature: node.signature, body: node.body)
+    }
+
+    /// Collects a function or initializer that has a body; protocol requirements have none.
+    ///
+    /// - Parameters:
+    ///   - name: The declared name.
+    ///   - node: The declaration, for its leading trivia and modifiers.
+    ///   - signature: Its signature, for its parameter count.
+    ///   - body: Its body, if any.
+    /// - Returns: `.visitChildren`, so nested declarations are also visited.
+    private func collect(
+        name: String, node: some WithModifiersSyntax, signature: FunctionSignatureSyntax, body: CodeBlockSyntax?
+    ) -> SyntaxVisitorContinueKind {
+        guard let body else { return .visitChildren }
+        let declaration = FunctionDeclaration(
+            name: name, leadingTrivia: node.leadingTrivia, modifiers: node.modifiers,
+            parameterCount: signature.parameterClause.parameters.count
         )
-        functions.append(function)
+        functions.append(collectFunction(declaration, body: body))
         return .visitChildren
     }
 
@@ -95,44 +101,29 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         return .visitChildren
     }
 
-    /// Records a force-unwrap expression's line.
-    ///
-    /// - Parameter node: The force-unwrap expression being visited.
-    /// - Returns: `.visitChildren`, so nested declarations are also visited.
-    override func visit(_ node: ForceUnwrapExprSyntax) -> SyntaxVisitorContinueKind {
-        forceUnwrapLines.append(converter.location(for: node.positionAfterSkippingLeadingTrivia).line)
-        return .visitChildren
+    /// The parts of a function or initializer declaration that `collectFunction` reads.
+    private struct FunctionDeclaration {
+        let name: String
+        let leadingTrivia: Trivia
+        let modifiers: DeclModifierListSyntax
+        let parameterCount: Int
     }
 
-    /// Records a `try!` expression's line, ignoring plain `try`/`try?`.
-    ///
-    /// - Parameter node: The try expression being visited.
-    /// - Returns: `.visitChildren`, so nested declarations are also visited.
-    override func visit(_ node: TryExprSyntax) -> SyntaxVisitorContinueKind {
-        if node.questionOrExclamationMark?.tokenKind == .exclamationMark {
-            forceTryLines.append(converter.location(for: node.positionAfterSkippingLeadingTrivia).line)
-        }
-        return .visitChildren
-    }
-
-    /// Builds a `CollectedFunction` from a declaration's body, leading trivia, and modifiers.
+    /// Builds a `CollectedFunction` from a declaration and its body.
     ///
     /// - Parameters:
-    ///   - name: The function or initializer's name.
+    ///   - declaration: The declaration's name, leading trivia, modifiers, and parameter count.
     ///   - body: The declaration's body block.
-    ///   - leadingTrivia: The declaration's leading trivia, checked for a doc comment.
-    ///   - modifiers: The declaration's modifiers, checked for access level.
     /// - Returns: The collected function.
-    private func collectFunction(
-        name: String, body: CodeBlockSyntax, leadingTrivia: Trivia, modifiers: DeclModifierListSyntax
-    ) -> CollectedFunction {
+    private func collectFunction(_ declaration: FunctionDeclaration, body: CodeBlockSyntax) -> CollectedFunction {
         let counter = BranchCounter()
         counter.walk(body)
         let start = converter.location(for: body.positionAfterSkippingLeadingTrivia).line
         let end = converter.location(for: body.endPositionBeforeTrailingTrivia).line
         return CollectedFunction(
-            name: name, startLine: start, endLine: end, branchCount: counter.count,
-            hasDocComment: hasComment(leadingTrivia), visibility: visibility(of: modifiers)
+            name: declaration.name, startLine: start, endLine: end, branchCount: counter.count,
+            hasDocComment: declaration.leadingTrivia.hasComment, visibility: visibility(of: declaration.modifiers),
+            metrics: SwiftFunctionMetricsCollector.measure(body, parameterCount: declaration.parameterCount)
         )
     }
 
@@ -162,18 +153,5 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         let startLine = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
         let endLine = converter.location(for: memberBlock.endPositionBeforeTrailingTrivia).line
         return CollectedType(name: name, memberCount: memberBlock.members.count, startLine: startLine, endLine: endLine)
-    }
-
-    /// Reports whether a trivia collection contains any comment, doc or otherwise.
-    ///
-    /// - Parameter trivia: The trivia to check.
-    /// - Returns: Whether a comment piece is present.
-    private func hasComment(_ trivia: Trivia) -> Bool {
-        trivia.contains {
-            switch $0 {
-            case .lineComment, .docLineComment, .blockComment, .docBlockComment: return true
-            default: return false
-            }
-        }
     }
 }

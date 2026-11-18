@@ -1,0 +1,81 @@
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "Bouncer",
+    platforms: [
+        .macOS(.v13)
+    ],
+    products: [
+        .executable(name: "bouncer", targets: ["BouncerCLI"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
+        .package(url: "https://github.com/apple/swift-syntax", from: "509.0.0"),
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.25.0"),
+        .package(url: "https://github.com/tree-sitter/tree-sitter-go", from: "0.25.0")
+    ],
+    targets: [
+        .target(name: "BouncerCore"),
+        .target(name: "BouncerRules", dependencies: ["BouncerCore"]),
+        .target(
+            name: "BouncerSwiftAnalyzer",
+            dependencies: [
+                "BouncerCore",
+                "BouncerRules",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax")
+            ]
+        ),
+        .target(name: "BouncerHeuristicAnalyzer", dependencies: ["BouncerCore", "BouncerRules"]),
+        .target(
+            name: "CTreeSitterPython",
+            cSettings: [.headerSearchPath(".")]
+        ),
+        .target(
+            name: "BouncerTreeSitterAnalyzer",
+            dependencies: [
+                "BouncerCore",
+                "BouncerRules",
+                "CTreeSitterPython",
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+                .product(name: "TreeSitterGo", package: "tree-sitter-go")
+            ]
+        ),
+        .target(name: "BouncerCoverage", dependencies: ["BouncerCore"]),
+        .target(name: "BouncerReporting", dependencies: ["BouncerCore"]),
+        .target(name: "BouncerGit", dependencies: ["BouncerCore"]),
+        .target(name: "BouncerConfig", dependencies: ["BouncerCore", "BouncerRules"]),
+        .target(name: "BouncerUpdateCheck", dependencies: ["BouncerCore"]),
+        .target(name: "BouncerHooks", dependencies: ["BouncerCore"]),
+        .executableTarget(
+            name: "BouncerCLI",
+            dependencies: [
+                "BouncerCore",
+                "BouncerRules",
+                "BouncerSwiftAnalyzer",
+                "BouncerHeuristicAnalyzer",
+                "BouncerTreeSitterAnalyzer",
+                "BouncerCoverage",
+                "BouncerReporting",
+                "BouncerGit",
+                "BouncerConfig",
+                "BouncerUpdateCheck",
+                "BouncerHooks",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
+        ),
+        .testTarget(name: "BouncerCoreTests", dependencies: ["BouncerCore"]),
+        .testTarget(name: "BouncerRulesTests", dependencies: ["BouncerRules"]),
+        .testTarget(name: "BouncerHeuristicAnalyzerTests", dependencies: ["BouncerHeuristicAnalyzer"]),
+        .testTarget(name: "BouncerTreeSitterAnalyzerTests", dependencies: ["BouncerTreeSitterAnalyzer"]),
+        .testTarget(name: "BouncerSwiftAnalyzerTests", dependencies: ["BouncerSwiftAnalyzer"]),
+        .testTarget(name: "BouncerCoverageTests", dependencies: ["BouncerCoverage"]),
+        .testTarget(name: "BouncerConfigTests", dependencies: ["BouncerConfig"]),
+        .testTarget(name: "BouncerReportingTests", dependencies: ["BouncerReporting"]),
+        .testTarget(name: "BouncerGitTests", dependencies: ["BouncerGit"]),
+        .testTarget(name: "BouncerHooksTests", dependencies: ["BouncerHooks"]),
+        .testTarget(name: "BouncerUpdateCheckTests", dependencies: ["BouncerUpdateCheck"])
+    ]
+)

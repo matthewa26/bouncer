@@ -1,0 +1,234 @@
+import BouncerCore
+
+/// The bundled `LanguageProfile` for every heuristically-analyzed language.
+///
+/// This is the extensibility point the plan calls out: a new language, or a
+/// new pattern rule for an existing one, is added here as data.
+public enum LanguageProfiles {
+    /// Looks up the bundled profile for a language.
+    ///
+    /// - Parameter language: The language to look up.
+    /// - Returns: Its profile, or a minimal best-effort profile for `.other`.
+    public static func profile(for language: Language) -> LanguageProfile {
+        if case .other = language { return bestEffort }
+        return byLanguage[language] ?? bestEffort
+    }
+
+    private static let bestEffort = LanguageProfile(lineCommentPrefixes: ["#", "//", "--"])
+
+    private static let byLanguage: [Language: LanguageProfile] = [
+        .swift: LanguageProfile(lineCommentPrefixes: ["//"]), .python: python, .zsh: shell, .bash: shell,
+        .powershell: powershell, .typescript: javascriptLike, .javascript: javascriptLike,
+        .cpp: cpp, .java: java, .go: go, .sql: sql, .c: c
+    ]
+
+    private static let python = LanguageProfile(
+        lineCommentPrefixes: ["#"],
+        functionStartPattern: #"^\s*def\s+\w+\s*\("#,
+        switchStartPattern: #"^\s*match\s+.*:\s*$"#,
+        switchBranchPattern: #"^\s*case\s+"#,
+        importLinePattern: #"^\s*(import|from)\s+"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"\bdef\s+([A-Za-z_]\w*)"#,
+                expectedIdentifierPattern: #"^[a-z_][a-z0-9_]*$"#, kindLabel: "function"
+            ),
+            NamingRule(
+                declarationPattern: #"\bclass\s+([A-Za-z_]\w*)"#,
+                expectedIdentifierPattern: #"^[A-Z]\w*$"#, kindLabel: "class"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "python-bare-except", pattern: #"^\s*except\s*:"#,
+                message: "Bare except clause also catches SystemExit and KeyboardInterrupt."
+            ),
+            PatternRuleSpec(
+                id: "python-mutable-default-arg", pattern: #"def\s+\w+\([^)]*=\s*(\[\]|\{\})"#,
+                message: "Mutable default argument is shared across every call."
+            )
+        ]
+    )
+
+    private static let shell = LanguageProfile(
+        lineCommentPrefixes: ["#"],
+        functionStartPattern: #"^\s*(function\s+\w+|\w+\s*\(\)\s*\{)"#,
+        switchStartPattern: #"^\s*case\s+.*\s+in\s*$"#,
+        switchBranchPattern: #"^\s*[A-Za-z0-9_*|."'$-]+\)\s*$"#,
+        importLinePattern: #"^\s*(source\s|\.\s+\S)"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"function\s+([A-Za-z_]\w*)"#,
+                expectedIdentifierPattern: #"^[a-z_][a-z0-9_]*$"#, kindLabel: "function"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "shell-unquoted-variable", pattern: #"\s\$[A-Za-z_]\w*\s"#,
+                message: "Unquoted variable expansion can split on whitespace or glob; wrap it in quotes."
+            ),
+            PatternRuleSpec(
+                id: "shell-eval-usage", pattern: #"\beval\b"#,
+                message: "eval executes a constructed string as code; avoid it where possible."
+            )
+        ]
+    )
+
+    private static let powershell = LanguageProfile(
+        lineCommentPrefixes: ["#"],
+        functionStartPattern: #"^\s*function\s+[\w-]+"#,
+        switchStartPattern: #"^\s*switch\s*\("#,
+        switchBranchPattern: #"^\s*['"{$0-9A-Za-z*_]+\s*\{"#,
+        importLinePattern: #"^\s*(Import-Module|using\s+(module|namespace))"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"function\s+([A-Za-z][A-Za-z0-9-]*)"#,
+                expectedIdentifierPattern: #"^[A-Z][A-Za-z0-9]*-[A-Z][A-Za-z0-9]*$"#, kindLabel: "function"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "powershell-invoke-expression", pattern: #"(?i)\b(iex|Invoke-Expression)\b"#,
+                message: "Invoke-Expression executes a constructed string as code; avoid it where possible."
+            ),
+            PatternRuleSpec(
+                id: "powershell-plaintext-password", pattern: #"-AsPlainText\b"#,
+                message: "Avoid converting or storing plaintext passwords; use secure credential handling instead."
+            )
+        ]
+    )
+
+    private static let javascriptLike = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        functionStartPattern: #"\bfunction\b.*\{\s*$|=>\s*\{\s*$"#,
+        switchStartPattern: #"^\s*switch\s*\("#,
+        switchBranchPattern: #"^\s*case\s+.*:"#,
+        importLinePattern: #"^\s*import\s|require\("#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"\bfunction\s+([A-Za-z_$][\w$]*)"#,
+                expectedIdentifierPattern: #"^[a-z_$][\w$]*$"#, kindLabel: "function"
+            ),
+            NamingRule(
+                declarationPattern: #"\bclass\s+([A-Za-z_$][\w$]*)"#,
+                expectedIdentifierPattern: #"^[A-Z][\w$]*$"#, kindLabel: "class"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "js-console-log", pattern: #"console\.log\(|\bdebugger\b"#,
+                message: "Remove console.log/debugger before committing."
+            ),
+            PatternRuleSpec(
+                id: "js-loose-equality", pattern: #"(?<![=!])==(?!=)|(?<![=!])!=(?!=)"#,
+                message: "Use === / !== instead of == / != to avoid type coercion."
+            )
+        ]
+    )
+
+    private static let cpp = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        functionStartPattern: #"^(?!\s*(if|for|while|switch|catch)\b).*\)\s*(const)?\s*\{\s*$"#,
+        switchStartPattern: #"^\s*switch\s*\("#,
+        switchBranchPattern: #"^\s*case\s+.*:"#,
+        importLinePattern: #"^\s*#include\s*[<"]"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"\bclass\s+([A-Za-z_]\w*)"#,
+                expectedIdentifierPattern: #"^[A-Z]\w*$"#, kindLabel: "class"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "cpp-raw-new-delete", pattern: #"\bnew\s+\w|\bdelete\b"#,
+                message: "Raw new/delete risks leaks and double-frees; prefer smart pointers (unique_ptr/shared_ptr)."
+            ),
+            PatternRuleSpec(
+                id: "cpp-using-namespace-std", pattern: #"^\s*using\s+namespace\s+std\s*;"#,
+                message: "Avoid 'using namespace std;' at file scope; it pollutes the global namespace."
+            )
+        ]
+    )
+
+    private static let c = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        functionStartPattern: #"^(?!\s*(if|for|while|switch)\b).*\)\s*\{\s*$"#,
+        switchStartPattern: #"^\s*switch\s*\("#,
+        switchBranchPattern: #"^\s*case\s+.*:"#,
+        importLinePattern: #"^\s*#include\s*[<"]"#,
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "c-gets-usage", pattern: #"\bgets\s*\("#,
+                message: "gets() cannot bound its input and is a classic buffer-overflow vector; use fgets() instead."
+            ),
+            PatternRuleSpec(
+                id: "c-unsafe-string-function", pattern: #"\b(strcpy|strcat|sprintf)\s*\("#,
+                message: "Unbounded string function; prefer the bounded variant (strncpy/strncat/snprintf)."
+            )
+        ]
+    )
+
+    private static let java = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        functionStartPattern: #"^(?!\s*(if|for|while|switch|catch)\b).*\)\s*(throws\s+[\w,\s]+)?\s*\{\s*$"#,
+        switchStartPattern: #"^\s*switch\s*\("#,
+        switchBranchPattern: #"^\s*case\s+.*:"#,
+        importLinePattern: #"^\s*import\s+"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"\bclass\s+(\w+)"#, expectedIdentifierPattern: #"^[A-Z]\w*$"#, kindLabel: "class"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "java-generic-exception-catch", pattern: #"catch\s*\(\s*(Exception|Throwable)\b"#,
+                message: "Catching Exception/Throwable is overly broad; catch specific exception types instead."
+            ),
+            PatternRuleSpec(
+                id: "java-print-stack-trace", pattern: #"\.printStackTrace\(\)"#,
+                message: "printStackTrace() writes to stderr silently; use a logger instead."
+            )
+        ]
+    )
+
+    private static let go = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        functionStartPattern: #"^\s*func\s+"#,
+        switchStartPattern: #"^\s*switch\b"#,
+        switchBranchPattern: #"^\s*case\s+.*:"#,
+        importLinePattern: #"^\s*import\s+"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\("#,
+                expectedIdentifierPattern: #"^[A-Za-z][A-Za-z0-9]*$"#, kindLabel: "function"
+            )
+        ],
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "go-discarded-return-value", pattern: #"^\s*_\s*=\s*\w+\("#,
+                message: "Discarding a return value with _ may silently ignore an error; check it explicitly."
+            ),
+            PatternRuleSpec(
+                id: "go-panic-usage", pattern: #"\bpanic\("#,
+                message: "panic() crashes the program; prefer returning an error unless this is truly unrecoverable."
+            )
+        ]
+    )
+
+    private static let sql = LanguageProfile(
+        lineCommentPrefixes: ["--"],
+        functionStartPattern: #"(?i)^\s*CREATE\s+(OR\s+REPLACE\s+)?(FUNCTION|PROCEDURE)\s+"#,
+        switchStartPattern: #"(?i)^\s*CASE\b"#,
+        switchBranchPattern: #"(?i)^\s*WHEN\b"#,
+        extraPatternRules: [
+            PatternRuleSpec(
+                id: "sql-select-star", pattern: #"(?i)select\s+\*\s+from"#,
+                message: "SELECT * is fragile against schema changes; list the needed columns explicitly."
+            ),
+            PatternRuleSpec(
+                id: "sql-missing-where", pattern: #"(?i)^\s*(UPDATE|DELETE\s+FROM)(?:(?!\bWHERE\b).)*;\s*$"#,
+                message: "UPDATE/DELETE without a WHERE clause affects every row; confirm this is intentional."
+            )
+        ]
+    )
+}

@@ -1,0 +1,81 @@
+name: release
+
+# Builds release artifacts for a tagged version: standalone binaries for every
+# platform, plus Homebrew bottles for macOS and Linux built to the Tier 1
+# glibc/kernel baseline (see docs.brew.sh/Support-Tiers#linux). Windows only
+# gets a standalone binary; Homebrew on Windows means Homebrew inside WSL2,
+# which is just the Linux bottle running under a real Linux kernel.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  macos-binary:
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-13
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build -c release --disable-sandbox
+      - run: |
+          mkdir -p dist
+          tar -czf dist/bouncer-macos-${{ matrix.arch }}.tar.gz -C .build/release bouncer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bouncer-macos-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  linux-bottle:
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container: swift:6.0-noble
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build -c release
+      - run: |
+          mkdir -p dist
+          tar -czf dist/bouncer-linux-${{ matrix.arch }}.tar.gz -C .build/release bouncer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bouncer-linux-${{ matrix.arch }}
+          path: dist/*.tar.gz
+      # A real Homebrew bottle (not just a tarball) is produced separately by
+      # running `brew bottle` against this same build inside the Homebrew
+      # Ubuntu image, so its metadata matches what `brew install` expects.
+      # That step is intentionally not fleshed out here yet: verify the
+      # Swift-on-Linux build above works end to end before automating bottling.
+
+  windows-binary:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          swift-version: "6.0"
+      - run: swift build -c release
+      - run: Compress-Archive -Path .build/release/bouncer.exe -DestinationPath dist/bouncer-windows-x86_64.zip
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bouncer-windows-x86_64
+          path: dist/*.zip
+
+  publish:
+    needs: [macos-binary, linux-bottle, windows-binary]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*

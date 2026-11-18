@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "long-function": { "enabled": true, "severity": "error", "params": { "maxLines": 10 } },
+    "missing-documentation": { "enabled": true, "severity": "error", "params": { "scope": "all" } }
+  },
+  "exclude": ["Tests/**", "**/*.md", ".build/**", "Sources/CTreeSitterPython/**"]
+}

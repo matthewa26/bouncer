@@ -1,0 +1,33 @@
+import BouncerCore
+
+/// The `kirby` bundled preset, named for Professor Neil Kirby (OSU CSE 3902,
+/// formerly Bell Labs), whose teaching on simplicity, low coupling and high
+/// cohesion, and eliminating code smells shaped this rule catalog. These are
+/// Bouncer's own best-effort calibration of that philosophy into numbers,
+/// not published thresholds, and remain fully overridable by config layers
+/// applied on top.
+public enum KirbyProfile {
+    /// This preset's config, applied as the base layer beneath `~/.bouncer` and a repo's `.bouncer`.
+    public static let config = BouncerConfig(
+        coverage: CoverageConfig(threshold: 90),
+        rules: [
+            "long-function": entry(severity: .error, params: ["maxLines": .int(10)]),
+            "cyclomatic-complexity": entry(severity: .error, params: ["max": .int(6)]),
+            "naming-convention": entry(severity: .error),
+            "missing-documentation": entry(severity: .error, params: ["scope": .string("all")]),
+            "high-coupling": entry(severity: .error, params: ["maxImports": .int(8)]),
+            "god-class": entry(severity: .error),
+            "switch-on-type-smell": entry(severity: .error, params: ["maxBranches": .int(3)])
+        ]
+    )
+
+    /// Builds one rule's enabled, at-severity entry with optional parameters.
+    ///
+    /// - Parameters:
+    ///   - severity: The severity to report the rule's findings at.
+    ///   - params: The rule's tunable thresholds.
+    /// - Returns: The constructed entry.
+    private static func entry(severity: Severity, params: [String: RuleParamValue] = [:]) -> RuleConfigEntry {
+        RuleConfigEntry(enabled: true, severity: severity, params: params.isEmpty ? nil : params)
+    }
+}

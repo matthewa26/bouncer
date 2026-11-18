@@ -23,7 +23,9 @@ public struct TrustStore {
     /// - Parameter hooks: The hooks config to hash.
     /// - Returns: A stable hex digest.
     public static func contentHash(of hooks: HooksConfig) -> String {
-        let data = (try? JSONEncoder().encode(hooks)) ?? Data()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let data = (try? encoder.encode(hooks)) ?? Data()
         return StableHash.hex(String(data: data, encoding: .utf8) ?? "")
     }
 

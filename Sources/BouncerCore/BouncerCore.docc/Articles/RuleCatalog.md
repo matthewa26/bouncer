@@ -60,6 +60,8 @@ JSX) only; Python, Go, and the heuristic languages don't get them yet.
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
 | `long-parameter-list` | A function's declared parameter count | warning | `maxParameters` (5) |
+| `boolean-parameter` | Boolean flag parameters (typed `Bool`/`boolean`, or defaulting to `true`/`false`); initializers are exempt | warning | `maxBooleanParameters` (0) |
+| `lack-of-cohesion` | LCOM4: how many unrelated groups a type's methods split into | warning | `maxGroups` (2) |
 | `too-many-returns` | A function's `return` count, excluding nested functions and closures | warning | `maxReturns` (4) |
 | `cognitive-complexity` | SonarSource-style cognitive complexity, which penalizes nesting | warning | `max` (15) |
 | `nesting-depth` | How deeply `if`/loop/`switch`/`catch` structures nest in a function | warning | `maxDepth` (4) |
@@ -84,6 +86,11 @@ Recursion and labeled jumps aren't counted.
 argument, an enum raw value, an object property or dictionary entry, a Swift labeled argument
 such as `timeout: 30`, or a `case` label. A number passed straight into an unlabeled call, such
 as `setTimeout(run, 3000)`, is flagged.
+
+`lack-of-cohesion` connects two methods when they use a common field or method, or one calls
+the other, counting both `self.x`/`this.x` and Swift's implicit-`self` references. Initializers
+and `static` methods are left out. A value of 1 means every method is connected; 2 or more means
+the type holds that many independent responsibilities that could be split apart.
 
 `empty-catch` accepts a comment inside the braces as a deliberate "nothing to do here".
 
@@ -116,6 +123,7 @@ mistake in that language, layered on top of the shared rules above:
 | bash/zsh | `shell-eval-usage` | `eval` usage |
 | Python | `python-bare-except` | A bare `except:` clause |
 | Python | `python-mutable-default-arg` | A mutable (`[]`/`{}`) default argument |
+| Python | `python-debug-print` | A `print(...)` statement |
 | TypeScript/JavaScript | `js-console-log` | `console.log`/`debugger` left in |
 | TypeScript/JavaScript | `js-loose-equality` | `==`/`!=` instead of `===`/`!==` |
 | TypeScript/JavaScript | `ts-ignore-without-reason` | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no explanation |
@@ -125,7 +133,7 @@ mistake in that language, layered on top of the shared rules above:
 | TypeScript/JavaScript | `js-raw-html` | `innerHTML`/`outerHTML` assignment, `insertAdjacentHTML`, `dangerouslySetInnerHTML` |
 | Swift | `swift-fatal-error` | `fatalError(...)` |
 | Swift | `swift-unchecked-sendable` | `@unchecked Sendable` or `nonisolated(unsafe)` |
-| Swift | `swift-debug-print` | A `print`/`debugPrint`/`dump` statement |
+| Swift | `swift-debug-print` | A `print`/`debugPrint`/`dump`/`NSLog` statement |
 | Swift | `swift-discarded-try` | A `try?` whose result is thrown away |
 | C | `c-gets-usage` | `gets(...)`, which can't bound its input |
 | C | `c-unsafe-string-function` | `strcpy`/`strcat`/`sprintf` |
@@ -135,8 +143,10 @@ mistake in that language, layered on top of the shared rules above:
 | C++ | `cpp-using-namespace-std` | File-scope `using namespace std;` |
 | Java | `java-generic-exception-catch` | Catching `Exception`/`Throwable` broadly |
 | Java | `java-print-stack-trace` | `.printStackTrace()` instead of a logger |
+| Java | `java-system-out` | `System.out`/`System.err` printing |
 | Go | `go-discarded-return-value` | A return value discarded with `_ =` |
 | Go | `go-panic-usage` | `panic()` usage |
+| Go | `go-debug-print` | A `fmt.Print`/`Println`/`Printf` statement |
 | SQL | `sql-select-star` | `SELECT *` instead of named columns |
 | SQL | `sql-missing-where` | `UPDATE`/`DELETE` with no `WHERE` clause |
 

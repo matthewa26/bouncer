@@ -46,6 +46,10 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "python-mutable-default-arg", pattern: #"def\s+\w+\([^)]*=\s*(\[\]|\{\})"#,
                 message: "Mutable default argument is shared across every call."
+            ),
+            PatternRuleSpec(
+                id: "python-debug-print", pattern: #"^\s*print\("#,
+                message: "Remove debug output, or use the logging module."
             )
         ]
     )
@@ -159,7 +163,7 @@ public enum LanguageProfiles {
                 message: "Opts out of data-race checking; prove it's safe, or use an actor or lock."
             ),
             PatternRuleSpec(
-                id: "swift-debug-print", pattern: #"^\s*(print|debugPrint|dump)\("#,
+                id: "swift-debug-print", pattern: #"^\s*(print|debugPrint|dump|NSLog)\("#,
                 message: "Remove debug output, or use a logger."
             ),
             PatternRuleSpec(
@@ -228,6 +232,10 @@ public enum LanguageProfiles {
                 message: "Catching Exception/Throwable is overly broad; catch specific exception types instead."
             ),
             PatternRuleSpec(
+                id: "java-system-out", pattern: #"\bSystem\.(out|err)\.print"#,
+                message: "Remove debug output, or use a logger."
+            ),
+            PatternRuleSpec(
                 id: "java-print-stack-trace", pattern: #"\.printStackTrace\(\)"#,
                 message: "printStackTrace() writes to stderr silently; use a logger instead."
             )
@@ -250,6 +258,10 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "go-discarded-return-value", pattern: #"^\s*_\s*=\s*\w+\("#,
                 message: "Discarding a return value with _ may silently ignore an error; check it explicitly."
+            ),
+            PatternRuleSpec(
+                id: "go-debug-print", pattern: #"^\s*fmt\.Print(ln|f)?\("#,
+                message: "Remove debug output, or use the log package."
             ),
             PatternRuleSpec(
                 id: "go-panic-usage", pattern: #"\bpanic\("#,

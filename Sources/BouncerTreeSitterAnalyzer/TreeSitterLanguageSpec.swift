@@ -52,6 +52,28 @@ struct TreeSitterQualitySpec: Sendable {
     let numberNamingParents: Set<String>
     let numberTransparentParents: Set<String>
     let markers: [NodeMarker]
+    let booleanParameter: BooleanParameterSpec
+    let cohesion: CohesionSpec
+    /// Method names that initialize an instance, which skip flag-parameter counting and LCOM4.
+    let initializerNames: Set<String>
+}
+
+/// How a parameter shows it's a boolean flag: its type annotation, or a `true`/`false` default.
+struct BooleanParameterSpec: Sendable {
+    let typeField: String
+    let typeText: String
+    let defaultFields: [String]
+    let literalNodeTypes: Set<String>
+}
+
+/// The class-member node types LCOM4 needs: methods, fields that hold functions, and `this.x` access.
+struct CohesionSpec: Sendable {
+    let methodNodeTypes: Set<String>
+    /// Field node types mapped to their name field; a field whose value is a function counts as a method.
+    let fieldNameFields: [String: String]
+    let memberAccessNodeType: String
+    let receiverText: String
+    let staticKeyword: String
 }
 
 /// A call expression that loads a module, such as CommonJS `require("x")`.
@@ -184,7 +206,17 @@ extension TreeSitterLanguageSpec {
         markers: [
             NodeMarker(nodeType: "non_null_expression", text: nil, kind: .nonNullAssertion),
             NodeMarker(nodeType: "predefined_type", text: "any", kind: .explicitAny)
-        ]
+        ],
+        booleanParameter: BooleanParameterSpec(
+            typeField: "type", typeText: ": boolean", defaultFields: ["value", "right"],
+            literalNodeTypes: ["true", "false"]
+        ),
+        cohesion: CohesionSpec(
+            methodNodeTypes: ["method_definition"],
+            fieldNameFields: ["public_field_definition": "name", "field_definition": "property"],
+            memberAccessNodeType: "member_expression", receiverText: "this", staticKeyword: "static"
+        ),
+        initializerNames: ["constructor"]
     )
 
     private static let javascriptClassNodeTypes: Set<String> = [

@@ -22,7 +22,9 @@ public enum KirbyProfile {
             "long-parameter-list": entry(severity: .error, params: ["maxParameters": .int(3)]),
             "too-many-returns": entry(severity: .error, params: ["maxReturns": .int(3)]),
             "cognitive-complexity": entry(severity: .error, params: ["max": .int(8)]),
-            "nesting-depth": entry(severity: .error, params: ["maxDepth": .int(3)])
+            "nesting-depth": entry(severity: .error, params: ["maxDepth": .int(3)]),
+            "boolean-parameter": entry(severity: .error, params: ["maxBooleanParameters": .int(0)]),
+            "lack-of-cohesion": entry(severity: .error, params: ["maxGroups": .int(1)])
         ].merging(smellsAsErrors) { explicit, _ in explicit }
     )
 

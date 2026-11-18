@@ -58,7 +58,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         guard let body else { return .visitChildren }
         let declaration = FunctionDeclaration(
             name: name, leadingTrivia: node.leadingTrivia, modifiers: node.modifiers,
-            parameterCount: signature.parameterClause.parameters.count
+            parameters: signature.parameterClause.parameters
         )
         functions.append(collectFunction(declaration, body: body))
         return .visitChildren
@@ -106,13 +106,28 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         let name: String
         let leadingTrivia: Trivia
         let modifiers: DeclModifierListSyntax
-        let parameterCount: Int
+        let parameters: FunctionParameterListSyntax
+
+        /// The boolean flag parameters; 0 for an initializer, since storing a `Bool` isn't branching on one.
+        var flagCount: Int {
+            name == "init" ? 0 : parameters.filter(SwiftFunctionMetricsCollector.isBooleanFlag).count
+        }
+
+        /// Measures this declaration's body together with its parameters.
+        ///
+        /// - Parameter body: The declaration's body block.
+        /// - Returns: The function's measurements.
+        func metrics(of body: CodeBlockSyntax) -> FunctionMetrics {
+            SwiftFunctionMetricsCollector.measure(
+                body, parameterCount: parameters.count, booleanParameterCount: flagCount
+            )
+        }
     }
 
     /// Builds a `CollectedFunction` from a declaration and its body.
     ///
     /// - Parameters:
-    ///   - declaration: The declaration's name, leading trivia, modifiers, and parameter count.
+    ///   - declaration: The declaration's name, leading trivia, modifiers, and parameters.
     ///   - body: The declaration's body block.
     /// - Returns: The collected function.
     private func collectFunction(_ declaration: FunctionDeclaration, body: CodeBlockSyntax) -> CollectedFunction {
@@ -123,7 +138,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         return CollectedFunction(
             name: declaration.name, startLine: start, endLine: end, branchCount: counter.count,
             hasDocComment: declaration.leadingTrivia.hasComment, visibility: visibility(of: declaration.modifiers),
-            metrics: SwiftFunctionMetricsCollector.measure(body, parameterCount: declaration.parameterCount)
+            metrics: declaration.metrics(of: body)
         )
     }
 
@@ -152,6 +167,9 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         let memberBlock = node.memberBlock
         let startLine = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
         let endLine = converter.location(for: memberBlock.endPositionBeforeTrailingTrivia).line
-        return CollectedType(name: name, memberCount: memberBlock.members.count, startLine: startLine, endLine: endLine)
+        return CollectedType(
+            name: name, memberCount: memberBlock.members.count, startLine: startLine, endLine: endLine,
+            cohesionGroups: SwiftCohesion.groupCount(of: memberBlock)
+        )
     }
 }

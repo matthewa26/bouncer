@@ -34,21 +34,45 @@ struct TreeSitterQualityCollector {
         var tally = Tally()
         walkChildren(of: body, depth: Depth(), tally: &tally)
         return FunctionMetrics(
-            parameterCount: parameterCount(of: node), returnCount: tally.returns,
-            cognitiveComplexity: tally.score, maxNestingDepth: tally.maxDepth
+            parameterCount: parameters(of: node).count, booleanParameterCount: flagCount(of: node),
+            returnCount: tally.returns, cognitiveComplexity: tally.score, maxNestingDepth: tally.maxDepth
         )
     }
 
-    /// Counts a function's declared parameters, ignoring comments between them.
+    /// Lists a function's declared parameters, ignoring comments between them.
     ///
     /// - Parameter node: The function node.
-    /// - Returns: The parameter count; an arrow function's bare `x => …` parameter counts as one.
-    private func parameterCount(of node: Node) -> Int {
+    /// - Returns: The parameter nodes; an arrow function's bare `x => …` parameter is the one entry.
+    private func parameters(of node: Node) -> [Node] {
         guard let list = node.child(byFieldName: "parameters") else {
-            return node.child(byFieldName: "parameter") == nil ? 0 : 1
+            return node.child(byFieldName: "parameter").map { [$0] } ?? []
         }
         let children = (0..<list.namedChildCount).compactMap { list.namedChild(at: $0) }
-        return children.filter { $0.nodeType != "comment" }.count
+        return children.filter { $0.nodeType != "comment" }
+    }
+
+    /// Counts a function's boolean flag parameters; an initializer has none, since storing a flag
+    /// isn't branching on it.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: The flag parameter count.
+    private func flagCount(of node: Node) -> Int {
+        let name = node.child(byFieldName: "name").flatMap(text) ?? ""
+        return quality.initializerNames.contains(name) ? 0 : parameters(of: node).filter(isBooleanFlag).count
+    }
+
+    /// Reports whether a parameter is a boolean flag, by its type annotation or a `true`/`false` default.
+    ///
+    /// - Parameter parameter: The parameter node.
+    /// - Returns: Whether it's a boolean flag.
+    private func isBooleanFlag(_ parameter: Node) -> Bool {
+        let flag = quality.booleanParameter
+        let type = parameter.child(byFieldName: flag.typeField).flatMap(text)
+        if type?.replacingOccurrences(of: " ", with: "") == flag.typeText.replacingOccurrences(of: " ", with: "") {
+            return true
+        }
+        let defaults = flag.defaultFields.compactMap { parameter.child(byFieldName: $0)?.nodeType }
+        return defaults.contains { flag.literalNodeTypes.contains($0) }
     }
 
     /// Walks every child of a node at a given depth.

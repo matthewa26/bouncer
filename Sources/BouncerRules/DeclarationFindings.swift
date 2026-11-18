@@ -24,10 +24,47 @@ public enum DeclarationFindings {
             + cyclomaticComplexity(summary, file: file, context: context)
             + missingDocumentation(summary, file: file, context: context)
             + namingConvention(summary, file: file, context: context, naming: naming)
-            + highCoupling(summary, file: file, context: context)
+            + structureFindings(summary, file: file, context: context)
+    }
+
+    /// Runs the coupling, type-shape, and function-metric rules, in a fixed order.
+    ///
+    /// - Parameters:
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The combined findings.
+    static func structureFindings(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
+    ) -> [Finding] {
+        highCoupling(summary, file: file, context: context)
             + switchOnTypeSmell(summary, file: file, context: context)
             + godClass(summary, file: file, context: context)
             + metricRules.flatMap { metricFindings($0, summary, file: file, context: context) }
+            + lackOfCohesion(summary, file: file, context: context)
+    }
+
+    public static let lackOfCohesionRuleID = "lack-of-cohesion"
+
+    /// Flags every type whose methods split into more independent groups (LCOM4) than allowed.
+    ///
+    /// - Parameters:
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including this rule's resolved settings.
+    /// - Returns: One finding per insufficiently cohesive type.
+    public static func lackOfCohesion(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
+    ) -> [Finding] {
+        let settings = context.settings(for: lackOfCohesionRuleID)
+        guard settings.enabled else { return [] }
+        let maxGroups = settings.parameters.int("maxGroups", default: 2)
+        return summary.types.compactMap { type in
+            guard let groups = type.cohesionGroups, groups > maxGroups else { return nil }
+            let message = "Type \"\(type.name)\" splits into \(groups) unrelated method groups (LCOM4), "
+                + "over \(maxGroups)."
+            return finding(lackOfCohesionRuleID, type.startLine, message, settings.severity, file)
+        }
     }
 
     /// Flags every collected marker, grouped by kind in `MarkerKind.allCases` order.
@@ -62,6 +99,10 @@ public enum DeclarationFindings {
         MetricRule(
             ruleID: "long-parameter-list", parameter: "maxParameters", defaultLimit: 5,
             value: { $0.parameterCount }, describe: { "\($0) parameters" }
+        ),
+        MetricRule(
+            ruleID: "boolean-parameter", parameter: "maxBooleanParameters", defaultLimit: 0,
+            value: { $0.booleanParameterCount }, describe: { "\($0) boolean flag parameter(s)" }
         ),
         MetricRule(
             ruleID: "too-many-returns", parameter: "maxReturns", defaultLimit: 4,

@@ -41,6 +41,7 @@ public struct CollectedFunction: Sendable {
 /// A function's size and shape measurements, beyond its line span and branch count.
 public struct FunctionMetrics: Sendable, Equatable {
     public let parameterCount: Int
+    public let booleanParameterCount: Int
     public let returnCount: Int
     public let cognitiveComplexity: Int
     public let maxNestingDepth: Int
@@ -49,11 +50,17 @@ public struct FunctionMetrics: Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - parameterCount: The number of declared parameters.
+    ///   - booleanParameterCount: How many of those are boolean flags, by type or by default value.
+    ///     Initializers report 0: storing a `Bool` isn't the flag-argument smell of branching on one.
     ///   - returnCount: The number of `return` statements, excluding nested functions and closures.
     ///   - cognitiveComplexity: The SonarSource-style cognitive complexity score.
     ///   - maxNestingDepth: The deepest nesting of control-flow structures.
-    public init(parameterCount: Int, returnCount: Int, cognitiveComplexity: Int, maxNestingDepth: Int) {
+    public init(
+        parameterCount: Int, booleanParameterCount: Int, returnCount: Int,
+        cognitiveComplexity: Int, maxNestingDepth: Int
+    ) {
         self.parameterCount = parameterCount
+        self.booleanParameterCount = booleanParameterCount
         self.returnCount = returnCount
         self.cognitiveComplexity = cognitiveComplexity
         self.maxNestingDepth = maxNestingDepth
@@ -115,6 +122,8 @@ public struct CollectedType: Sendable {
     public let memberCount: Int
     public let startLine: Int
     public let endLine: Int
+    /// LCOM4: how many unrelated groups its methods split into, or `nil` where it isn't measured.
+    public let cohesionGroups: Int?
 
     /// Creates a collected type.
     ///
@@ -123,11 +132,13 @@ public struct CollectedType: Sendable {
     ///   - memberCount: The number of members declared in its body.
     ///   - startLine: The 1-indexed first line of the type.
     ///   - endLine: The 1-indexed last line of the type.
-    public init(name: String, memberCount: Int, startLine: Int, endLine: Int) {
+    ///   - cohesionGroups: Its LCOM4 method-group count, if measured.
+    public init(name: String, memberCount: Int, startLine: Int, endLine: Int, cohesionGroups: Int? = nil) {
         self.name = name
         self.memberCount = memberCount
         self.startLine = startLine
         self.endLine = endLine
+        self.cohesionGroups = cohesionGroups
     }
 }
 

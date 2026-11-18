@@ -20,6 +20,13 @@ final class LanguageProfilesExtraRulesTests: XCTestCase {
         XCTAssertTrue(ids.contains("powershell-plaintext-password"))
     }
 
+    func testFlagsDebugPrintsInPythonGoAndJava() {
+        XCTAssertEqual(findings("print(x)\n", path: "/repo/a.py", language: .python).map(\.ruleID), ["python-debug-print"])
+        XCTAssertEqual(findings("\tfmt.Println(x)\n", path: "/repo/a.go", language: .go).map(\.ruleID), ["go-debug-print"])
+        let java = findings("System.out.println(x);\n", path: "/repo/A.java", language: .java).map(\.ruleID)
+        XCTAssertEqual(java, ["java-system-out"])
+    }
+
     func testFlagsCppRawNewAndUsingNamespaceStd() {
         let contents = "using namespace std;\nint* p = new int(5);\n"
         let ids = findings(contents, path: "/repo/a.cpp", language: .cpp).map(\.ruleID)

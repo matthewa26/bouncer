@@ -27,6 +27,9 @@ not a lock.
   the clearest signals that a Strategy or State pattern is missing.
 - `long-parameter-list` to 3 parameters, `too-many-returns` to 3 returns,
   `cognitive-complexity` to 8, and `nesting-depth` to 3 levels, all at `error`.
+- `boolean-parameter` to none and `lack-of-cohesion` to a single method group (LCOM4 = 1),
+  both at `error`: a flag argument means a function does two things, and a type whose methods
+  split into separate groups does two jobs.
 - Every single-location smell (`force-unwrap`, `force-try`, `force-cast`,
   `implicitly-unwrapped-optional`, `non-null-assertion`, `explicit-any`, `nested-ternary`,
   `empty-catch`, `unreachable-code`, `magic-number`) at `error` rather than `warning`.

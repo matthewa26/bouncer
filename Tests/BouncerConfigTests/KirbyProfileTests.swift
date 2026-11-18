@@ -16,6 +16,7 @@ final class KirbyProfileTests: XCTestCase {
         let resolved = KirbyProfile.config.resolvedRuleSettings()
         XCTAssertEqual(resolved["long-parameter-list"]?.parameters.int("maxParameters", default: 0), 3)
         XCTAssertEqual(resolved["cognitive-complexity"]?.parameters.int("max", default: 0), 8)
+        XCTAssertEqual(resolved["lack-of-cohesion"]?.parameters.int("maxGroups", default: 0), 1)
     }
 
     func testTreatsEverySingleLocationSmellAsAnError() {

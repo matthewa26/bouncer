@@ -126,8 +126,10 @@ final class TreeSitterSummaryBuilder {
         guard let body = node.child(byFieldName: "body") else { return }
         let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
         let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
-        let memberCount = body.namedChildCount
-        types.append(CollectedType(name: name, memberCount: memberCount, startLine: startLine, endLine: endLine))
+        types.append(CollectedType(
+            name: name, memberCount: body.namedChildCount, startLine: startLine, endLine: endLine,
+            cohesionGroups: quality?.cohesionGroups(of: body)
+        ))
     }
 
     /// Collects a switch/match node's branch count and starting line.

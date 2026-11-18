@@ -26,14 +26,26 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
     /// - Parameters:
     ///   - body: The function's body block.
     ///   - parameterCount: The function's declared parameter count.
+    ///   - booleanParameterCount: How many of those are boolean flags.
     /// - Returns: The function's measurements.
-    static func measure(_ body: CodeBlockSyntax, parameterCount: Int) -> FunctionMetrics {
+    static func measure(_ body: CodeBlockSyntax, parameterCount: Int, booleanParameterCount: Int) -> FunctionMetrics {
         let collector = SwiftFunctionMetricsCollector()
         collector.walk(body)
         return FunctionMetrics(
-            parameterCount: parameterCount, returnCount: collector.returnCount,
-            cognitiveComplexity: collector.score, maxNestingDepth: collector.maxControlDepth
+            parameterCount: parameterCount, booleanParameterCount: booleanParameterCount,
+            returnCount: collector.returnCount, cognitiveComplexity: collector.score,
+            maxNestingDepth: collector.maxControlDepth
         )
+    }
+
+    /// Reports whether a parameter is a boolean flag: typed `Bool`/`Bool?`, or defaulting to `true`/`false`.
+    ///
+    /// - Parameter parameter: The parameter.
+    /// - Returns: Whether it's a boolean flag.
+    static func isBooleanFlag(_ parameter: FunctionParameterSyntax) -> Bool {
+        let type = parameter.type.trimmedDescription
+        if type == "Bool" || type == "Bool?" { return true }
+        return parameter.defaultValue?.value.is(BooleanLiteralExprSyntax.self) ?? false
     }
 
     /// Scores an `if`, treating `else if` as a flat increment that doesn't deepen nesting.

@@ -12,9 +12,9 @@ The **Scope** column says what analysis a check needs:
 
 **This repo's `.bouncer`:** `long-function` ≤ 10 lines (error) and `missing-documentation` with scope `all` (error); `swift-debug-print` is off, since a CLI writes its output with `print`. Excludes `Tests/**`, `**/*.md`, `.build/**`, and the vendored `Sources/CTreeSitter*` grammars.
 
-**Kirby profile:** coverage ≥ 90%, function ≤ 10 lines, cyclomatic complexity ≤ 6, cognitive complexity ≤ 8, ≤ 3 parameters, ≤ 3 returns, nesting ≤ 3, ≤ 8 imports, ≤ 3 switch branches, naming, docs and god-class checks, and every single-location smell rule (`force-unwrap`, `force-try`, `force-cast`, `implicitly-unwrapped-optional`, `non-null-assertion`, `explicit-any`, `nested-ternary`, `empty-catch`, `unreachable-code`, `magic-number`), all as errors.
+**Kirby profile:** coverage ≥ 90%, function ≤ 10 lines, cyclomatic complexity ≤ 6, cognitive complexity ≤ 8, ≤ 3 parameters, no boolean flag parameters, ≤ 3 returns, nesting ≤ 3, LCOM4 = 1, ≤ 8 imports, ≤ 3 switch branches, naming, docs and god-class checks, and every single-location smell rule (`force-unwrap`, `force-try`, `force-cast`, `implicitly-unwrapped-optional`, `non-null-assertion`, `explicit-any`, `nested-ternary`, `empty-catch`, `unreachable-code`, `magic-number`), all as errors.
 
-**Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16 by indentation, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example). On Swift, TypeScript and JavaScript also: ≤ 5 parameters, ≤ 4 returns, cognitive complexity ≤ 15, control-flow nesting ≤ 4.
+**Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16 by indentation, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example). On Swift, TypeScript and JavaScript also: ≤ 5 parameters, no boolean flag parameters, ≤ 4 returns, cognitive complexity ≤ 15, control-flow nesting ≤ 4, LCOM4 ≤ 2.
 
 **Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Python and Go are parsed too, but don't yet get the function-shape and single-location rules added for TS/JS/Swift. Everything else is heuristic.
 
@@ -127,7 +127,8 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Metric | Scope | Typical limit |
 |---|---|---|---|
 | ⬜ | WMC: weighted methods per class (sum of complexity) | F | ≤ 20–50 |
-| ⬜ | LCOM / LCOM4: lack of cohesion of methods | F | LCOM4 should be 1; > 1 means the type should be split |
+| ✅ | LCOM4: lack of cohesion of methods (`lack-of-cohesion`) | F | 1 is cohesive; more means the type splits into that many groups. Default ≤ 2, Kirby 1. Swift, TS, JS |
+| ⬜ | LCOM1–3 and LCOM-HS variants | F | |
 | ⬜ | TCC/LCC: tight/loose class cohesion | F | |
 | ⬜ | CBO: coupling between objects (types referenced) | T | ≤ 5–10 |
 | ⬜ | RFC: response for a class | T | |
@@ -142,7 +143,7 @@ The **Scope** column says what analysis a check needs:
 
 | ✓ | Principle | Detectable proxy | Scope |
 |---|---|---|---|
-| ⬜ | Single Responsibility | LCOM4 > 1, many unrelated imports, god class | F |
+| ✅ | Single Responsibility | LCOM4 > 1 (`lack-of-cohesion`), god class, many unrelated imports | F |
 | ⬜ | Open/Closed | Type-switches, `is`/`instanceof` chains | F |
 | ⬜ | Liskov Substitution | Overrides that throw "not supported", or narrow preconditions | X/T |
 | ⬜ | Interface Segregation | Protocols with many methods; conformers stubbing most of them | X |
@@ -178,7 +179,7 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Abbreviations not in an allowlist | F |
 | ✅ | Magic numbers (`magic-number`); Swift, TS, JS | F |
 | ⬜ | Magic strings | F |
-| ⬜ | Boolean parameters (flag arguments) | F |
+| ✅ | Boolean parameters (flag arguments) (`boolean-parameter`); Swift, TS, JS. Initializers are exempt | F |
 | ⬜ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) | X |
 | ⬜ | Inconsistent file name vs. primary type name | F |
 
@@ -264,8 +265,8 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | CRLF line endings | F |
 | ⬜ | Multiple consecutive blank lines | F |
 | ⬜ | Unsorted or duplicate imports | F |
-| ✅ | Debug leftovers in Swift (`swift-debug-print`) and JS (`js-console-log`) | F |
-| ⬜ | Debug leftovers in the remaining languages (`NSLog`, `fmt.Println`, Python `print`) | F |
+| ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F |
+| ⬜ | Debug leftovers in C, C++, shell, and PowerShell | F |
 
 ## 14. Process and churn (git-aware)
 
@@ -284,4 +285,4 @@ The **Scope** column says what analysis a check needs:
 - **Coverage gap:** `god-class` doesn't run on Go (no classes). The function-shape and single-location rules run only on Swift, TypeScript and JavaScript; Python and Go have parse trees, so extending them means writing a `TreeSitterQualitySpec` for each, with no new rule code.
 - **Precision gap:** duplicate detection is exact-match and intra-file only, and coupling is an import count. Both are labelled as proxies in the docs.
 - **Architecture constraint:** every ⬜ marked **X** needs a repo-wide analysis pass, because the rule engine sees only one file at a time. Adding that pass is the main structural change before the cross-file smells (clones, data clumps, cycles, DIT, shotgun surgery) become possible.
-- **Easiest wins:** many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto, missing EOF newline, and the remaining debug prints. Shared AST rules live once in `DeclarationFindings`: a new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it. LCOM4 and boolean flag parameters fit this model next.
+- **Easiest wins:** many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto and missing EOF newline. Shared AST rules live once in `DeclarationFindings`: a new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it. Per-type metrics sit on `CollectedType`, as LCOM4 does via `CohesionGraph`.

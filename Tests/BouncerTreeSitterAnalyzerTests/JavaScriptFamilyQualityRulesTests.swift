@@ -91,6 +91,34 @@ final class JavaScriptFamilyQualityRulesTests: XCTestCase {
                        "Function \"f\" has control flow nested 3 deep, over the 2 limit.")
     }
 
+    func testFlagsBooleanFlagParametersByTypeOrDefault() throws {
+        let contents = "function f(a: boolean, b?: boolean, c: number, d = false, e = 0) {}\n"
+        XCTAssertEqual(try message(of: "boolean-parameter", in: contents, limit: ("maxBooleanParameters", 0)),
+                       "Function \"f\" has 3 boolean flag parameter(s), over the 0 limit.")
+    }
+
+    func testConstructorsStoringABooleanAreNotFlagArguments() throws {
+        let contents = "class S {\n  constructor(private on: boolean) {}\n}\n"
+        XCTAssertNil(try message(of: "boolean-parameter", in: contents, limit: ("maxBooleanParameters", 0)))
+    }
+
+    func testMeasuresLackOfCohesionIgnoringConstructorAndStaticMethods() throws {
+        let contents = """
+            class Mixed {
+              cache: string[] = [];
+              view = "";
+              constructor() { this.cache = []; this.view = ""; }
+              load() { this.cache.push("x"); }
+              save = () => { this.persist(this.cache); };
+              persist(items: string[]) {}
+              render() { return this.view; }
+              static make() { return new Mixed(); }
+            }
+            """
+        XCTAssertEqual(try message(of: "lack-of-cohesion", in: contents, limit: ("maxGroups", 1)),
+                       "Type \"Mixed\" splits into 2 unrelated method groups (LCOM4), over 1.")
+    }
+
     func testFlagsTypeScriptAndJavaScriptPatternSmells() throws {
         let contents = """
             // @ts-ignore

@@ -89,6 +89,38 @@ final class SwiftQualityRulesTests: XCTestCase {
                        "Function \"f\" has control flow nested 3 deep, over the 2 limit.")
     }
 
+    func testFlagsBooleanFlagParametersByTypeOrDefault() throws {
+        let contents = "func f(a: Bool, b: Bool? = nil, c: Int, d: Int = 0, e: String = \"\", g: Any = true) {}\n"
+        XCTAssertEqual(try message(of: "boolean-parameter", in: contents, limit: ("maxBooleanParameters", 0)),
+                       "Function \"f\" has 3 boolean flag parameter(s), over the 0 limit.")
+    }
+
+    func testInitializersStoringABoolAreNotFlagArguments() throws {
+        let contents = "struct S {\n    let on: Bool\n    init(on: Bool) { self.on = on }\n}\n"
+        XCTAssertNil(try message(of: "boolean-parameter", in: contents, limit: ("maxBooleanParameters", 0)))
+    }
+
+    func testMeasuresLackOfCohesionIgnoringInitAndStaticMethods() throws {
+        let contents = """
+            final class Mixed {
+                var cache: [String] = []
+                var view = ""
+                init() { cache = []; view = "" }
+                func load() { cache.append("x") }
+                func save() { print(cache) }
+                func render() { print(self.view) }
+                static func make() -> Mixed { Mixed() }
+            }
+            """
+        XCTAssertEqual(try message(of: "lack-of-cohesion", in: contents, limit: ("maxGroups", 1)),
+                       "Type \"Mixed\" splits into 2 unrelated method groups (LCOM4), over 1.")
+    }
+
+    func testACohesiveTypeIsNotFlagged() throws {
+        let contents = "struct Counter {\n    var n = 0\n    mutating func up() { n += 1 }\n    func show() -> Int { n }\n}\n"
+        XCTAssertNil(try message(of: "lack-of-cohesion", in: contents, limit: ("maxGroups", 1)))
+    }
+
     func testFlagsSwiftPatternSmells() throws {
         let contents = "fatalError(\"x\")\nfinal class A: @unchecked Sendable {}\nprint(1)\n_ = try? f()\n"
         let file = SourceFile(path: URL(fileURLWithPath: "/repo/a.swift"), language: .swift, contents: contents)

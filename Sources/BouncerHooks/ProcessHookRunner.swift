@@ -1,18 +1,17 @@
 import Foundation
 
 /// Runs each hook command as a subprocess, with its output streamed to the caller's own.
+///
+/// Commands run through the platform's shell: `/bin/sh -c` on macOS and Linux, and `cmd.exe /d /s /c`
+/// (from `ComSpec`) on Windows.
 public struct ProcessHookRunner: HookRunner {
     private let workingDirectory: URL
-    private let shellExecutable: String
 
     /// Creates a process-backed hook runner.
     ///
-    /// - Parameters:
-    ///   - workingDirectory: The directory to run each command in.
-    ///   - shellExecutable: The shell to invoke each command through.
-    public init(workingDirectory: URL, shellExecutable: String = "/bin/sh") {
+    /// - Parameter workingDirectory: The directory to run each command in.
+    public init(workingDirectory: URL) {
         self.workingDirectory = workingDirectory
-        self.shellExecutable = shellExecutable
     }
 
     /// Runs each command in order, stopping at the first non-zero exit.
@@ -35,11 +34,25 @@ public struct ProcessHookRunner: HookRunner {
     /// - Returns: The command's result.
     private func runOne(_ command: String) -> HookResult {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: shellExecutable)
-        process.arguments = ["-c", command]
+        let shell = Self.shellInvocation(for: command)
+        process.executableURL = URL(fileURLWithPath: shell.executable)
+        process.arguments = shell.arguments
         process.currentDirectoryURL = workingDirectory
         guard (try? process.run()) != nil else { return HookResult(command: command, exitCode: -1) }
         process.waitUntilExit()
         return HookResult(command: command, exitCode: process.terminationStatus)
+    }
+
+    /// Builds the platform shell invocation for one command.
+    ///
+    /// - Parameter command: The command to run.
+    /// - Returns: The shell's path and the arguments that make it run `command`.
+    static func shellInvocation(for command: String) -> (executable: String, arguments: [String]) {
+        #if os(Windows)
+        let cmd = ProcessInfo.processInfo.environment["ComSpec"] ?? #"C:\Windows\System32\cmd.exe"#
+        return (cmd, ["/d", "/s", "/c", command])
+        #else
+        return ("/bin/sh", ["-c", command])
+        #endif
     }
 }

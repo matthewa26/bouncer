@@ -1,17 +1,19 @@
 import Foundation
+import BouncerCore
 
 /// Runs a subprocess and captures its output, shared by every git-invoking type.
 enum ProcessRunner {
     /// Runs a command and returns its trimmed standard output.
     ///
     /// - Parameters:
-    ///   - executable: The absolute path to the executable.
+    ///   - executable: The tool's name, looked up on `PATH`, such as `git`.
     ///   - arguments: The command-line arguments to pass.
     ///   - currentDirectory: The working directory to run in.
-    /// - Returns: The command's standard output, or `nil` if it exited non-zero.
+    /// - Returns: The command's standard output, or `nil` if it isn't on `PATH` or exited non-zero.
     static func run(_ executable: String, _ arguments: [String], currentDirectory: URL) -> String? {
+        guard let path = ExecutableLocator.path(of: executable) else { return nil }
         let pipe = Pipe()
-        let process = makeProcess(executable, arguments, currentDirectory: currentDirectory, output: pipe)
+        let process = makeProcess(path, arguments, currentDirectory: currentDirectory, output: pipe)
         guard (try? process.run()) != nil else { return nil }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()

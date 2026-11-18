@@ -29,6 +29,11 @@ report rather than silently passing. `postCheck` commands run after the report i
 failure there is logged as a warning but doesn't change the run's exit code, since the analysis
 result is already final by that point.
 
+Each command runs from the repository root through the platform's shell: `/bin/sh -c` on macOS and
+Linux, and `cmd.exe /d /s /c` on Windows. A repo whose contributors use both should stick to
+commands that mean the same thing in either shell, or call a script, such as `swift test` or
+`npm run coverage`.
+
 Hooks are the one section of `.bouncer` that merges additively rather than override-by-more-specific:
 a hook declared in `~/.bouncer` and a hook declared in the repo's own `.bouncer` both run, global
 ones first. Every other section in the file follows the usual override rule described in

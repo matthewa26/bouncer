@@ -73,7 +73,7 @@ enum HooksGate {
     ///
     /// - Returns: Whether a human is likely present to answer a prompt.
     private static func isInteractive() -> Bool {
-        isatty(FileHandle.standardInput.fileDescriptor) != 0
+        Terminal.standardInputIsInteractive
     }
 
     /// Reports whether a hooks config has no commands in either phase.

@@ -1,4 +1,5 @@
 import XCTest
+import BouncerCore
 import Foundation
 @testable import BouncerGit
 
@@ -24,7 +25,7 @@ enum GitFixture {
     @discardableResult
     static func run(_ arguments: [String], in directory: URL) throws -> String {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.executableURL = URL(fileURLWithPath: try XCTUnwrap(ExecutableLocator.path(of: "git")))
         process.arguments = arguments
         process.currentDirectoryURL = directory
         let pipe = Pipe()

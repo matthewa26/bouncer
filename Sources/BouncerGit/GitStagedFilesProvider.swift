@@ -18,7 +18,7 @@ public struct GitStagedFilesProvider: TargetFileProvider {
     /// - Throws: If `git` isn't available or the query fails.
     public func targetFiles() throws -> [URL] {
         let arguments = ["diff", "--cached", "--name-only", "--diff-filter=ACM"]
-        guard let output = ProcessRunner.run("/usr/bin/git", arguments, currentDirectory: repoRoot) else {
+        guard let output = ProcessRunner.run("git", arguments, currentDirectory: repoRoot) else {
             throw GitError.commandFailed
         }
         return output.split(separator: "\n").map { repoRoot.appendingPathComponent(String($0)) }

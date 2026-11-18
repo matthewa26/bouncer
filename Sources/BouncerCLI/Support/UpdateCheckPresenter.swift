@@ -60,7 +60,7 @@ enum UpdateCheckPresenter {
     private static func isInteractiveContext(isAgentInvocation: Bool, format: OutputFormat) -> Bool {
         let isCI = ProcessInfo.processInfo.environment["CI"] != nil
         guard !isAgentInvocation, format == .console, !isCI else { return false }
-        return isatty(FileHandle.standardOutput.fileDescriptor) != 0
+        return Terminal.standardOutputIsInteractive
     }
 
     /// Prints the update notice, to stdout when interactive, otherwise to stderr.

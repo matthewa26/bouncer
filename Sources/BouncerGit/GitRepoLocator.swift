@@ -9,7 +9,7 @@ public enum GitRepoLocator {
     public static func repoRoot(startingAt directory: URL) -> URL? {
         let arguments = ["rev-parse", "--show-toplevel"]
         let startDirectory = containingDirectory(of: directory)
-        guard let path = ProcessRunner.run("/usr/bin/git", arguments, currentDirectory: startDirectory) else {
+        guard let path = ProcessRunner.run("git", arguments, currentDirectory: startDirectory) else {
             return nil
         }
         return URL(fileURLWithPath: path, isDirectory: true)

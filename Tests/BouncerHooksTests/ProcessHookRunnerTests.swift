@@ -15,13 +15,13 @@ final class ProcessHookRunnerTests: XCTestCase {
     }
 
     func testRunsEveryCommandWhenAllSucceed() {
-        let results = ProcessHookRunner(workingDirectory: scratchDir).run(["true", "true"])
+        let results = ProcessHookRunner(workingDirectory: scratchDir).run(["exit 0", "exit 0"])
         XCTAssertEqual(results.count, 2)
         XCTAssertTrue(results.allSatisfy(\.succeeded))
     }
 
     func testStopsAtTheFirstFailure() {
-        let results = ProcessHookRunner(workingDirectory: scratchDir).run(["true", "false", "true"])
+        let results = ProcessHookRunner(workingDirectory: scratchDir).run(["exit 0", "exit 1", "exit 0"])
         XCTAssertEqual(results.count, 2)
         XCTAssertTrue(results[0].succeeded)
         XCTAssertFalse(results[1].succeeded)
@@ -34,7 +34,7 @@ final class ProcessHookRunnerTests: XCTestCase {
 
     func testRunsInTheGivenWorkingDirectory() throws {
         let markerPath = scratchDir.appendingPathComponent("marker")
-        _ = ProcessHookRunner(workingDirectory: scratchDir).run(["touch marker"])
+        _ = ProcessHookRunner(workingDirectory: scratchDir).run(["echo x > marker"])
         XCTAssertTrue(FileManager.default.fileExists(atPath: markerPath.path))
     }
 

@@ -1,5 +1,6 @@
 import SwiftSyntax
 import BouncerCore
+import BouncerRules
 
 /// Walks a Swift syntax tree once, collecting everything the AST rules need.
 final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
@@ -23,9 +24,11 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     ///
     /// - Returns: Everything gathered during the walk.
     func summary() -> SwiftDeclarationSummary {
-        SwiftDeclarationSummary(
-            functions: functions, types: types, switches: switches,
-            importCount: importCount, forceUnwrapLines: forceUnwrapLines, forceTryLines: forceTryLines
+        let declarations = DeclarationSummary(
+            functions: functions, types: types, switches: switches, importCount: importCount
+        )
+        return SwiftDeclarationSummary(
+            declarations: declarations, forceUnwrapLines: forceUnwrapLines, forceTryLines: forceTryLines
         )
     }
 

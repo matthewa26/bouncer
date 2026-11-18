@@ -1,23 +1,42 @@
 import Foundation
 import BouncerCore
-import BouncerRules
 
-/// Turns a `TreeSitterDeclarationSummary` into findings for each AST-based rule.
+/// Turns a `DeclarationSummary` into findings for each shared AST-based rule.
 ///
-/// Kept as pure functions over already-collected data, separate from the tree
-/// walk itself, matching the pattern `SwiftASTFindings` already established.
-enum TreeSitterASTFindings {
-    static let godClassRuleID = "god-class"
+/// Kept as pure functions over already-collected data, separate from any tree
+/// walk, so every parser-backed analyzer shares one implementation of each rule.
+public enum DeclarationFindings {
+    public static let godClassRuleID = "god-class"
+
+    /// Runs every shared AST-based rule, in a fixed order.
+    ///
+    /// - Parameters:
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    ///   - naming: The language's identifier patterns.
+    /// - Returns: The combined findings.
+    public static func all(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext, naming: NamingPatterns
+    ) -> [Finding] {
+        longFunction(summary, file: file, context: context)
+            + cyclomaticComplexity(summary, file: file, context: context)
+            + missingDocumentation(summary, file: file, context: context)
+            + namingConvention(summary, file: file, context: context, naming: naming)
+            + highCoupling(summary, file: file, context: context)
+            + switchOnTypeSmell(summary, file: file, context: context)
+            + godClass(summary, file: file, context: context)
+    }
 
     /// Flags every function whose logical line count exceeds `maxLines`.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: One finding per over-long function.
-    static func longFunction(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
+    public static func longFunction(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: LongFunctionRule.ruleID)
         guard settings.enabled else { return [] }
@@ -31,12 +50,12 @@ enum TreeSitterASTFindings {
     /// Flags every function whose branch count exceeds `max`.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: One finding per over-complex function.
-    static func cyclomaticComplexity(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
+    public static func cyclomaticComplexity(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: CyclomaticComplexityRule.ruleID)
         guard settings.enabled else { return [] }
@@ -47,12 +66,12 @@ enum TreeSitterASTFindings {
     /// Flags every function without a doc comment.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: One finding per undocumented function.
-    static func missingDocumentation(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
+    public static func missingDocumentation(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: MissingDocumentationRule.ruleID)
         guard settings.enabled else { return [] }
@@ -67,33 +86,33 @@ enum TreeSitterASTFindings {
     /// Flags every function or type name that doesn't match this language's naming pattern.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
-    ///   - spec: The language's naming patterns.
+    ///   - naming: The language's naming patterns.
     /// - Returns: One finding per badly-named function or type.
-    static func namingConvention(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile,
-        context: AnalysisContext, spec: TreeSitterLanguageSpec
+    public static func namingConvention(
+        _ summary: DeclarationSummary, file: SourceFile,
+        context: AnalysisContext, naming: NamingPatterns
     ) -> [Finding] {
         let settings = context.settings(for: NamingConventionRule.ruleID)
         guard settings.enabled else { return [] }
         let severity = settings.severity
         let functions = summary.functions.compactMap {
-            badlyNamed($0.name, spec.functionNamePattern, "function", $0.startLine, file, severity)
+            badlyNamed($0.name, naming.function, "function", $0.startLine, file, severity)
         }
-        return functions + badlyNamedTypes(summary, spec: spec, file: file, severity: severity)
+        return functions + badlyNamedTypes(summary, naming: naming, file: file, severity: severity)
     }
 
     /// Flags the file once if its import count exceeds `maxImports`.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: A single finding, or none.
-    static func highCoupling(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
+    public static func highCoupling(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: HighCouplingRule.ruleID)
         let maxImports = settings.parameters.int("maxImports", default: 15)
@@ -105,12 +124,12 @@ enum TreeSitterASTFindings {
     /// Flags every switch/match statement whose branch count exceeds `maxBranches`.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: One finding per over-large switch statement.
-    static func switchOnTypeSmell(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
+    public static func switchOnTypeSmell(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: SwitchOnTypeSmellRule.ruleID)
         let maxBranches = settings.parameters.int("maxBranches", default: 6)
@@ -123,12 +142,12 @@ enum TreeSitterASTFindings {
     /// Flags every class whose combined member count and file-level coupling look like a god class.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
+    ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: One finding per oversized, over-coupled class.
-    static func godClass(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
+    public static func godClass(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: godClassRuleID)
         guard settings.enabled else { return [] }
@@ -187,7 +206,7 @@ enum TreeSitterASTFindings {
     ///   - severity: The severity to report at.
     /// - Returns: A finding, or `nil` if within the limit.
     private static func longFunctionFinding(
-        _ function: TSCollectedFunction, file: SourceFile, profile: LanguageProfile, maxLines: Int, severity: Severity
+        _ function: CollectedFunction, file: SourceFile, profile: LanguageProfile, maxLines: Int, severity: Severity
     ) -> Finding? {
         let range = function.startLine...max(function.startLine, function.endLine)
         let count = LogicalLineCounter.count(in: file, range: range, profile: profile)
@@ -205,7 +224,7 @@ enum TreeSitterASTFindings {
     ///   - severity: The severity to report at.
     /// - Returns: A finding, or `nil` if within the limit.
     private static func complexityFinding(
-        _ function: TSCollectedFunction, file: SourceFile, max: Int, severity: Severity
+        _ function: CollectedFunction, file: SourceFile, max: Int, severity: Severity
     ) -> Finding? {
         let complexity = function.branchCount + 1
         guard complexity > max else { return nil }
@@ -222,7 +241,7 @@ enum TreeSitterASTFindings {
     ///   - severity: The severity to report at.
     /// - Returns: The finding for this switch statement.
     private static func switchFinding(
-        _ collectedSwitch: TSCollectedSwitch, file: SourceFile, maxBranches: Int, severity: Severity
+        _ collectedSwitch: CollectedSwitch, file: SourceFile, maxBranches: Int, severity: Severity
     ) -> Finding {
         let message = "Switch has \(collectedSwitch.caseCount) branches, over the \(maxBranches)-branch limit."
         return finding(SwitchOnTypeSmellRule.ruleID, collectedSwitch.startLine, message, severity, file)
@@ -237,7 +256,7 @@ enum TreeSitterASTFindings {
     ///   - thresholds: This rule's configured thresholds.
     /// - Returns: A finding, or `nil` if the type is within both limits.
     private static func godClassFinding(
-        _ type: TSCollectedType, file: SourceFile, importCount: Int, thresholds: GodClassThresholds
+        _ type: CollectedType, file: SourceFile, importCount: Int, thresholds: GodClassThresholds
     ) -> Finding? {
         guard type.memberCount > thresholds.maxMembers, importCount > thresholds.maxImports else { return nil }
         let message = "Type \"\(type.name)\" has \(type.memberCount) members in a file with \(importCount) imports."
@@ -247,15 +266,15 @@ enum TreeSitterASTFindings {
     /// Flags every collected type whose name doesn't match the language's type-naming pattern.
     ///
     /// - Parameters:
-    ///   - summary: The declarations collected from the file's parse tree.
-    ///   - spec: The language's naming patterns; languages without classes have no type pattern.
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - naming: The language's naming patterns; languages without classes have no type pattern.
     ///   - file: The file being analyzed.
     ///   - severity: The severity to report at.
     /// - Returns: One finding per badly-named type.
     private static func badlyNamedTypes(
-        _ summary: TreeSitterDeclarationSummary, spec: TreeSitterLanguageSpec, file: SourceFile, severity: Severity
+        _ summary: DeclarationSummary, naming: NamingPatterns, file: SourceFile, severity: Severity
     ) -> [Finding] {
-        guard let pattern = spec.typeNamePattern else { return [] }
+        guard let pattern = naming.type else { return [] }
         return summary.types.compactMap { badlyNamed($0.name, pattern, "type", $0.startLine, file, severity) }
     }
 

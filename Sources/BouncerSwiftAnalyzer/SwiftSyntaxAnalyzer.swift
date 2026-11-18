@@ -48,9 +48,7 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
 
     /// Every AST-based Swift rule, run in this order against a collected declaration summary.
     private static let astRules: [ASTRule] = [
-        SwiftASTFindings.forceUnwrap, SwiftASTFindings.forceTry, SwiftASTFindings.longFunction,
-        SwiftASTFindings.cyclomaticComplexity, SwiftASTFindings.missingDocumentation, SwiftASTFindings.namingConvention,
-        SwiftASTFindings.highCoupling, SwiftASTFindings.switchOnTypeSmell, SwiftASTFindings.godClass
+        SwiftASTFindings.forceUnwrap, SwiftASTFindings.forceTry, SwiftASTFindings.shared
     ]
 
     /// Runs every AST-based Swift rule against a collected declaration summary.

@@ -1,13 +1,14 @@
 import SwiftTreeSitter
 import BouncerCore
+import BouncerRules
 
 /// Walks a tree-sitter parse tree once, collecting everything the AST rules need.
 final class TreeSitterSummaryBuilder {
     private let spec: TreeSitterLanguageSpec
     private let source: String
-    private var functions: [TSCollectedFunction] = []
-    private var types: [TSCollectedType] = []
-    private var switches: [TSCollectedSwitch] = []
+    private var functions: [CollectedFunction] = []
+    private var types: [CollectedType] = []
+    private var switches: [CollectedSwitch] = []
     private var importCount = 0
 
     /// Creates a summary builder for a given language's node-type conventions.
@@ -33,9 +34,9 @@ final class TreeSitterSummaryBuilder {
     ///
     /// - Parameter root: The parse tree's root node.
     /// - Returns: Everything gathered during the walk.
-    func build(root: Node) -> TreeSitterDeclarationSummary {
+    func build(root: Node) -> DeclarationSummary {
         walk(root)
-        return TreeSitterDeclarationSummary(
+        return DeclarationSummary(
             functions: functions, types: types, switches: switches, importCount: importCount
         )
     }
@@ -70,29 +71,30 @@ final class TreeSitterSummaryBuilder {
         functions.append(makeCollectedFunction(node, body: body))
     }
 
-    /// Builds a `TSCollectedFunction` from a declaration node and its body.
+    /// Builds a `CollectedFunction` from a declaration node and its body.
     ///
     /// - Parameters:
     ///   - node: The function/method declaration node.
     ///   - body: Its body block, already resolved by the caller.
     /// - Returns: The collected function.
-    private func makeCollectedFunction(_ node: Node, body: Node) -> TSCollectedFunction {
+    private func makeCollectedFunction(_ node: Node, body: Node) -> CollectedFunction {
         let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
-        return TSCollectedFunction(
+        return CollectedFunction(
             name: name, startLine: line(of: node.pointRange.lowerBound), endLine: line(of: node.pointRange.upperBound),
             branchCount: countBranches(in: body), hasDocComment: isDocumented(node),
             visibility: visibility(ofName: name)
         )
     }
 
-    /// Collects a class node's name, member count, and starting line.
+    /// Collects a class node's name, member count, and line span.
     ///
     /// - Parameter node: The class declaration node.
     private func collectType(_ node: Node) {
         guard let body = node.child(byFieldName: "body") else { return }
         let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
-        let startLine = line(of: node.pointRange.lowerBound)
-        types.append(TSCollectedType(name: name, memberCount: body.namedChildCount, startLine: startLine))
+        let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
+        let memberCount = body.namedChildCount
+        types.append(CollectedType(name: name, memberCount: memberCount, startLine: startLine, endLine: endLine))
     }
 
     /// Collects a switch/match node's branch count and starting line.
@@ -100,7 +102,7 @@ final class TreeSitterSummaryBuilder {
     /// - Parameter node: The switch/match statement node.
     private func collectSwitch(_ node: Node) {
         let caseCount = countDescendants(of: node, matching: spec.switchBranchNodeTypes)
-        switches.append(TSCollectedSwitch(caseCount: caseCount, startLine: line(of: node.pointRange.lowerBound)))
+        switches.append(CollectedSwitch(caseCount: caseCount, startLine: line(of: node.pointRange.lowerBound)))
     }
 
     /// Counts decision points within a function body, for cyclomatic complexity.

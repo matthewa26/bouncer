@@ -37,7 +37,7 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Parameter file: The file to parse.
     /// - Returns: The collected summary.
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
-    private func buildSummary(for file: SourceFile) throws -> TreeSitterDeclarationSummary {
+    private func buildSummary(for file: SourceFile) throws -> DeclarationSummary {
         let parser = Parser()
         try parser.setLanguage(spec.language)
         guard let tree = parser.parse(file.contents), let root = tree.rootNode else {
@@ -62,23 +62,16 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
         return (rules + customRules).flatMap { $0.evaluate(file: file, context: context) }
     }
 
-    /// Runs every AST-based rule against a collected declaration summary.
+    /// Runs every shared AST-based rule against a collected declaration summary.
     ///
     /// - Parameters:
     ///   - summary: The declarations collected from the file's parse tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including every rule's resolved settings.
     /// - Returns: The combined findings from every AST-based rule.
-    private func astFindings(
-        _ summary: TreeSitterDeclarationSummary, file: SourceFile, context: AnalysisContext
-    ) -> [Finding] {
-        TreeSitterASTFindings.longFunction(summary, file: file, context: context)
-            + TreeSitterASTFindings.cyclomaticComplexity(summary, file: file, context: context)
-            + TreeSitterASTFindings.missingDocumentation(summary, file: file, context: context)
-            + TreeSitterASTFindings.namingConvention(summary, file: file, context: context, spec: spec)
-            + TreeSitterASTFindings.highCoupling(summary, file: file, context: context)
-            + TreeSitterASTFindings.switchOnTypeSmell(summary, file: file, context: context)
-            + TreeSitterASTFindings.godClass(summary, file: file, context: context)
+    private func astFindings(_ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext) -> [Finding] {
+        let naming = NamingPatterns(function: spec.functionNamePattern, type: spec.typeNamePattern)
+        return DeclarationFindings.all(summary, file: file, context: context, naming: naming)
     }
 }
 

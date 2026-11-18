@@ -7,7 +7,7 @@ on:
 
 jobs:
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - run: swift build
@@ -15,7 +15,7 @@ jobs:
 
   linux:
     runs-on: ubuntu-24.04
-    container: swift:6.0-noble
+    container: swift:6.4.2-noble
     steps:
       - uses: actions/checkout@v4
       - run: swift build
@@ -27,5 +27,33 @@ jobs:
       - uses: actions/checkout@v4
       - uses: compnerd/gha-setup-swift@main
         with:
-          swift-version: "6.0"
+          swift-version: swift-6.4.2-release
+          swift-build: 6.4.2-RELEASE
       - run: swift build
+
+  # Runs install.ps1 against fake release assets served from file:// URLs, so the installer's
+  # download, checksum, extract, and install logic is tested on every change, under sh and
+  # both PowerShell editions, without needing a published release.
+  installer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, shell: sh }
+          - { runner: macos-15, shell: sh }
+          - { runner: windows-latest, shell: pwsh }
+          - { runner: windows-latest, shell: powershell }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the installer under sh
+        if: matrix.shell == 'sh'
+        run: sh Scripts/test-installer.sh
+      - name: Test the installer under PowerShell 7
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: ./Scripts/test-installer.ps1
+      - name: Test the installer under Windows PowerShell 5.1
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./Scripts/test-installer.ps1

@@ -1,81 +1,161 @@
 name: release
 
-# Builds release artifacts for a tagged version: standalone binaries for every
-# platform, plus Homebrew bottles for macOS and Linux built to the Tier 1
-# glibc/kernel baseline (see docs.brew.sh/Support-Tiers#linux). Windows only
-# gets a standalone binary; Homebrew on Windows means Homebrew inside WSL2,
-# which is just the Linux bottle running under a real Linux kernel.
+# Builds release artifacts for a tagged version, each runnable without Swift installed:
+# - macOS: one universal (arm64 + x86_64) binary.
+# - Linux: fully static musl binaries for x86_64 and arm64, built with the Static Linux SDK,
+#   so they run on any distro and under WSL1/WSL2.
+# - Windows: an x86_64 zip of bouncer.exe plus the Swift runtime DLLs it loads.
+# Plus SHA256SUMS, which install.ps1 verifies every download against.
+#
+# The Swift version is pinned so the Static Linux SDK matches its toolchain exactly; bump
+# SWIFT_VERSION and STATIC_SDK_CHECKSUM together (checksums are listed at swift.org/install).
 
 on:
   push:
     tags:
       - "v*"
 
+env:
+  SWIFT_VERSION: "6.4.2"
+  STATIC_SDK_CHECKSUM: "3786b179936d9cc9e266dd506bd1654176358d7b25288e243359f4d17cc4dc5a"
+
 jobs:
-  macos-binary:
-    strategy:
-      matrix:
-        include:
-          - runner: macos-14
-            arch: arm64
-          - runner: macos-13
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+  macos:
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - run: swift build -c release --disable-sandbox
-      - run: |
+      - run: swift build -c release --arch arm64 --arch x86_64
+      - name: Package
+        run: |
+          bin="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/bouncer"
+          lipo -archs "$bin" | grep -q x86_64 && lipo -archs "$bin" | grep -q arm64
+          "$bin" --version
           mkdir -p dist
-          tar -czf dist/bouncer-macos-${{ matrix.arch }}.tar.gz -C .build/release bouncer
+          tar -czf dist/bouncer-macos-universal.tar.gz -C "$(dirname "$bin")" bouncer
       - uses: actions/upload-artifact@v4
         with:
-          name: bouncer-macos-${{ matrix.arch }}
-          path: dist/*.tar.gz
+          name: bouncer-macos-universal
+          path: dist/*
 
-  linux-bottle:
-    strategy:
-      matrix:
-        arch: [x86_64, arm64]
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
-    container: swift:6.0-noble
+  linux:
+    runs-on: ubuntu-24.04
+    # Job containers can't read env, so this tag repeats SWIFT_VERSION; keep them in sync.
+    container: swift:6.4.2-noble
     steps:
       - uses: actions/checkout@v4
-      - run: swift build -c release
-      - run: |
+      - name: Install the Static Linux SDK
+        run: |
+          release="swift-${SWIFT_VERSION}-RELEASE"
+          url="https://download.swift.org/swift-${SWIFT_VERSION}-release/static-sdk/${release}"
+          swift sdk install "${url}/${release}_static-linux-0.1.0.artifactbundle.tar.gz" \
+            --checksum "$STATIC_SDK_CHECKSUM"
+      - name: Build and package both architectures
+        run: |
           mkdir -p dist
-          tar -czf dist/bouncer-linux-${{ matrix.arch }}.tar.gz -C .build/release bouncer
+          for pair in x86_64:x86_64 aarch64:arm64; do
+            triple="${pair%%:*}-swift-linux-musl"
+            swift build -c release --swift-sdk "$triple"
+            bin="$(swift build -c release --swift-sdk "$triple" --show-bin-path)"
+            # Debug info triples the size; llvm-objcopy strips either architecture from this host.
+            llvm-objcopy --strip-all "$bin/bouncer"
+            tar -czf "dist/bouncer-linux-${pair##*:}.tar.gz" -C "$bin" bouncer
+          done
+          "$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)/bouncer" --version
       - uses: actions/upload-artifact@v4
         with:
-          name: bouncer-linux-${{ matrix.arch }}
-          path: dist/*.tar.gz
-      # A real Homebrew bottle (not just a tarball) is produced separately by
-      # running `brew bottle` against this same build inside the Homebrew
-      # Ubuntu image, so its metadata matches what `brew install` expects.
-      # That step is intentionally not fleshed out here yet: verify the
-      # Swift-on-Linux build above works end to end before automating bottling.
+          name: bouncer-linux
+          path: dist/*
 
-  windows-binary:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: compnerd/gha-setup-swift@main
         with:
-          swift-version: "6.0"
+          swift-version: swift-${{ env.SWIFT_VERSION }}-release
+          swift-build: ${{ env.SWIFT_VERSION }}-RELEASE
       - run: swift build -c release
-      - run: Compress-Archive -Path .build/release/bouncer.exe -DestinationPath dist/bouncer-windows-x86_64.zip
+      - name: Package with the Swift runtime
         shell: pwsh
+        run: |
+          # The swift.org installer puts the runtime DLLs on PATH; ship them next to the exe so
+          # bouncer.exe runs on machines without Swift.
+          $runtime = Split-Path (where.exe swiftCore.dll | Select-Object -First 1)
+          $bin = swift build -c release --show-bin-path
+          New-Item -ItemType Directory -Force -Path package, dist | Out-Null
+          Copy-Item (Join-Path $bin 'bouncer.exe') package/
+          Copy-Item (Join-Path $runtime '*.dll') package/
+          Compress-Archive -Path package/* -DestinationPath dist/bouncer-windows-x86_64.zip
+      - name: Check the packaged exe runs without the toolchain on PATH
+        shell: pwsh
+        run: |
+          Expand-Archive dist/bouncer-windows-x86_64.zip -DestinationPath check
+          $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
+          ./check/bouncer.exe --version
       - uses: actions/upload-artifact@v4
         with:
           name: bouncer-windows-x86_64
-          path: dist/*.zip
+          path: dist/*
 
   publish:
-    needs: [macos-binary, linux-bottle, windows-binary]
+    needs: [macos, linux, windows]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          merge-multiple: true
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: sha256sum bouncer-* > SHA256SUMS && cat SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*
+          files: dist/*
+
+  # Installs the release that was just published, the way a user would, on every supported
+  # platform. Old-glibc and musl containers prove the Linux binary is fully static.
+  smoke-test:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, shell: sh }
+          - { runner: ubuntu-24.04-arm, shell: sh }
+          - { runner: ubuntu-24.04, shell: sh, container: "ubuntu:20.04" }
+          - { runner: ubuntu-24.04, shell: sh, container: "alpine:3" }
+          - { runner: macos-15, shell: sh }
+          - { runner: macos-15-intel, shell: sh }
+          - { runner: windows-latest, shell: pwsh }
+          - { runner: windows-latest, shell: powershell }
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    env:
+      BOUNCER_VERSION: ${{ github.ref_name }}
+      INSTALLER_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.ps1
+      BOUNCER_REPO: ${{ github.repository }}
+    steps:
+      - name: Install curl in bare containers
+        if: matrix.container
+        run: |
+          if command -v apk >/dev/null; then apk add --no-cache curl
+          else apt-get update -qq && apt-get install -y -qq curl ca-certificates; fi
+      - name: Install with sh
+        if: matrix.shell == 'sh'
+        run: |
+          curl -fsSL "$INSTALLER_URL" | sh
+          "$HOME/.local/bin/bouncer" --version
+      - name: Install with PowerShell 7
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          irm $env:INSTALLER_URL | iex
+          & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
+      - name: Install with PowerShell 5.1
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          irm $env:INSTALLER_URL | iex
+          & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version

@@ -6,11 +6,27 @@ Full documentation, including the config reference and rule catalog, is at [matt
 
 ## Install
 
-Three ways, on any platform:
+One installer for every platform. It picks the right build for your OS and CPU, verifies it against the release's `SHA256SUMS`, and installs it for the current user, no admin rights or Swift toolchain needed:
+
+```sh
+# macOS, Linux, and WSL (x86-64 or ARM64): installs to ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | sh
+```
+
+```powershell
+# Windows PowerShell or PowerShell 7: installs to %LOCALAPPDATA%\Programs\bouncer and adds it to your user PATH
+irm https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | iex
+```
+
+`install.ps1` is a single polyglot file that runs under both `sh` and PowerShell. Set `BOUNCER_VERSION` to pin a release, `BOUNCER_INSTALL_DIR` to change where it goes, or `BOUNCER_NO_MODIFY_PATH=1` to leave your Windows PATH alone.
+
+The release builds behind it run without Swift installed: a universal macOS binary, fully static Linux binaries for x86-64 and ARM64 (any distro, WSL1 and WSL2), and a Windows x86-64 zip that bundles the Swift runtime (it also uses the Microsoft Visual C++ Redistributable, which most Windows machines already have; the installer warns if it's missing). There's no native Windows ARM64 build yet; the installer gives ARM64 Windows the x86-64 build, which runs under Windows' built-in emulation.
+
+Other ways to install:
 
 - **Build from source**: `swift build -c release` (needs a Swift 6 toolchain).
-- **Prebuilt binary**: download the archive for your platform from the latest GitHub release.
-- **Homebrew**: `brew tap matthewayers/tap && brew install bouncer`. Works natively on macOS and Linux. On Windows, Homebrew only runs inside **WSL2** (a real Linux kernel) - it does not work under WSL1 or natively on Windows. For native Windows without WSL, use the prebuilt binary instead.
+- **Prebuilt archive**: download the archive for your platform from the latest GitHub release and check it against `SHA256SUMS`.
+- **Homebrew**: `brew tap matthewayers/tap && brew install bouncer`. Works natively on macOS and Linux. On Windows, Homebrew only runs inside **WSL2** (a real Linux kernel) - it does not work under WSL1 or natively on Windows. For native Windows without WSL, use the installer above.
 
 ## Usage
 

@@ -7,6 +7,8 @@ public struct ImportEdge: Sendable, Equatable {
     public let file: String
     public let line: Int
     public let specifier: String
+    /// The names imported, as in `ImportFact.names`.
+    public let names: [String]
 }
 
 /// The project's dependency graph: one node per file (TS/JS, Python), Swift target, or Go package, and
@@ -33,6 +35,21 @@ public struct ProjectIndex: Sendable {
     /// Lists a node's outgoing edges, grouped by source node.
     public var edgesFrom: [String: [ImportEdge]] { Dictionary(grouping: edges, by: \.from) }
 
+    /// Each node's files, sorted by path.
+    public var filesOfNode: [String: [String]] {
+        Dictionary(grouping: nodeOfFile.keys.sorted(), by: { nodeOfFile[$0] ?? "" })
+    }
+
+    /// Each node's distinct project dependencies.
+    public var dependencies: [String: Set<String>] {
+        edgesFrom.mapValues { Set($0.map(\.to)) }
+    }
+
+    /// Each node's distinct dependents: the nodes that import it.
+    public var dependents: [String: Set<String>] {
+        Dictionary(grouping: edges, by: \.to).mapValues { Set($0.map(\.from)) }
+    }
+
     /// Resolves one file's imports into edges.
     ///
     /// - Parameters:
@@ -44,7 +61,9 @@ public struct ProjectIndex: Sendable {
         let from = resolver.node(of: fact.path)
         return fact.module.imports.compactMap { item in
             guard let to = resolver.resolve(item.specifier, from: fact.path), to != from else { return nil }
-            return ImportEdge(from: from, to: to, file: fact.path, line: item.line, specifier: item.specifier)
+            return ImportEdge(
+                from: from, to: to, file: fact.path, line: item.line, specifier: item.specifier, names: item.names
+            )
         }
     }
 }

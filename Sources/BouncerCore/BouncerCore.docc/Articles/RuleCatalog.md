@@ -204,6 +204,30 @@ These look across files, using each file's imports and exports. `bouncer review`
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
 | `import-cycle` | A cycle of imports, reported once at an import inside it with the full path | warning | none |
+| `layer-violation` | An import from a lower layer into a higher one | warning | `layers`: path globs, top layer first (none, so off) |
+| `unused-export` | A TS/JS named export nothing in the project imports | warning | `entryPoints`: globs whose exports are used externally |
+| `high-fan-out` | A file, Swift target, or Go package depending on too many others in the project | warning | `maxDependencies` (15) |
+| `hub-module` | A file, target, or package too much of the project depends on | warning | `maxDependents` (30) |
+| `unstable-dependency` | A stable module importing a less stable one (Stable Dependencies Principle) | warning | `minDifference` (30, a percentage) |
+| `missing-test-file` | A source file with no conventionally named test file; off unless configured | warning | none |
+
+`layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
+or any later one, never an earlier one, and files matching no layer are unconstrained. For
+example, `["src/ui/**", "src/domain/**", "src/infra/**"]` lets the UI use the domain and the
+domain use infrastructure, but not the reverse.
+
+`unused-export` skips default exports, which frameworks load by convention (pages, stories,
+configs), and entry points: `index` files, `.d.ts` files, tests, stories, `*.config.*` files, and
+anything matching `entryPoints`. A namespace import or `export *` counts every export as used.
+
+`unstable-dependency` uses Robert Martin's instability, `outgoing / (incoming + outgoing)`: 0 for
+code everything depends on, 1 for code nothing depends on. It flags an import whose target is
+more unstable than its source by more than `minDifference` percentage points, since changes to
+volatile code then ripple into the stable code that depends on it.
+
+`missing-test-file` looks for `foo.test.ts`/`foo.spec.ts`, `test_foo.py`/`foo_test.py`,
+`foo_test.go`, or `FooTests.swift`/`FooTest.swift` anywhere in the project. It's off by default;
+turn it on by listing it under `rules`.
 
 Imports are resolved per language. TypeScript and JavaScript resolve relative specifiers (trying
 each TS/JS extension, `index` files, and `.js` written for a `.ts` file) and the root

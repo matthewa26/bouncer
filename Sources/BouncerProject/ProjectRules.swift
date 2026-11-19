@@ -21,7 +21,10 @@ public struct ProjectRules: ProjectAnalyzer {
 
     /// Creates the analyzer with the built-in project rules.
     public init() {
-        rules = [ImportCycleRule()]
+        rules = [
+            ImportCycleRule(), LayerViolationRule(), UnusedExportRule(), HighFanOutRule(), HubModuleRule(),
+            UnstableDependencyRule(), MissingTestFileRule()
+        ]
     }
 
     /// Indexes the project and runs every enabled project rule.

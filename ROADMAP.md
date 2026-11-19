@@ -29,7 +29,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | `var` (`js-var`) | F | |
 | ⬜ | Floating promise (missing `await`/`.catch`) | T | Needs type information; see section 10 |
 | ⬜ | `enum` where a union type would do | F | Style preference; would be opt-in |
-| ⬜ | Unused exports | X | |
+| ✅ | Unused exports (`unused-export`); TS/JS named exports | X | |
 
 ---
 
@@ -134,8 +134,8 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | RFC: response for a class | T | |
 | ⬜ | DIT: depth of inheritance tree | X | ≤ 3–5 |
 | ⬜ | NOC: number of children | X | |
-| ⬜ | Fan-in / fan-out per module | X | |
-| ⬜ | Instability I = Ce / (Ca + Ce) | X | Robert Martin's package metrics |
+| ✅ | Fan-in / fan-out per module (`hub-module`, `high-fan-out`) | X | |
+| ✅ | Instability I = Ce / (Ca + Ce), via the Stable Dependencies Principle (`unstable-dependency`) | X | |
 | ⬜ | Abstractness A and distance from the main sequence \|A + I − 1\| | X | |
 | ⬜ | ATFD (access to foreign data) for god-class detection | T | The Lanza–Marinescu god-class formula: WMC + ATFD + TCC |
 
@@ -160,9 +160,9 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Check | Scope |
 |---|---|---|
 | ✅ | Cyclic dependencies between files, modules, and targets (`import-cycle`) | X |
-| ⬜ | Layering rules (e.g. Core must not import CLI) | X. Could be a config-declared allowlist |
+| ✅ | Layering rules declared as ordered path globs (`layer-violation`) | X |
 | ⬜ | Forbidden imports per path (custom allow/deny list) | F |
-| ⬜ | Hub modules: a module everything depends on | X |
+| ✅ | Hub modules (`hub-module`) | X |
 | ⬜ | Unused dependencies in the package manifest | X |
 | ⬜ | Public API surface growth (new public symbols in a diff) | X + git |
 
@@ -252,7 +252,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Line coverage threshold | X (report) |
 | ⬜ | Branch coverage threshold | X (report) |
 | ⬜ | Coverage on changed lines only (diff coverage) | X + git |
-| ⬜ | Source file with no matching test file | X |
+| ✅ | Source file with no matching test file (`missing-test-file`, opt-in) | X |
 | ✅ | Test with no assertions (`test-without-assertions`) | F |
 | ✅ | Disabled, skipped, or focused tests (`skipped-test`); TS/JS, Swift, Python, Go, Java | F |
 | ⬜ | Sleeps or real network or clock calls in tests (flakiness) | F |

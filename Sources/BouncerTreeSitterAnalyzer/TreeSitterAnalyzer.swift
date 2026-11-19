@@ -28,8 +28,20 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Returns: The combined findings.
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if the parser produces no tree.
     public func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] {
-        let summary = try buildSummary(for: file)
-        return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
+        findings(root: try parse(file), file: file, context: context)
+    }
+
+    /// Analyzes a file and reads its module facts from a single parse.
+    ///
+    /// - Parameters:
+    ///   - file: The file to analyze.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The file's findings and module facts.
+    /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
+    public func analyzeWithFacts(file: SourceFile, context: AnalysisContext) throws -> FileAnalysis {
+        let root = try parse(file)
+        let found = findings(root: root, file: file, context: context)
+        return FileAnalysis(findings: found, facts: facts(root: root, file: file))
     }
 
     /// Parses a file and reads its imports and exports, for the project pass.
@@ -38,9 +50,29 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Returns: Its module facts, or `nil` for a language without an extractor.
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
     public func moduleFacts(file: SourceFile) throws -> ModuleFacts? {
-        guard let extractor = spec.moduleFacts else { return nil }
-        let root = try parse(file)
-        return extractor.facts(root: root) { node in
+        spec.moduleFacts == nil ? nil : facts(root: try parse(file), file: file)
+    }
+
+    /// Runs every rule over an already-parsed file.
+    ///
+    /// - Parameters:
+    ///   - root: The file's parse tree.
+    ///   - file: The file.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The combined findings.
+    private func findings(root: Node, file: SourceFile, context: AnalysisContext) -> [Finding] {
+        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root)
+        return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
+    }
+
+    /// Reads module facts from an already-parsed file.
+    ///
+    /// - Parameters:
+    ///   - root: The file's parse tree.
+    ///   - file: The file, for node text.
+    /// - Returns: Its facts, or `nil` without an extractor.
+    private func facts(root: Node, file: SourceFile) -> ModuleFacts? {
+        spec.moduleFacts?.facts(root: root) { node in
             Range(node.range, in: file.contents).map { String(file.contents[$0]) }
         }
     }
@@ -57,15 +89,6 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
             throw TreeSitterAnalyzerError.parseFailed
         }
         return root
-    }
-
-    /// Parses the file and collects its declaration summary.
-    ///
-    /// - Parameter file: The file to parse.
-    /// - Returns: The collected summary.
-    /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
-    private func buildSummary(for file: SourceFile) throws -> DeclarationSummary {
-        TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: try parse(file))
     }
 
     /// Runs the language-agnostic heuristic rules shared with every other language.

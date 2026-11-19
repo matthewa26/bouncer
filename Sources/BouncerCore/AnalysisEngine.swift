@@ -72,35 +72,59 @@ public struct AnalysisEngine: Sendable {
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func run() throws -> AnalysisResult {
         let files = try fileProvider.targetFiles().map(loadSourceFile)
-        let findings = try files.flatMap(analyzeAndFilter) + projectFindings(for: files)
+        let analyses = try files.map(analyze)
+        let findings = zip(files, analyses).flatMap { file, analysis in
+            analysis.findings.filter { !isBaselined($0, in: file) }
+        }
         let coverageReport = try loadCoverageReport()
-        return AnalysisResult(findings: findings + coverageFindings(from: coverageReport), coverage: coverageReport)
+        let all = findings + (try projectFindings(for: files, analyses: analyses))
+        return AnalysisResult(findings: all + coverageFindings(from: coverageReport), coverage: coverageReport)
     }
 
-    /// Analyzes one file and removes any finding already present in the baseline.
+    /// Analyzes one file, also extracting its module facts in the same parse when the project pass will run.
     ///
     /// - Parameter file: The file to analyze.
-    /// - Returns: The file's findings, excluding baselined ones.
+    /// - Returns: The file's findings, and its facts if the project pass needs them.
     /// - Throws: If its analyzer fails.
-    private func analyzeAndFilter(_ file: SourceFile) throws -> [Finding] {
-        try analyzer(for: file).analyze(file: file, context: context).filter { !isBaselined($0, in: file) }
+    private func analyze(_ file: SourceFile) throws -> FileAnalysis {
+        let analyzer = analyzer(for: file)
+        guard project != nil else {
+            return FileAnalysis(findings: try analyzer.analyze(file: file, context: context), facts: nil)
+        }
+        return try analyzer.analyzeWithFacts(file: file, context: context)
     }
 
     /// Runs the project pass, keeping non-baselined findings in the target files.
     ///
-    /// - Parameter files: The target files.
+    /// - Parameters:
+    ///   - files: The target files.
+    ///   - analyses: Their analyses, whose facts the project pass reuses instead of parsing again.
     /// - Returns: The project findings, or none without a project pass.
     /// - Throws: If indexing fails.
-    private func projectFindings(for files: [SourceFile]) throws -> [Finding] {
+    private func projectFindings(for files: [SourceFile], analyses: [FileAnalysis]) throws -> [Finding] {
         guard let project else { return [] }
-        let byPath = Dictionary(
-            files.map { (RepoPath.relative($0.path, to: context.repoRoot), $0) }
-        ) { first, _ in first }
-        let access = ProjectPhase.FileAccess(read: loadSourceFile) { try analyzer(for: $0).moduleFacts(file: $0) }
+        let byPath = Dictionary(files.map { (repoPath(of: $0.path), $0) }) { first, _ in first }
+        var access = ProjectPhase.FileAccess(read: loadSourceFile) { try analyzer(for: $0).moduleFacts(file: $0) }
+        access.parsed = parsedFacts(files: files, analyses: analyses)
         return try project.findings(targets: Set(byPath.keys), context: context, access: access).filter { finding in
-            let file = byPath[RepoPath.relative(finding.filePath, to: context.repoRoot)]
+            let file = byPath[repoPath(of: finding.filePath)]
             return file.map { !isBaselined(finding, in: $0) } ?? true
         }
+    }
+
+    /// Packages the main pass's facts for the project pass, keyed by repo-relative path.
+    ///
+    /// - Parameters:
+    ///   - files: The target files.
+    ///   - analyses: Their analyses.
+    /// - Returns: Each target file's facts, for files whose analyzer extracted any.
+    private func parsedFacts(files: [SourceFile], analyses: [FileAnalysis]) -> [String: FileFacts] {
+        let pairs = zip(files, analyses).compactMap { file, analysis -> (String, FileFacts)? in
+            let path = repoPath(of: file.path)
+            let hash = StableHash.hex(file.contents)
+            return analysis.facts.map { (path, FileFacts(path: path, contentHash: hash, module: $0)) }
+        }
+        return Dictionary(pairs) { first, _ in first }
     }
 
     /// Picks the analyzer for a file's language.
@@ -135,10 +159,18 @@ public struct AnalysisEngine: Sendable {
         return baseline.contains(fingerprint)
     }
 
-    /// Expresses a file path relative to the repo root, for stable baseline keys.
+    /// Expresses a file path the way the project pass does: repo-relative, with `/` separators.
     ///
     /// - Parameter url: The file's absolute location.
-    /// - Returns: The path relative to `context.repoRoot`, or the original path.
+    /// - Returns: The repo-relative path.
+    private func repoPath(of url: URL) -> String {
+        RepoPath.relative(url, to: context.repoRoot)
+    }
+
+    /// Expresses a path relative to the repo root, for baseline fingerprints.
+    ///
+    /// - Parameter url: The absolute path.
+    /// - Returns: The path relative to the repo root.
     private func relativePath(of url: URL) -> String {
         let root = context.repoRoot.path
         guard url.path.hasPrefix(root) else { return url.path }

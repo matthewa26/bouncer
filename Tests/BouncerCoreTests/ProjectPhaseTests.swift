@@ -54,13 +54,19 @@ final class ProjectPhaseTests: XCTestCase {
         XCTAssertEqual(found.map { RepoPath.relative($0.filePath, to: root) }, ["a.ts"])
     }
 
-    func testReusesCachedFactsForUnchangedFilesInsteadOfParsing() throws {
+    func testReusesCachedFactsForUnchangedNonTargetFiles() throws {
         let hash = StableHash.hex("import x from './x';\n")
         let cached = FileFacts(path: "b.ts", contentHash: hash, module: ModuleFacts(imports: [ImportFact(specifier: "./cached", line: 1)]))
         let analyzer = CountingAnalyzer()
-        let found = try run(targets: ["b.ts"], index: ["a.ts", "b.ts"], store: MemoryStore(cached: ["b.ts": cached]), analyzer: analyzer)
+        _ = try run(targets: ["a.ts"], index: ["a.ts", "b.ts"], store: MemoryStore(cached: ["b.ts": cached]), analyzer: analyzer)
+        XCTAssertEqual(analyzer.parses, 1, "only the target is parsed; b.ts comes from the cache")
+    }
+
+    func testParsesATargetFileOnlyOnceForFindingsAndFacts() throws {
+        let analyzer = CountingAnalyzer()
+        let found = try run(targets: ["a.ts"], index: ["a.ts"], store: MemoryStore(cached: [:]), analyzer: analyzer)
         XCTAssertEqual(analyzer.parses, 1)
-        XCTAssertEqual(found.map(\.message), ["./cached"])
+        XCTAssertEqual(found.map(\.message), ["./x"])
     }
 
     func testRepoPathsUseForwardSlashes() {

@@ -23,39 +23,50 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     ///   - context: Repo-wide state, including every rule's resolved settings.
     /// - Returns: The combined findings.
     public func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] {
-        genericFindings(file: file, context: context)
-            + DeclarationFindings.all(summarize(file), file: file, context: context, naming: Self.naming)
+        findings(Parsed(file), context: context)
     }
 
-    /// Reads a Swift file's imports, by module name, for the project pass.
+    /// Analyzes a file and reads its module facts from a single parse.
+    ///
+    /// - Parameters:
+    ///   - file: The Swift file to analyze.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The file's findings and module facts.
+    public func analyzeWithFacts(file: SourceFile, context: AnalysisContext) throws -> FileAnalysis {
+        let parsed = Parsed(file)
+        return FileAnalysis(findings: findings(parsed, context: context), facts: SwiftModuleFacts.facts(of: parsed))
+    }
+
+    /// Runs every rule over an already-parsed file.
+    ///
+    /// - Parameters:
+    ///   - parsed: The parsed file.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The combined findings.
+    private func findings(_ parsed: Parsed, context: AnalysisContext) -> [Finding] {
+        genericFindings(file: parsed.file, context: context)
+            + DeclarationFindings.all(summarize(parsed), file: parsed.file, context: context, naming: Self.naming)
+    }
+
+    /// Reads a Swift file's module facts for the project pass.
     ///
     /// - Parameter file: The file to read.
-    /// - Returns: Its imports; Swift exports aren't tracked yet.
+    /// - Returns: Its imports and public declarations.
     public func moduleFacts(file: SourceFile) throws -> ModuleFacts? {
-        let tree = Parser.parse(source: file.contents)
-        let converter = SourceLocationConverter(fileName: file.path.path, tree: tree)
-        let declarations = tree.statements.compactMap { $0.item.as(ImportDeclSyntax.self) }
-        let imports = declarations.compactMap { node -> ImportFact? in
-            guard let module = node.path.first?.name.text else { return nil }
-            let line = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
-            return ImportFact(specifier: module, line: line)
-        }
-        return ModuleFacts(imports: imports)
+        SwiftModuleFacts.facts(of: Parsed(file))
     }
 
-    /// Parses a file and collects everything the shared AST rules need from it.
+    /// Collects everything the shared AST rules need from an already-parsed file.
     ///
-    /// - Parameter file: The Swift file.
+    /// - Parameter parsed: The parsed file.
     /// - Returns: Its declaration summary.
-    private func summarize(_ file: SourceFile) -> DeclarationSummary {
-        let tree = Parser.parse(source: file.contents)
-        let converter = SourceLocationConverter(fileName: file.path.path, tree: tree)
-        let builder = SwiftDeclarationSummaryBuilder(converter: converter)
-        builder.walk(tree)
-        let markers = SwiftMarkerCollector(converter: converter)
-        markers.walk(tree)
-        let names = SwiftNameCollector(converter: converter)
-        names.walk(tree)
+    private func summarize(_ parsed: Parsed) -> DeclarationSummary {
+        let builder = SwiftDeclarationSummaryBuilder(converter: parsed.converter)
+        builder.walk(parsed.tree)
+        let markers = SwiftMarkerCollector(converter: parsed.converter)
+        markers.walk(parsed.tree)
+        let names = SwiftNameCollector(converter: parsed.converter)
+        names.walk(parsed.tree)
         return builder.summary(markers: markers.markers, names: names)
     }
 

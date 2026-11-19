@@ -94,6 +94,16 @@ final class ProjectRulesTests: XCTestCase {
         XCTAssertNil(reopened.cachedFacts(path: "a.ts", contentHash: "changed"))
     }
 
+    func testFactsStoreKeepsOtherExistingFilesAndDropsDeletedOnes() throws {
+        try "x".write(to: root.appendingPathComponent("kept.ts"), atomically: true, encoding: .utf8)
+        try JSONFactsStore(repoRoot: root).save([facts("kept.ts", []), facts("deleted.ts", [])])
+        try JSONFactsStore(repoRoot: root).save([facts("new.ts", [])])
+        let store = JSONFactsStore(repoRoot: root)
+        XCTAssertNotNil(store.cachedFacts(path: "kept.ts", contentHash: "h"))
+        XCTAssertNotNil(store.cachedFacts(path: "new.ts", contentHash: "h"))
+        XCTAssertNil(store.cachedFacts(path: "deleted.ts", contentHash: "h"))
+    }
+
     func testFactsStoreIgnoresACacheFromAnotherVersion() throws {
         let cache = root.appendingPathComponent(".bouncer-cache")
         try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)

@@ -48,10 +48,12 @@ public struct ProjectPhase: Sendable {
         self.analyzer = analyzer
     }
 
-    /// Reads a file, and parses a file into module facts, for the project phase.
+    /// Reads and parses files for the project phase, and the facts already parsed for target files.
     struct FileAccess {
         let read: (URL) throws -> SourceFile
         let parse: (SourceFile) throws -> ModuleFacts?
+        /// Target files' facts from the main pass, keyed by repo-relative path, so they aren't parsed twice.
+        var parsed: [String: FileFacts] = [:]
     }
 
     /// Indexes the project and returns project findings that land in one of the target files.
@@ -79,6 +81,7 @@ public struct ProjectPhase: Sendable {
     /// - Returns: Its facts, or `nil` for a language without module facts.
     private func facts(for url: URL, context: AnalysisContext, access: FileAccess) throws -> FileFacts? {
         let path = RepoPath.relative(url, to: context.repoRoot)
+        if let parsed = access.parsed[path] { return parsed }
         let file = try access.read(url)
         let hash = StableHash.hex(file.contents)
         if let cached = store.cachedFacts(path: path, contentHash: hash) { return cached }

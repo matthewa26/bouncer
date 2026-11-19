@@ -16,7 +16,19 @@ public enum TextRules {
             CrlfLineEndingsRule(), MixedIndentationRule(), ConsecutiveBlankLinesRule(),
             CommentedOutCodeRule(profile: profile), RedundantCommentRule(profile: profile)
         ]
-        return shared + CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
+        let patterns = CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
+        return shared + importAndSecurityRules(profile: profile) + patterns
+    }
+
+    /// Builds the import-hygiene, indentation-width, and security text rules.
+    ///
+    /// - Parameter profile: The language's profile, for comment syntax.
+    /// - Returns: The rules, bound to `profile` where they need it.
+    private static func importAndSecurityRules(profile: LanguageProfile) -> [Rule] {
+        [
+            InconsistentIndentRule(profile: profile), HardcodedIPRule(profile: profile), InsecureRandomRule(),
+            SwiftShellInjectionRule(), DuplicateImportRule(), UnsortedImportsRule()
+        ]
     }
 }
 

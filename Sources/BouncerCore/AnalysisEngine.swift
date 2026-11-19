@@ -82,7 +82,8 @@ public struct AnalysisEngine: Sendable {
         }
         let coverageReport = try loadCoverageReport()
         let all = findings + (try projectFindings(for: files, analyses: analyses)) + changeFindings(for: files)
-        return AnalysisResult(findings: all + coverageFindings(from: coverageReport), coverage: coverageReport)
+        let kept = unsuppressed(all, in: files)
+        return AnalysisResult(findings: kept + coverageFindings(from: coverageReport), coverage: coverageReport)
     }
 
     /// Analyzes one file, also extracting its module facts in the same parse when the project pass will run.
@@ -122,6 +123,19 @@ public struct AnalysisEngine: Sendable {
         guard let change else { return [] }
         let byPath = Dictionary(files.map { (repoPath(of: $0.path), $0) }) { first, _ in first }
         return unbaselined(change.findings(for: files, context: context), byPath)
+    }
+
+    /// Drops findings a `bouncer:disable…` comment in their file switches off.
+    ///
+    /// - Parameters:
+    ///   - findings: Findings from every pass.
+    ///   - files: The target files; a finding in any other file is kept.
+    /// - Returns: The findings no comment suppresses.
+    private func unsuppressed(_ findings: [Finding], in files: [SourceFile]) -> [Finding] {
+        let byPath = Dictionary(files.map { (repoPath(of: $0.path), Suppressions(file: $0)) }) { first, _ in first }
+        return findings.filter { finding in
+            byPath[repoPath(of: finding.filePath)]?.suppresses(finding.ruleID, at: finding.line) != true
+        }
     }
 
     /// Drops findings the baseline accepts, judging each by the target file it lands in.

@@ -3,7 +3,7 @@ import SwiftTreeSitter
 import BouncerCore
 
 /// Reads a language's imports and exports out of a parse tree, for the project pass.
-protocol ModuleFactsExtractor: Sendable {
+protocol ModuleFactsExtractor: Sendable { // bouncer:disable-line parallel-inheritance -- one per language, by design
     /// Extracts module facts from a file's tree.
     ///
     /// - Parameters:

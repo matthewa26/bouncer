@@ -46,6 +46,22 @@ final class AnalysisEngineTests: XCTestCase {
         XCTAssertEqual(result.findings.first?.ruleID, "fake-rule")
     }
 
+    func testDropsFindingsABouncerCommentSuppresses() throws {
+        let repoRoot = URL(fileURLWithPath: "/repo")
+        let suppressed = repoRoot.appendingPathComponent("a.swift")
+        let kept = repoRoot.appendingPathComponent("b.swift")
+        let engine = AnalysisEngine(
+            fileProvider: FakeFileProvider(files: [suppressed, kept]),
+            contentsProvider: FakeContentsProvider(contents: [
+                suppressed: "let x = 1 // bouncer:disable-line fake-rule -- known\n", kept: "let x = 1\n"
+            ]),
+            knownAnalyzers: [.swift: FixedFindingAnalyzer(supportedLanguage: .swift, line: 1)],
+            fallbackAnalyzer: FixedFindingAnalyzer(supportedLanguage: .other(""), line: 1),
+            context: AnalysisContext(repoRoot: repoRoot, ruleSettings: [:])
+        )
+        XCTAssertEqual(try engine.run().findings.map(\.filePath.lastPathComponent), ["b.swift"])
+    }
+
     func testFiltersOutFindingsAlreadyInTheBaseline() throws {
         let repoRoot = URL(fileURLWithPath: "/repo")
         let fileURL = repoRoot.appendingPathComponent("a.swift")

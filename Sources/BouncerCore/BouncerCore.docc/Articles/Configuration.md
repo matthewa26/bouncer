@@ -110,6 +110,41 @@ keyed by the file's content, so unchanged files aren't re-parsed. Add `.bouncer-
 Applies a bundled preset as the base layer beneath everything else in this file. `"kirby"` is
 the only one that ships today. See <doc:KirbyMode>.
 
+## Suppressing findings in code
+
+A `.bouncer` file turns a rule off everywhere. To silence one rule in one place instead, put a
+`bouncer:` comment in the file. It works in any comment style (`//`, `#`, `--`, `/* */`,
+`<!-- -->`, `;`), so the same syntax covers every language Bouncer reads:
+
+```swift
+protocol ImportResolver { // bouncer:disable-line parallel-inheritance -- one per language, by design
+
+// bouncer:disable-next-line magic-number
+let retries = 7
+
+// bouncer:disable long-function, cyclomatic-complexity
+func generatedParser() { … }
+// bouncer:enable long-function, cyclomatic-complexity
+```
+
+```python
+# bouncer:disable-file duplicate-code -- generated from the schema
+```
+
+- `bouncer:disable-line <rules>` covers the line the comment is on.
+- `bouncer:disable-next-line <rules>` covers the next line that isn't blank or another directive,
+  so several can be stacked above one line.
+- `bouncer:disable <rules>` covers every line until a `bouncer:enable` that names the rule, or
+  the end of the file. Each rule is re-enabled separately.
+- `bouncer:disable-file <rules>` covers the whole file.
+
+List rules by ID, separated by commas or spaces; there's no blanket "disable everything", so
+every suppression says what it silences. Anything after ` -- ` is a free-text reason, ignored by
+Bouncer but useful to the next reader. Suppressions apply to every kind of finding, per-file,
+project, and change rules alike, as long as it lands in the file holding the comment; a project
+finding reported in another file is suppressed there. A suppressed finding never reaches the
+baseline, so `baseline update` doesn't record it.
+
 ## Command-line overrides
 
 Most settings can also be set per-invocation with a flag, which takes precedence over both

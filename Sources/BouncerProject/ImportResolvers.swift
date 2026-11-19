@@ -2,7 +2,7 @@ import Foundation
 import BouncerCore
 
 /// Turns one language's import specifiers into project nodes.
-public protocol ImportResolver: Sendable {
+public protocol ImportResolver: Sendable { // bouncer:disable-line parallel-inheritance -- one per language, by design
     /// The node a file belongs to: the file itself, or its Swift target or Go package.
     ///
     /// - Parameter path: The repo-relative file path.

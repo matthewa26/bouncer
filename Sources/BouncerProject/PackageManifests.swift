@@ -140,10 +140,18 @@ enum ManifestText {
         let comments = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
             .filter { $0.range(at: 1).location == NSNotFound }
         let stripped = comments.reversed().reduce(text as NSString) { result, match in
-            let blank = String(result.substring(with: match.range).map { $0 == "\n" ? "\n" : " " })
-            return result.replacingCharacters(in: match.range, with: blank) as NSString
+            result.replacingCharacters(in: match.range, with: blanked(result.substring(with: match.range))) as NSString
         }
         return stripped as String
+    }
+
+    /// Replaces every character but newlines with a space, so stripped comments keep line numbers.
+    ///
+    /// - Parameter text: The comment text.
+    /// - Returns: Blank text of the same shape.
+    private static func blanked(_ text: String) -> String {
+        let characters: [Character] = text.map { $0 == "\n" ? "\n" : " " }
+        return String(characters)
     }
 
     /// Finds `.name(…)` calls, skipping matches inside an earlier match's arguments so nested calls of the

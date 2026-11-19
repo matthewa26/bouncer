@@ -15,6 +15,8 @@ public struct CollectedFunction: Sendable {
     public let metrics: FunctionMetrics?
     /// Its doc comment and signature, for the doc-completeness rules; `nil` if undocumented or unchecked.
     public let documentation: DocumentationFacts?
+    /// Its parameters with their explicitly declared types (`nil` where unannotated), for `primitive-obsession`.
+    public let parameters: [CollectedName]
 
     /// Creates a collected function.
     ///
@@ -27,9 +29,11 @@ public struct CollectedFunction: Sendable {
     ///   - visibility: Its access level.
     ///   - metrics: Its size and shape measurements, if measured.
     ///   - documentation: Its doc comment and signature, if the doc-completeness rules check it.
+    ///   - parameters: Its parameters and their declared types.
     public init(
         name: String, startLine: Int, endLine: Int, branchCount: Int, hasDocComment: Bool,
-        visibility: DeclarationVisibility, metrics: FunctionMetrics? = nil, documentation: DocumentationFacts? = nil
+        visibility: DeclarationVisibility, metrics: FunctionMetrics? = nil, documentation: DocumentationFacts? = nil,
+        parameters: [CollectedName] = []
     ) {
         self.name = name
         self.startLine = startLine
@@ -37,8 +41,7 @@ public struct CollectedFunction: Sendable {
         self.branchCount = branchCount
         self.hasDocComment = hasDocComment
         self.visibility = visibility
-        self.metrics = metrics
-        self.documentation = documentation
+        (self.metrics, self.documentation, self.parameters) = (metrics, documentation, parameters)
     }
 }
 
@@ -109,12 +112,13 @@ public enum MarkerKind: String, Sendable, CaseIterable {
     case longBooleanExpression = "long-boolean-expression"
     case tooManyGenericParameters = "too-many-generic-parameters"
     case lawOfDemeter = "law-of-demeter"
+    case tellDontAsk = "tell-dont-ask"
 
     /// The rule ID this marker is reported under.
     public var ruleID: String { rawValue }
 
     /// Whether the rule only runs when a config enables it.
-    public var isOptIn: Bool { self == .lawOfDemeter }
+    public var isOptIn: Bool { self == .lawOfDemeter || self == .tellDontAsk }
 
     /// For markers that carry a measurement, the parameter limiting it, its default, and its unit.
     public var threshold: (parameter: String, defaultLimit: Int, unit: String)? {
@@ -148,7 +152,8 @@ public enum MarkerKind: String, Sendable, CaseIterable {
         .testWithoutAssertions: "Test has no assertions, so it can only fail by crashing.",
         .longBooleanExpression: "Long boolean expression; name its parts with local variables or a helper.",
         .tooManyGenericParameters: "Too many generic parameters; group related ones into a type.",
-        .lawOfDemeter: "Reaches through a chain of other objects (Law of Demeter); ask the first one to do the work."
+        .lawOfDemeter: "Reaches through a chain of other objects (Law of Demeter); ask the first one to do the work.",
+        .tellDontAsk: "Checks another object's state, then changes it (tell, don't ask); move the decision into it."
     ]
 }
 
@@ -223,6 +228,8 @@ public struct CollectedType: Sendable {
     public let shape: TypeShape?
     /// Its methods' field use, complexity, and delegation, for the class-design rules; `nil` if unmeasured.
     public let structure: TypeStructure?
+    /// Its coupling and its methods' use of other objects, for the design-smell rules; `nil` if unmeasured.
+    public let design: TypeDesign?
 
     /// Creates a collected type.
     ///
@@ -234,9 +241,10 @@ public struct CollectedType: Sendable {
     ///   - cohesionGroups: Its LCOM4 method-group count, if measured.
     ///   - shape: Its method and field counts, if measured.
     ///   - structure: Its methods' field use, complexity, and delegation, if measured.
+    ///   - design: Its coupling and its methods' use of other objects, if measured.
     public init(
         name: String, memberCount: Int, startLine: Int, endLine: Int,
-        cohesionGroups: Int? = nil, shape: TypeShape? = nil, structure: TypeStructure? = nil
+        cohesionGroups: Int? = nil, shape: TypeShape? = nil, structure: TypeStructure? = nil, design: TypeDesign? = nil
     ) {
         self.name = name
         self.memberCount = memberCount
@@ -245,6 +253,7 @@ public struct CollectedType: Sendable {
         self.cohesionGroups = cohesionGroups
         self.shape = shape
         self.structure = structure
+        self.design = design
     }
 }
 

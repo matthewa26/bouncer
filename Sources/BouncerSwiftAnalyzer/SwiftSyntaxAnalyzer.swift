@@ -54,17 +54,17 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     private func findings(_ parsed: Parsed, context: AnalysisContext) -> [Finding] {
         genericFindings(file: parsed.file, context: context)
             + DeclarationFindings.all(
-                summarize(parsed, measuresChains: Self.measuresChains(context)), file: parsed.file, context: context,
+                summarize(parsed, optIns: Self.optInMarkers(context)), file: parsed.file, context: context,
                 naming: Self.naming
             )
     }
 
-    /// Reports whether the opt-in `law-of-demeter` rule is on, so member chains need measuring.
+    /// Lists the opt-in marker rules a config turns on, so only their walks run.
     ///
     /// - Parameter context: Repo-wide state, including every rule's resolved settings.
-    /// - Returns: Whether a config enables the rule.
-    private static func measuresChains(_ context: AnalysisContext) -> Bool {
-        context.ruleSettings[MarkerKind.lawOfDemeter.ruleID]?.enabled == true
+    /// - Returns: The enabled opt-in marker kinds.
+    private static func optInMarkers(_ context: AnalysisContext) -> Set<MarkerKind> {
+        Set(MarkerKind.allCases.filter { $0.isOptIn && context.ruleSettings[$0.ruleID]?.enabled == true })
     }
 
     /// Reads a Swift file's module facts for the project pass.
@@ -79,26 +79,33 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     ///
     /// - Parameters:
     ///   - parsed: The parsed file.
-    ///   - measuresChains: Whether to measure member chains for the opt-in `law-of-demeter` rule.
+    ///   - optIns: The opt-in marker rules to collect, such as `law-of-demeter`.
     /// - Returns: Its declaration summary.
-    private func summarize(_ parsed: Parsed, measuresChains: Bool = false) -> DeclarationSummary {
+    private func summarize(_ parsed: Parsed, optIns: Set<MarkerKind> = []) -> DeclarationSummary {
         let builder = Self.walk(SwiftDeclarationSummaryBuilder(converter: parsed.converter), over: parsed)
         let markers = Self.walk(SwiftMarkerCollector(converter: parsed.converter), over: parsed)
         let names = Self.walk(SwiftNameCollector(converter: parsed.converter), over: parsed)
         let shapes = Self.walk(SwiftShapeCollector(converter: parsed.converter), over: parsed)
         return builder.summary(
-            markers: markers.markers + shapes.markers + (measuresChains ? Self.chainMarkers(in: parsed) : []),
+            markers: markers.markers + shapes.markers + Self.optInMarkers(optIns, in: parsed),
             names: names,
             shapes: shapes.facts(typedNames: names.typedNames), unused: Self.unusedDeclarations(in: parsed)
         )
     }
 
-    /// Measures every member chain's reach, for `law-of-demeter`.
+    /// Collects the enabled opt-in markers: each member chain's reach, for `law-of-demeter`, and each
+    /// ask-then-tell `if`, for `tell-dont-ask`.
     ///
-    /// - Parameter parsed: The parsed file.
-    /// - Returns: One marker per measured chain.
-    private static func chainMarkers(in parsed: Parsed) -> [CollectedMarker] {
-        walk(SwiftDemeterCollector(converter: parsed.converter), over: parsed).markers
+    /// - Parameters:
+    ///   - kinds: The enabled opt-in marker kinds.
+    ///   - parsed: The parsed file.
+    /// - Returns: Their markers.
+    private static func optInMarkers(_ kinds: Set<MarkerKind>, in parsed: Parsed) -> [CollectedMarker] {
+        let chains = kinds.contains(.lawOfDemeter)
+            ? walk(SwiftDemeterCollector(converter: parsed.converter), over: parsed).markers : []
+        let asks = kinds.contains(.tellDontAsk)
+            ? walk(SwiftTellDontAskCollector(converter: parsed.converter), over: parsed).markers : []
+        return chains + asks
     }
 
     /// Walks a visitor over a whole parsed file.

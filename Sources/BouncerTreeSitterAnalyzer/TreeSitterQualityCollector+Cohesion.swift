@@ -67,7 +67,7 @@ extension TreeSitterQualityCollector {
     ///
     /// - Parameter member: The class-body member node.
     /// - Returns: Whether one of its tokens is the `static` keyword.
-    private func isStatic(_ member: Node) -> Bool {
+    func isStatic(_ member: Node) -> Bool {
         guard let keyword = quality.cohesion?.staticKeyword else { return false }
         return (0..<member.childCount).contains { member.child(at: $0)?.nodeType == keyword }
     }

@@ -18,6 +18,7 @@ extension DeclarationFindings {
             + classCohesion(summary, file: file, context: context)
             + lazyClasses(summary, file: file, context: context)
             + middleMen(summary, file: file, context: context)
+            + designSmellFindings(summary, file: file, context: context)
     }
 
     /// Lists the types with a measured structure, alongside it.
@@ -144,7 +145,7 @@ extension DeclarationFindings {
     ///
     /// - Parameter name: The type's name.
     /// - Returns: Whether it's a test suite.
-    private static func isTestTypeName(_ name: String) -> Bool {
+    static func isTestTypeName(_ name: String) -> Bool {
         DocCommentParser.matches(#"^Test|Tests?$|Spec$"#, name)
     }
 

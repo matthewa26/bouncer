@@ -54,7 +54,7 @@ extension TreeSitterQualityCollector {
     ///
     /// - Parameter member: A class-body member.
     /// - Returns: The function node, or `nil` for any other member.
-    private func functionDefinition(_ member: Node) -> Node? {
+    func functionDefinition(_ member: Node) -> Node? {
         let type = member.nodeType ?? ""
         if spec.functionNodeTypes.contains(type) { return member }
         if type == "decorated_definition" { return member.child(byFieldName: "definition").flatMap(functionDefinition) }

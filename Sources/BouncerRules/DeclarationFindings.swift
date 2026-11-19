@@ -286,18 +286,22 @@ public enum DeclarationFindings {
         }
     }
 
-    /// Flags every class whose combined member count and file-level coupling look like a god class.
+    /// Flags every class whose combined member count and file-level coupling look like a god class, or,
+    /// with `formula` set to `lanza-marinescu`, whose WMC, ATFD, and TCC do.
     ///
     /// - Parameters:
     ///   - summary: The declarations collected from the file's syntax tree.
     ///   - file: The file being analyzed.
     ///   - context: Repo-wide state, including this rule's resolved settings.
-    /// - Returns: One finding per oversized, over-coupled class.
+    /// - Returns: One finding per god class.
     public static func godClass(
         _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
         let settings = context.settings(for: godClassRuleID)
         guard settings.enabled else { return [] }
+        if settings.parameters.string("formula", default: "members") == "lanza-marinescu" {
+            return lanzaMarinescuGodClasses(summary, file: file, settings: settings)
+        }
         let thresholds = GodClassThresholds(settings: settings)
         return summary.types.compactMap {
             godClassFinding($0, file: file, importCount: summary.importCount, thresholds: thresholds)

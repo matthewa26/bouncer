@@ -20,6 +20,8 @@ struct TreeSitterQualitySpec: Sendable {
     var shapes = ShapeSpec()
     /// Node types for NPath, `if` pyramids, loop jumps, recursion, Halstead, and doc completeness.
     var flow: FlowSpec?
+    /// Node types for the design-smell facts: coupling, feature envy, temporary field, and the like.
+    var design: DesignSpec?
 }
 
 /// A node type whose named field (or, with no field, the node itself) has one of the given texts.
@@ -200,7 +202,8 @@ extension TreeSitterQualitySpec {
         initializerNames: ["constructor"],
         conventions: javascriptConventions,
         shapes: .javascript,
-        flow: .javascript
+        flow: .javascript,
+        design: .javascript
     )
 
     private static let javascriptConventions = ConventionSpec(
@@ -271,7 +274,8 @@ extension TreeSitterQualitySpec {
             )
         ),
         shapes: .python,
-        flow: .python
+        flow: .python,
+        design: .python
     )
 
     /// Go's quality node types. Go has no classes, ternaries, or `catch`, so those rules don't apply.
@@ -321,6 +325,7 @@ extension TreeSitterQualitySpec {
             )
         ),
         shapes: .go,
-        flow: .go
+        flow: .go,
+        design: .go
     )
 }

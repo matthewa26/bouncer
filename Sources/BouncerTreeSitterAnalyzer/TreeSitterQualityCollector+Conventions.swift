@@ -18,6 +18,7 @@ extension TreeSitterQualityCollector {
         if isMutableGlobal(node, type: type) { found.append((.globalMutableState, node, 0)) }
         if let length = chainLength(node, type: type) { found.append((.longMessageChain, node, length)) }
         if let reach = demeterReach(node, type: type) { found.append((.lawOfDemeter, node, reach)) }
+        if isTellDontAsk(node, type: type) { found.append((.tellDontAsk, node, 0)) }
         return found
     }
 

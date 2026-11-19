@@ -165,12 +165,13 @@ final class TreeSitterSummaryBuilder {
     ///   - body: Its body block, already resolved by the caller.
     /// - Returns: The collected function.
     private func makeCollectedFunction(_ node: Node, body: Node) -> CollectedFunction {
-        let name = functionName(of: node)
+        let name = functionName(of: node), start = line(of: node.pointRange.lowerBound)
         return CollectedFunction(
-            name: name, startLine: line(of: node.pointRange.lowerBound), endLine: line(of: node.pointRange.upperBound),
+            name: name, startLine: start, endLine: line(of: node.pointRange.upperBound),
             branchCount: countBranches(in: body), hasDocComment: isDocumented(node),
             visibility: visibility(of: node, name: name), metrics: quality?.metrics(of: node, body: body, name: name),
-            documentation: documentationFacts(of: node, body: body)
+            documentation: documentationFacts(of: node, body: body),
+            parameters: quality?.typedParameters(of: node, line: start) ?? []
         )
     }
 
@@ -179,14 +180,25 @@ final class TreeSitterSummaryBuilder {
     /// - Parameter node: The class declaration node.
     private func collectType(_ node: Node) {
         guard let body = node.child(byFieldName: "body") else { return }
+        types.append(makeCollectedType(node, body: body))
+    }
+
+    /// Builds a `CollectedType` from a class node and its body.
+    ///
+    /// - Parameters:
+    ///   - node: The class declaration node.
+    ///   - body: Its body, already resolved by the caller.
+    /// - Returns: The collected type.
+    private func makeCollectedType(_ node: Node, body: Node) -> CollectedType {
         let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
         let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
         let structure = quality.flatMap { $0.structure(of: node, body: body) { self.countBranches(in: $0) + 1 } }
-        types.append(CollectedType(
+        let design = quality?.design(of: node, body: body) { self.line(of: $0.pointRange.lowerBound) }
+        return CollectedType(
             name: name, memberCount: body.namedChildCount, startLine: startLine, endLine: endLine,
             cohesionGroups: structure.map { CohesionGraph.groupCount($0.methods) },
-            shape: quality.flatMap { $0.shape(of: body) }, structure: structure
-        ))
+            shape: quality.flatMap { $0.shape(of: body) }, structure: structure, design: design
+        )
     }
 
     /// Collects a switch/match node's branch count and starting line.

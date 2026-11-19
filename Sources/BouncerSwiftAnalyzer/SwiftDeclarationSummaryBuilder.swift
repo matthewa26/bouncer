@@ -151,6 +151,19 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
             SwiftDocumentation.facts(trivia: leadingTrivia, signature: signature, body: body)
         }
 
+        /// Lists the parameters callers must pass, with their types, for `primitive-obsession`; parameters
+        /// with a default value, such as `line: UInt = #line`, are left out.
+        ///
+        /// - Parameter line: The line to record them on.
+        /// - Returns: One name per required parameter the body can refer to.
+        func typedParameters(line: Int) -> [CollectedName] {
+            parameters.filter { $0.defaultValue == nil }.compactMap { parameter in
+                let name = (parameter.secondName ?? parameter.firstName).text
+                let type = parameter.type.trimmedDescription
+                return name == "_" ? nil : CollectedName(name: name, line: line, typeName: type, isParameter: true)
+            }
+        }
+
         /// The boolean flag parameters; 0 for an initializer, since storing a `Bool` isn't branching on one.
         var flagCount: Int {
             name == "init" ? 0 : parameters.filter(SwiftFunctionMetricsCollector.isBooleanFlag).count
@@ -179,15 +192,24 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     ///   - body: The declaration's body block.
     /// - Returns: The collected function.
     private func collectFunction(_ declaration: FunctionDeclaration, body: CodeBlockSyntax) -> CollectedFunction {
-        let counter = BranchCounter()
-        counter.walk(body)
         let start = converter.location(for: body.positionAfterSkippingLeadingTrivia).line
         let end = converter.location(for: body.endPositionBeforeTrailingTrivia).line
         return CollectedFunction(
-            name: declaration.name, startLine: start, endLine: end, branchCount: counter.count,
+            name: declaration.name, startLine: start, endLine: end, branchCount: Self.branchCount(in: body),
             hasDocComment: declaration.leadingTrivia.hasComment, visibility: Self.visibility(of: declaration.modifiers),
-            metrics: declaration.metrics(of: body), documentation: declaration.documentation(of: body)
+            metrics: declaration.metrics(of: body), documentation: declaration.documentation(of: body),
+            parameters: declaration.typedParameters(line: start)
         )
+    }
+
+    /// Counts a body's decision points.
+    ///
+    /// - Parameter body: The body.
+    /// - Returns: Its branch count, for cyclomatic complexity.
+    private static func branchCount(in body: CodeBlockSyntax) -> Int {
+        let counter = BranchCounter()
+        counter.walk(body)
+        return counter.count
     }
 
     /// Determines a declaration's access level from its modifiers.
@@ -218,7 +240,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
             name: name, memberCount: node.memberBlock.members.count, startLine: startLine, endLine: endLine,
             cohesionGroups: CohesionGraph.groupCount(structure.methods),
             shape: SwiftCohesion.shape(of: node.memberBlock, isClass: node.is(ClassDeclSyntax.self)),
-            structure: structure
+            structure: structure, design: SwiftTypeDesign.design(of: node, name: name, converter: converter)
         )
     }
 

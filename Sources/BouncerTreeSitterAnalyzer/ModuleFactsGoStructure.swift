@@ -51,7 +51,17 @@ final class GoStructure: StructureCollector {
         let parameters = list.filter { $0.nodeType == "parameter_declaration" }.flatMap {
             named($0, nameType: "identifier")
         }
-        addFunction(field(node, "name"), node, parameters: parameters)
+        addFunction(field(node, "name"), node, parameters: parameters, owner: receiverType(node),
+                    returns: field(node, "result"))
+    }
+
+    /// Names a method's receiver type, without a pointer or type arguments.
+    ///
+    /// - Parameter node: The function or method declaration.
+    /// - Returns: The receiver's bare type name, or `nil` for a function.
+    private func receiverType(_ node: Node) -> String? {
+        let receiver = node.child(byFieldName: "receiver").map(TreeWalk.namedChildren)?.first
+        return receiver.flatMap { field($0, "type") }.map { FactText.typeName(String($0.drop { $0 == "*" })) }
     }
 
     /// Reads a declaration that names several things of one type, such as `a, b int`.

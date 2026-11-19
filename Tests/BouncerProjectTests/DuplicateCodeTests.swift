@@ -222,7 +222,7 @@ final class DuplicateCodeTests: XCTestCase {
         XCTAssertEqual(JSONFactsStore(repoRoot: repo).cachedFacts(path: "a.swift", contentHash: "h"), stored)
         XCTAssertNotNil(stored.clones)
         let cacheFile = repo.appendingPathComponent(".bouncer-cache/facts.json")
-        let old = try String(contentsOf: cacheFile, encoding: .utf8).replacingOccurrences(of: "\"version\":4", with: "\"version\":3")
+        let old = try String(contentsOf: cacheFile, encoding: .utf8).replacingOccurrences(of: "\"version\":5", with: "\"version\":4")
         try old.write(to: cacheFile, atomically: true, encoding: .utf8)
         XCTAssertNil(JSONFactsStore(repoRoot: repo).cachedFacts(path: "a.swift", contentHash: "h"))
     }

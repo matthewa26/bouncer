@@ -12,9 +12,15 @@ final class SwiftStructureCollector: SyntaxVisitor {
 
     private let isGenerated: Bool
 
-    /// The collected facts.
-    var structure: StructureFacts {
-        StructureFacts(types: types, functions: functions, switches: switches, isGenerated: isGenerated)
+    /// The collected facts, with collaboration facts gathered separately.
+    ///
+    /// - Parameter collaborations: Each type's collaboration facts.
+    /// - Returns: The file's structure facts.
+    func structure(with collaborations: [CollaborationFact] = []) -> StructureFacts {
+        StructureFacts(
+            types: types, functions: functions, switches: switches, collaborations: collaborations,
+            isGenerated: isGenerated
+        )
     }
 
     /// Creates a collector for a parsed file.
@@ -75,8 +81,8 @@ final class SwiftStructureCollector: SyntaxVisitor {
     override func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = FactText.typeName(node.extendedType.trimmedDescription)
         if node.inheritanceClause != nil {
-            let supertypes = TypeMembers(supertypes: SwiftMembers.supertypes(of: node))
-            types.append(TypeFact(name: name, line: line(node), kind: .extension, members: supertypes))
+            let members = SwiftMembers.members(of: node)
+            types.append(TypeFact(name: name, line: line(node), kind: .extension, members: members))
         }
         enclosingTypes.append(name)
         return .visitChildren
@@ -114,7 +120,10 @@ final class SwiftStructureCollector: SyntaxVisitor {
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
         guard node.body != nil else { return .visitChildren }
         let parameters = SwiftMembers.parameters(node.signature.parameterClause)
-        functions.append(FunctionFact(name: node.name.text, line: line(node), parameters: parameters))
+        let returns = node.signature.returnClause?.type.trimmedDescription
+        functions.append(FunctionFact(
+            name: node.name.text, line: line(node), parameters: parameters, owner: enclosingTypes.last, returns: returns
+        ))
         return .visitChildren
     }
 
@@ -169,33 +178,89 @@ final class SwiftStructureCollector: SyntaxVisitor {
 enum SwiftMembers {
     private static let traps: Set<String> = ["fatalError", "preconditionFailure", "abort", "Swift.fatalError"]
 
-    /// Reads a type's supertypes, stored properties, and methods.
+    /// Reads a type's supertypes, stored properties, and methods (a protocol's method requirements).
     ///
     /// - Parameter node: The type declaration.
-    /// - Returns: Its members; methods only for a class.
+    /// - Returns: Its members.
     static func members(of node: some DeclGroupSyntax) -> TypeMembers {
         var members = TypeMembers(supertypes: Self.supertypes(of: node))
         for item in node.memberBlock.members {
             if let variable = item.decl.as(VariableDeclSyntax.self) { members.fields += Self.fields(of: variable) }
-            if node.is(ClassDeclSyntax.self), let function = item.decl.as(FunctionDeclSyntax.self) {
-                Self.addMethod(function, to: &members)
-            }
+            if let function = item.decl.as(FunctionDeclSyntax.self) { Self.addMethod(function, to: &members) }
         }
         return members
     }
 
-    /// Adds a class method, noting an `override` whose body is empty or only traps.
+    /// Adds a method, noting whether it overrides and whether its body is empty, only traps, or opens with a
+    /// precondition.
     ///
     /// - Parameters:
     ///   - function: The method.
-    ///   - members: The class's members so far.
+    ///   - members: The type's members so far.
     static func addMethod(_ function: FunctionDeclSyntax, to members: inout TypeMembers) {
         let name = function.name.text
         members.methods.append(name)
-        guard function.modifiers.contains(where: { $0.name.tokenKind == .keyword(.override) }),
-              let statements = function.body?.statements else { return }
-        if statements.isEmpty { members.empty.append(name) }
-        if statements.count == 1, let only = statements.first, isTrap(only) { members.refused.append(name) }
+        guard let statements = function.body?.statements else { return }
+        let isOverride = function.modifiers.contains { $0.name.tokenKind == .keyword(.override) }
+        if isOverride { members.overrides.append(name) }
+        classify(statements, of: name, isOverride: isOverride, into: &members)
+        if isGuarded(function, statements) { members.guarded.append(name) }
+    }
+
+    /// Reports whether a method opens with a precondition on its arguments before more code.
+    ///
+    /// - Parameters:
+    ///   - function: The method.
+    ///   - statements: Its body.
+    /// - Returns: Whether its first statement narrows what it accepts.
+    private static func isGuarded(_ function: FunctionDeclSyntax, _ statements: CodeBlockItemListSyntax) -> Bool {
+        let arguments = Set(parameters(function.signature.parameterClause).map { String($0.prefix { $0 != ":" }) })
+        guard statements.count > 1, let first = statements.first else { return false }
+        return isPrecondition(first, on: arguments)
+    }
+
+    /// Notes a method whose body is empty or does nothing but refuse: an `override` that throws or traps, or
+    /// another method that traps or throws an error named for an unsupported operation.
+    ///
+    /// - Parameters:
+    ///   - statements: The method's body.
+    ///   - name: The method's name.
+    ///   - isOverride: Whether it's an `override`.
+    ///   - members: The type's members so far.
+    private static func classify(
+        _ statements: CodeBlockItemListSyntax, of name: String, isOverride: Bool, into members: inout TypeMembers
+    ) {
+        let only = statements.count == 1 ? statements.first : nil
+        if statements.isEmpty { isOverride ? members.empty.append(name) : members.emptyOwn.append(name) }
+        if isOverride, only.map(isTrap) == true { members.refused.append(name) }
+        if !isOverride, only.map(isUnsupported) == true { members.refusedOwn.append(name) }
+    }
+
+    /// Reports whether a statement refuses an operation: a trap, or a `throw` whose error says the operation
+    /// is unsupported or unimplemented. Other throws are ordinary failures of a throwing method.
+    ///
+    /// - Parameter statement: The body's only statement.
+    /// - Returns: Whether it refuses.
+    private static func isUnsupported(_ statement: CodeBlockItemSyntax) -> Bool {
+        guard statement.item.is(ThrowStmtSyntax.self) else { return isTrap(statement) }
+        return FactText.saysUnsupported(statement.trimmedDescription)
+    }
+
+    /// Reports whether a statement is a precondition on the arguments that traps or throws:
+    /// `precondition(…)`, or a `guard` whose `else` ends by trapping or throwing, testing a parameter.
+    ///
+    /// - Parameters:
+    ///   - statement: A body's first statement.
+    ///   - arguments: The method's parameter names.
+    /// - Returns: Whether it narrows what the method accepts.
+    private static func isPrecondition(_ statement: CodeBlockItemSyntax, on arguments: Set<String>) -> Bool {
+        if let call = statement.item.as(FunctionCallExprSyntax.self),
+           call.calledExpression.trimmedDescription == "precondition" {
+            return FactText.mentions(call.arguments.first?.trimmedDescription ?? "", anyOf: arguments)
+        }
+        guard let check = statement.item.as(GuardStmtSyntax.self), check.body.statements.last.map(isTrap) == true
+        else { return false }
+        return FactText.mentions(check.conditions.trimmedDescription, anyOf: arguments)
     }
 
     /// Reports whether a statement only throws or traps.

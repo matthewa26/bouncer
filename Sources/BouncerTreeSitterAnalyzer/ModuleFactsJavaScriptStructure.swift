@@ -55,7 +55,22 @@ final class JavaScriptStructure: StructureCollector {
         guard member.nodeType == "method_definition", let name = field(member, "name"), name != "constructor",
               let body = member.child(byFieldName: "body") else { return }
         let statements = TreeWalk.namedChildren(body).filter { $0.nodeType != "comment" }
-        Self.addMethod(name, body: Self.classify(statements, throwType: "throw_statement"), to: &members)
+        Self.addMethod(name, body: Self.classify(statements, throwType: "throw_statement"), to: &members,
+                       guarded: isGuarded(member, name: name, statements: statements))
+    }
+
+    /// Reports whether a public method opens with a precondition on its arguments before more code.
+    ///
+    /// - Parameters:
+    ///   - method: The method definition.
+    ///   - name: Its name.
+    ///   - statements: Its body's statements.
+    /// - Returns: Whether its first statement narrows what it accepts.
+    private func isGuarded(_ method: Node, name: String, statements: [Node]) -> Bool {
+        let list = method.child(byFieldName: "parameters").map(TreeWalk.namedChildren) ?? []
+        let arguments = Set(list.compactMap(parameter).map { String($0.prefix { $0 != ":" }) })
+        guard statements.count > 1, !Self.isPrivate(name) else { return false }
+        return isArgumentGuard(statements[0], throwType: "throw_statement", arguments: arguments)
     }
 
     /// Records an interface or enum, with an interface's supertypes and properties.
@@ -68,6 +83,7 @@ final class JavaScriptStructure: StructureCollector {
         if kind == .interface {
             let body = node.child(byFieldName: "body").map(TreeWalk.namedChildren) ?? []
             members.fields = body.filter { $0.nodeType == "property_signature" }.compactMap(fieldFact)
+            members.methods = body.filter { $0.nodeType == "method_signature" }.compactMap { field($0, "name") }
         }
         add(TypeFact(name: name, line: TreeWalk.line(node), kind: kind, members: members))
     }
@@ -116,7 +132,8 @@ final class JavaScriptStructure: StructureCollector {
     ///   - owner: The enclosing class's name.
     private func recordMethod(_ node: Node, _ owner: String?) {
         let name = field(node, "name")
-        recordFunction(node, name: name == "constructor" ? (owner ?? "") + ".init" : name)
+        let methodOwner = node.nodeType == "method_definition" ? owner : nil
+        recordFunction(node, name: name == "constructor" ? (owner ?? "") + ".init" : name, owner: methodOwner)
     }
 
     /// Records a `const name = () => …` or `function` expression by its variable's name.
@@ -129,14 +146,92 @@ final class JavaScriptStructure: StructureCollector {
         recordFunction(value, name: field(node, "name"))
     }
 
-    /// Records a function with its parameters.
+    /// Records a function with its parameters and return type.
     ///
     /// - Parameters:
     ///   - node: The function (or method) node.
     ///   - name: Its name.
-    private func recordFunction(_ node: Node, name: String?) {
+    ///   - owner: The class it's a method of, if any.
+    private func recordFunction(_ node: Node, name: String?, owner: String? = nil) {
         let list = node.child(byFieldName: "parameters").map(TreeWalk.namedChildren) ?? []
-        addFunction(name, node, parameters: list.compactMap(parameter))
+        let returns = annotation(node.child(byFieldName: "return_type"))
+        addFunction(name, node, parameters: list.compactMap(parameter), owner: owner, returns: returns)
+    }
+
+    /// Notes a typed name, a member read, or a construction inside a class.
+    ///
+    /// - Parameters:
+    ///   - node: The node.
+    ///   - builder: The class's collaboration facts.
+    override func collaborate(_ node: Node, _ builder: CollaborationBuilder) {
+        switch node.nodeType {
+        case "public_field_definition", "field_definition": bindTyped(node, nameField: "name", builder, kept: true)
+        case "required_parameter", "optional_parameter": bindTyped(node, nameField: "pattern", builder)
+        case "variable_declarator": bindTyped(node, nameField: "name", builder)
+        case "assignment_expression": bindAssigned(node, builder)
+        case "member_expression": noteRead(node, builder)
+        default: break
+        }
+    }
+
+    /// Binds a declared name to its type annotation, or to the class its value constructs.
+    ///
+    /// - Parameters:
+    ///   - node: A field, parameter, or variable declarator.
+    ///   - nameField: The field holding its name.
+    ///   - builder: The class's collaboration facts.
+    ///   - kept: Whether it's a class field, which keeps what its value constructs.
+    private func bindTyped(_ node: Node, nameField: String, _ builder: CollaborationBuilder, kept: Bool = false) {
+        guard let name = field(node, nameField) else { return }
+        let written = annotation(node.child(byFieldName: "type")).map(FactText.typeName)
+        let constructed = node.child(byFieldName: "value").flatMap(constructed)
+        if let type = written ?? constructed { builder.bind(name, type) }
+        if kept, let constructed { builder.construct(constructed) }
+    }
+
+    /// Binds `this.name = new Foo()` and `name = new Foo()`, recording the first as a kept construction.
+    ///
+    /// - Parameters:
+    ///   - node: The assignment.
+    ///   - builder: The class's collaboration facts.
+    private func bindAssigned(_ node: Node, _ builder: CollaborationBuilder) {
+        guard let left = node.child(byFieldName: "left"), let name = receiverName(left),
+              let type = node.child(byFieldName: "right").flatMap(constructed) else { return }
+        builder.bind(name, type)
+        if left.nodeType == "member_expression" { builder.construct(type) }
+    }
+
+    /// Notes `name.member` or `this.name.member`.
+    ///
+    /// - Parameters:
+    ///   - node: The member expression.
+    ///   - builder: The class's collaboration facts.
+    private func noteRead(_ node: Node, _ builder: CollaborationBuilder) {
+        guard let object = node.child(byFieldName: "object"), let base = receiverName(object),
+              let member = field(node, "property") else { return }
+        builder.access(base, member)
+    }
+
+    /// Names the value an expression reads: a bare identifier, or `this.name`.
+    ///
+    /// - Parameter node: The expression.
+    /// - Returns: The name, or `nil` for anything else.
+    private func receiverName(_ node: Node) -> String? {
+        if node.nodeType == "identifier" { return text(node) }
+        guard node.nodeType == "member_expression", node.child(byFieldName: "object")?.nodeType == "this" else {
+            return nil
+        }
+        return field(node, "property")
+    }
+
+    /// Names the class a `new` expression constructs.
+    ///
+    /// - Parameter node: The expression.
+    /// - Returns: The class's bare name, or `nil` if it isn't `new` of a name.
+    private func constructed(_ node: Node) -> String? {
+        guard node.nodeType == "new_expression", let callee = node.child(byFieldName: "constructor"),
+              ["identifier", "member_expression"].contains(callee.nodeType) else { return nil }
+        return text(callee).map(FactText.typeName)
     }
 
     /// Reads one parameter as `name:Type` or `name`.

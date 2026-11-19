@@ -28,11 +28,12 @@ enum SwiftModuleFacts {
     static func facts(of parsed: Parsed) -> ModuleFacts {
         let api = SwiftPublicAPICollector(converter: parsed.converter)
         let references = SwiftReferenceCollector(viewMode: .sourceAccurate)
-        let structure = SwiftStructureCollector(parsed)
-        for visitor in [api, references, structure] as [SyntaxVisitor] { visitor.walk(parsed.tree) }
+        let structure = SwiftStructureCollector(parsed), collaboration = SwiftCollaborationCollector(parsed)
+        for visitor in [api, references, structure, collaboration] as [SyntaxVisitor] { visitor.walk(parsed.tree) }
         let names = references.names.sorted()
         return ModuleFacts(
-            imports: imports(of: parsed), exports: api.exports, references: names, structure: structure.structure
+            imports: imports(of: parsed), exports: api.exports, references: names,
+            structure: structure.structure(with: collaboration.facts)
         )
     }
 

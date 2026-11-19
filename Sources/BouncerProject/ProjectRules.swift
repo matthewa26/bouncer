@@ -25,8 +25,8 @@ public struct ProjectRules: ProjectAnalyzer {
     /// Creates the analyzer with the built-in project rules.
     ///
     /// - Parameters:
-    ///   - history: Reads commit history for `hotspot`, `change-coupling`, and `single-author-file`, or `nil`
-    ///     to skip them.
+    ///   - history: Reads commit history for `hotspot`, `change-coupling`, `single-author-file`,
+    ///     `divergent-change`, and `shotgun-surgery`, or `nil` to skip them.
     ///   - measurer: Measures functions for `hotspot`, or `nil` to skip it.
     public init(history: HistorySource? = nil, measurer: FunctionMeasuring? = nil) {
         rules = [
@@ -34,14 +34,17 @@ public struct ProjectRules: ProjectAnalyzer {
             UnstableDependencyRule(), MissingTestFileRule(), UnusedPublicSymbolRule(), duplicates
         ] + Self.designRules
         self.history = history
-        historyRules = (measurer.map { [HotspotRule(measurer: $0)] } ?? []) + [ChangeCouplingRule(), SingleAuthorRule()]
+        historyRules = (measurer.map { [HotspotRule(measurer: $0)] } ?? [])
+            + [ChangeCouplingRule(), SingleAuthorRule(), DivergentChangeRule(), ShotgunSurgeryRule()]
     }
 
     /// The cross-file design rules over types, functions, and manifests.
     private static let designRules: [ProjectRule] = [
         DeepInheritanceRule(), ManySubclassesRule(), RefusedBequestRule(), ParallelInheritanceRule(),
         MainSequenceDistanceRule(), DataClumpRule(), RepeatedSwitchRule(), SingleImplementationRule(),
-        UnusedDependencyRule(), InconsistentTerminologyRule(), MissingReadmeRule()
+        UnusedDependencyRule(), InconsistentTerminologyRule(), MissingReadmeRule(), LiskovSubstitutionRule(),
+        InterfaceSegregationRule(), SingleOverrideSubclassRule(), InappropriateIntimacyRule(),
+        DependencyInversionRule(), AlternativeInterfacesRule()
     ]
 
     /// Fingerprints a file for `duplicate-code`.

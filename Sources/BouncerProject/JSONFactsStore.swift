@@ -5,7 +5,7 @@ import BouncerCore
 ///
 /// The file records a format version; a cache written by a different version is ignored and rebuilt.
 public struct JSONFactsStore: FactsStore {
-    private static let version = 4
+    private static let version = 5
     private let location: URL
     private let repoRoot: URL
     private let cached: [String: FileFacts]

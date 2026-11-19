@@ -71,10 +71,11 @@ final class PythonStructure: StructureCollector {
         if let field = annotatedField(statement) { members.fields.append(field) }
         let function = statement.nodeType == "decorated_definition"
             ? statement.child(byFieldName: "definition") : statement
-        guard let function, function.nodeType == "function_definition", let name = field(function, "name") else {
-            return false
+        guard let function, function.nodeType == "function_definition",
+              let name = field(function, "name") else { return false }
+        if name != "__init__" {
+            Self.addMethod(name, body: classify(function), to: &members, guarded: guarded(function))
         }
-        if name != "__init__" { Self.addMethod(name, body: classify(function), to: &members) }
         return statement.nodeType == "decorated_definition" && text(statement)?.contains("abstractmethod") == true
     }
 
@@ -95,13 +96,40 @@ final class PythonStructure: StructureCollector {
     /// - Parameter function: The function definition.
     /// - Returns: `.empty` for only `pass` or `...`, `.refused` for only a `raise`, else `nil`.
     private func classify(_ function: Node) -> MethodBody? {
+        Self.classify(statements(of: function), throwType: "raise_statement", noOps: Self.noOps)
+    }
+
+    /// Reports whether a public method opens with a precondition on its arguments, `if …: raise …`, before
+    /// more code. `assert` is left out: it usually checks the object's own invariants.
+    ///
+    /// - Parameter function: The function definition.
+    /// - Returns: Whether it narrows what the method accepts.
+    private func guarded(_ function: Node) -> Bool {
+        let body = statements(of: function)
+        guard body.count > 1, !Self.isPrivate(field(function, "name") ?? "") else { return false }
+        return isArgumentGuard(body[0], throwType: "raise_statement", arguments: argumentNames(of: function))
+    }
+
+    /// Lists a function's parameter names, without `self` and `cls`.
+    ///
+    /// - Parameter function: The function definition.
+    /// - Returns: The names.
+    private func argumentNames(of function: Node) -> Set<String> {
+        let list = function.child(byFieldName: "parameters").map(TreeWalk.namedChildren) ?? []
+        return Set(list.compactMap(parameter).map { String($0.prefix { $0 != ":" }) }).subtracting(Self.receivers)
+    }
+
+    /// Lists a function body's statements without its docstring and comments, unwrapping expression statements.
+    ///
+    /// - Parameter function: The function definition.
+    /// - Returns: The statements.
+    private func statements(of function: Node) -> [Node] {
         let statements = (function.child(byFieldName: "body").map(TreeWalk.namedChildren) ?? []).filter { node in
             node.nodeType != "comment" && !isDocstring(node)
         }
-        let unwrapped = statements.map { node in
+        return statements.map { node in
             node.nodeType == "expression_statement" ? TreeWalk.namedChildren(node).first ?? node : node
         }
-        return Self.classify(unwrapped, throwType: "raise_statement", noOps: Self.noOps)
     }
 
     /// Reports whether a statement is a bare string, as a docstring is.
@@ -121,7 +149,83 @@ final class PythonStructure: StructureCollector {
         let name = field(node, "name")
         let list = node.child(byFieldName: "parameters").map(TreeWalk.namedChildren) ?? []
         let parameters = list.compactMap(parameter).filter { !Self.receivers.contains($0) }
-        addFunction(name == "__init__" ? (owner ?? "") + ".init" : name, node, parameters: parameters)
+        let isMethod = owner != nil && list.first.flatMap(text).map(Self.receivers.contains) == true
+        addFunction(name == "__init__" ? (owner ?? "") + ".init" : name, node, parameters: parameters,
+                    owner: isMethod ? owner : nil, returns: field(node, "return_type"))
+    }
+
+    /// Notes a typed name, an attribute read, or a construction inside a class.
+    ///
+    /// - Parameters:
+    ///   - node: The node.
+    ///   - builder: The class's collaboration facts.
+    override func collaborate(_ node: Node, _ builder: CollaborationBuilder) {
+        switch node.nodeType {
+        case "typed_parameter", "typed_default_parameter": bindParameter(node, builder)
+        case "assignment": bindAssigned(node, builder)
+        case "attribute": noteRead(node, builder)
+        default: break
+        }
+    }
+
+    /// Notes `name.member` or `self.name.member`.
+    ///
+    /// - Parameters:
+    ///   - node: The attribute.
+    ///   - builder: The class's collaboration facts.
+    private func noteRead(_ node: Node, _ builder: CollaborationBuilder) {
+        guard let object = node.child(byFieldName: "object"), let base = receiverName(object),
+              let member = field(node, "attribute") else { return }
+        builder.access(base, member)
+    }
+
+    /// Binds a typed parameter's name to its annotation.
+    ///
+    /// - Parameters:
+    ///   - node: The typed parameter.
+    ///   - builder: The class's collaboration facts.
+    private func bindParameter(_ node: Node, _ builder: CollaborationBuilder) {
+        let named = node.child(byFieldName: "name") ?? TreeWalk.namedChildren(node).first
+        guard let named, named.nodeType == "identifier", let name = text(named),
+              let type = field(node, "type") else { return }
+        builder.bind(name, FactText.typeName(TreeWalk.unquote(type)))
+    }
+
+    /// Binds `name: Foo = …`, `self.name: Foo = …`, `name = Foo(…)`, and `self.name = Foo(…)`, recording the
+    /// last as a kept construction.
+    ///
+    /// - Parameters:
+    ///   - node: The assignment.
+    ///   - builder: The class's collaboration facts.
+    private func bindAssigned(_ node: Node, _ builder: CollaborationBuilder) {
+        guard let left = node.child(byFieldName: "left"), let name = receiverName(left) else { return }
+        let written = field(node, "type").map(FactText.typeName)
+        let constructed = node.child(byFieldName: "right").flatMap(constructed)
+        if let type = written ?? constructed { builder.bind(name, type) }
+        if left.nodeType == "attribute", let constructed { builder.construct(constructed) }
+    }
+
+    /// Names the value an expression reads: a bare identifier other than `self`/`cls`, or `self.name`.
+    ///
+    /// - Parameter node: The expression.
+    /// - Returns: The name, or `nil` for anything else.
+    private func receiverName(_ node: Node) -> String? {
+        if node.nodeType == "identifier" { return text(node).flatMap { Self.receivers.contains($0) ? nil : $0 } }
+        guard node.nodeType == "attribute", node.child(byFieldName: "object").flatMap(text) == "self" else {
+            return nil
+        }
+        return field(node, "attribute")
+    }
+
+    /// Names the class a call constructs: a call of a capitalized name.
+    ///
+    /// - Parameter node: The expression.
+    /// - Returns: The class's bare name, or `nil` if it isn't such a call.
+    private func constructed(_ node: Node) -> String? {
+        guard node.nodeType == "call", let callee = node.child(byFieldName: "function"),
+              ["identifier", "attribute"].contains(callee.nodeType),
+              let name = text(callee).map(FactText.typeName), name.first?.isUppercase == true else { return nil }
+        return name
     }
 
     /// Reads one parameter as `name:Type` or `name`.

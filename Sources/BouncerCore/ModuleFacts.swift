@@ -50,10 +50,14 @@ public struct StructureFacts: Codable, Sendable, Equatable {
     public let types: [TypeFact]
     public let functions: [FunctionFact]
     public let switches: [SwitchFact]
+    /// What each type's code reads from and constructs of other types.
+    public let collaborations: [CollaborationFact]
     /// Whether the file says it's generated, so design rules leave it alone.
     public let isGenerated: Bool
 
-    private enum CodingKeys: String, CodingKey { case types, functions, switches, isGenerated = "generated" }
+    private enum CodingKeys: String, CodingKey {
+        case types, functions, switches, collaborations, isGenerated = "generated"
+    }
 
     /// Creates structure facts.
     ///
@@ -61,13 +65,16 @@ public struct StructureFacts: Codable, Sendable, Equatable {
     ///   - types: Declared types, and Swift extensions that add conformances.
     ///   - functions: Functions, methods, and initializers with bodies.
     ///   - switches: Each `switch` (or Python `match`) statement's subject.
+    ///   - collaborations: What each type reads from and constructs of other types.
     ///   - isGenerated: Whether the file says it's generated.
     public init(
-        types: [TypeFact] = [], functions: [FunctionFact] = [], switches: [SwitchFact] = [], isGenerated: Bool = false
+        types: [TypeFact] = [], functions: [FunctionFact] = [], switches: [SwitchFact] = [],
+        collaborations: [CollaborationFact] = [], isGenerated: Bool = false
     ) {
         self.types = types
         self.functions = functions
         self.switches = switches
+        self.collaborations = collaborations
         self.isGenerated = isGenerated
     }
 
@@ -80,6 +87,7 @@ public struct StructureFacts: Codable, Sendable, Equatable {
         types = try container.decodeIfPresent([TypeFact].self, forKey: .types) ?? []
         functions = try container.decodeIfPresent([FunctionFact].self, forKey: .functions) ?? []
         switches = try container.decodeIfPresent([SwitchFact].self, forKey: .switches) ?? []
+        collaborations = try container.decodeIfPresent([CollaborationFact].self, forKey: .collaborations) ?? []
         isGenerated = try container.decodeIfPresent(Bool.self, forKey: .isGenerated) ?? false
     }
 
@@ -92,6 +100,7 @@ public struct StructureFacts: Codable, Sendable, Equatable {
         try container.encodeNonEmpty(types, forKey: .types)
         try container.encodeNonEmpty(functions, forKey: .functions)
         try container.encodeNonEmpty(switches, forKey: .switches)
+        try container.encodeNonEmpty(collaborations, forKey: .collaborations)
         if isGenerated { try container.encode(true, forKey: .isGenerated) }
     }
 }
@@ -124,8 +133,25 @@ public struct TypeFact: Codable, Sendable, Equatable {
     public let refused: [String]
     /// Methods whose body is empty; for Swift, only `override`s.
     public let empty: [String]
+    /// Swift only: methods marked `override`.
+    public let overrides: [String]
+    /// Swift only: methods that aren't `override`s whose body only throws or traps.
+    public let refusedOwn: [String]
+    /// Swift only: methods that aren't `override`s whose body is empty.
+    public let emptyOwn: [String]
+    /// Methods whose body opens with a precondition that traps or throws, such as `precondition(…)`,
+    /// `guard … else { fatalError() }`, `if (…) throw …`, or Python's `assert …`.
+    public let guarded: [String]
 
-    private enum CodingKeys: String, CodingKey { case name, line, kind, supertypes, fields, methods, refused, empty }
+    private enum CodingKeys: String, CodingKey {
+        case name, line, kind, supertypes, fields, methods, refused, empty, overrides, refusedOwn, emptyOwn, guarded
+    }
+
+    /// Every method whose body only throws or traps, `override` or not.
+    public var allRefused: [String] { refused + refusedOwn }
+
+    /// Every method whose body is empty, `override` or not.
+    public var allEmpty: [String] { empty + emptyOwn }
 
     /// Creates a type fact.
     ///
@@ -141,8 +167,9 @@ public struct TypeFact: Codable, Sendable, Equatable {
         supertypes = members.supertypes
         fields = members.fields
         methods = members.methods
-        refused = members.refused
-        empty = members.empty
+        (refused, empty) = (members.refused, members.empty)
+        (overrides, refusedOwn) = (members.overrides, members.refusedOwn)
+        (emptyOwn, guarded) = (members.emptyOwn, members.guarded)
     }
 
     /// Decodes a type fact, treating a missing list as empty.
@@ -157,6 +184,8 @@ public struct TypeFact: Codable, Sendable, Equatable {
         let list = { (key: CodingKeys) in try container.decodeIfPresent([String].self, forKey: key) ?? [] }
         (supertypes, fields, methods) = (try list(.supertypes), try list(.fields), try list(.methods))
         (refused, empty) = (try list(.refused), try list(.empty))
+        (overrides, refusedOwn) = (try list(.overrides), try list(.refusedOwn))
+        (emptyOwn, guarded) = (try list(.emptyOwn), try list(.guarded))
     }
 
     /// Encodes a type fact, leaving out empty lists.
@@ -168,9 +197,9 @@ public struct TypeFact: Codable, Sendable, Equatable {
         try container.encode(name, forKey: .name)
         try container.encode(line, forKey: .line)
         try container.encode(kind, forKey: .kind)
-        let lists: [(CodingKeys, [String])] = [
-            (.supertypes, supertypes), (.fields, fields), (.methods, methods), (.refused, refused), (.empty, empty)
-        ]
+        let lists: [(CodingKeys, [String])] = [(.supertypes, supertypes), (.fields, fields), (.methods, methods),
+            (.refused, refused), (.empty, empty), (.overrides, overrides), (.refusedOwn, refusedOwn),
+            (.emptyOwn, emptyOwn), (.guarded, guarded)]
         for (key, list) in lists { try container.encodeNonEmpty(list, forKey: key) }
     }
 }
@@ -182,8 +211,12 @@ public struct TypeMembers: Sendable, Equatable {
     public var methods: [String]
     public var refused: [String]
     public var empty: [String]
+    public var overrides: [String] = []
+    public var refusedOwn: [String] = []
+    public var emptyOwn: [String] = []
+    public var guarded: [String] = []
 
-    /// Creates a member list.
+    /// Creates a member list; the Swift-only lists and `guarded` start empty.
     ///
     /// - Parameters:
     ///   - supertypes: Superclasses, protocols, and interfaces.
@@ -210,6 +243,10 @@ public struct FunctionFact: Codable, Sendable, Equatable {
     public let line: Int
     /// Its parameters, as `name:Type` or `name`, leaving out `self`, unnamed, and rest parameters.
     public let parameters: [String]
+    /// The type it's a method of (a Go method's receiver type), or `nil` for a free function.
+    public let owner: String?
+    /// Its return type as written without whitespace, or `nil` if none is written.
+    public let returns: String?
 
     /// Creates a function fact.
     ///
@@ -217,10 +254,147 @@ public struct FunctionFact: Codable, Sendable, Equatable {
     ///   - name: The function's name.
     ///   - line: The 1-indexed line of the declaration.
     ///   - parameters: Its parameters.
-    public init(name: String, line: Int, parameters: [String] = []) {
+    ///   - owner: The type it's a method of, if any.
+    ///   - returns: Its written return type, if any.
+    public init(name: String, line: Int, parameters: [String] = [], owner: String? = nil, returns: String? = nil) {
         self.name = name
         self.line = line
         self.parameters = parameters
+        self.owner = owner
+        self.returns = returns.map { $0.filter { !$0.isWhitespace } }.flatMap { $0.isEmpty ? nil : $0 }
+    }
+}
+
+/// What one type's code (or one extension's) does with other types: the members it reads on values whose
+/// type is written, and the types it constructs and keeps. Both lists are sorted and distinct.
+public struct CollaborationFact: Codable, Sendable, Equatable {
+    /// The most entries kept per list, which bounds the cache for very large types.
+    public static let maxEntries = 64
+    /// The type, or the extended type for an extension.
+    public let owner: String
+    /// The 1-indexed line of the type's (or extension's) declaration.
+    public let line: Int
+    /// Members read on a parameter, property, or local whose type is written or constructed, as `Type.member`.
+    public let uses: [String]
+    /// Types constructed by name and kept in a property, such as `let api = Foo()`, `this.api = new Foo()`, or
+    /// Python `self.api = Foo()`.
+    public let constructs: [String]
+
+    private enum CodingKeys: String, CodingKey { case owner, line, uses, constructs }
+
+    /// Creates a collaboration fact, sorting and de-duplicating its lists and keeping at most `maxEntries` each.
+    ///
+    /// - Parameters:
+    ///   - owner: The type.
+    ///   - line: Its declaration's line.
+    ///   - uses: Members read on typed values, as `Type.member`.
+    ///   - constructs: Types constructed and kept in a property.
+    public init(owner: String, line: Int, uses: [String] = [], constructs: [String] = []) {
+        self.owner = owner
+        self.line = line
+        self.uses = Array(Set(uses).sorted().prefix(Self.maxEntries))
+        self.constructs = Array(Set(constructs).sorted().prefix(Self.maxEntries))
+    }
+
+    /// Decodes a collaboration fact, treating a missing list as empty.
+    ///
+    /// - Parameter decoder: The decoder.
+    /// - Throws: If a field is missing or malformed.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        owner = try container.decode(String.self, forKey: .owner)
+        line = try container.decode(Int.self, forKey: .line)
+        uses = try container.decodeIfPresent([String].self, forKey: .uses) ?? []
+        constructs = try container.decodeIfPresent([String].self, forKey: .constructs) ?? []
+    }
+
+    /// Encodes a collaboration fact, leaving out empty lists.
+    ///
+    /// - Parameter encoder: The encoder.
+    /// - Throws: If encoding fails.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(owner, forKey: .owner)
+        try container.encode(line, forKey: .line)
+        try container.encodeNonEmpty(uses, forKey: .uses)
+        try container.encodeNonEmpty(constructs, forKey: .constructs)
+    }
+}
+
+/// Gathers one type's collaboration facts while an analyzer walks its declaration: which names hold which
+/// types, which members are read on which names, and which types are constructed.
+///
+/// Bindings aren't scoped: a name bound to two different types anywhere in the type is ambiguous and its
+/// reads are dropped. Standard-library types are never bound or recorded.
+public final class CollaborationBuilder {
+    private let owner: String
+    private let line: Int
+    private var bindings: [String: Set<String>] = [:]
+    private var reads: Set<[String]> = []
+    private var constructed: Set<String> = []
+    private var properties: Set<String> = []
+    private var assigned: Set<[String]> = []
+
+    /// Starts gathering a type's facts.
+    ///
+    /// - Parameters:
+    ///   - owner: The type, or the extended type for an extension.
+    ///   - line: Its declaration's line.
+    public init(owner: String, line: Int) {
+        self.owner = owner
+        self.line = line
+    }
+
+    /// Notes that a name holds a value of a type.
+    ///
+    /// - Parameters:
+    ///   - name: A parameter, property, or local.
+    ///   - type: The value's bare type name.
+    public func bind(_ name: String, _ type: String) {
+        guard name != "_", FactText.isProjectTypeCandidate(type) else { return }
+        bindings[name, default: []].insert(type)
+    }
+
+    /// Notes a member read on a name.
+    ///
+    /// - Parameters:
+    ///   - base: The name the member is read on.
+    ///   - member: The member.
+    public func access(_ base: String, _ member: String) { reads.insert([base, member]) }
+
+    /// Notes a type constructed by name and kept in a property.
+    ///
+    /// - Parameter type: The type's bare name.
+    public func construct(_ type: String) {
+        if FactText.isProjectTypeCandidate(type), type != owner { constructed.insert(type) }
+    }
+
+    /// Notes a stored property's name, so a bare `name = Foo()` assigns it.
+    ///
+    /// - Parameter name: The property.
+    public func property(_ name: String) { properties.insert(name) }
+
+    /// Notes `name = Foo()` with a bare name, which keeps `Foo` if `name` turns out to be a property.
+    ///
+    /// - Parameters:
+    ///   - name: The assigned name.
+    ///   - type: The constructed type's bare name.
+    public func assign(_ name: String, _ type: String) { assigned.insert([name, type]) }
+
+    /// The gathered facts, resolving each read through the name's one bound type.
+    ///
+    /// - Returns: The facts, or `nil` if there are none.
+    public var fact: CollaborationFact? {
+        let uses = reads.compactMap { read -> String? in
+            guard let types = bindings[read[0]], types.count == 1, let type = types.first, type != owner else {
+                return nil
+            }
+            return type + "." + read[1]
+        }
+        let kept = assigned.filter { properties.contains($0[0]) && FactText.isProjectTypeCandidate($0[1]) }
+        let constructs = constructed.union(kept.map { $0[1] }).subtracting([owner])
+        guard !uses.isEmpty || !constructs.isEmpty else { return nil }
+        return CollaborationFact(owner: owner, line: line, uses: uses, constructs: Array(constructs))
     }
 }
 
@@ -313,6 +487,44 @@ public enum FactText {
         let head = text.prefix { !"<([{".contains($0) }.trimmingCharacters(in: .whitespacesAndNewlines)
         let last = head.split(separator: ".").last.map(String.init) ?? head
         return last.trimmingCharacters(in: CharacterSet(charactersIn: "?!"))
+    }
+
+    /// Reports whether code mentions any of some names as a whole identifier.
+    ///
+    /// - Parameters:
+    ///   - code: The code, such as a condition.
+    ///   - names: The names, such as a function's parameters.
+    /// - Returns: Whether an identifier in `code` is one of `names`.
+    public static func mentions(_ code: String, anyOf names: Set<String>) -> Bool {
+        let identifiers = code.split { !($0.isLetter || $0.isNumber || $0 == "_") }.map(String.init)
+        return identifiers.contains(where: names.contains)
+    }
+
+    /// Reports whether an error or message says an operation is unsupported or unimplemented, such as
+    /// `UnsupportedOperation`, `"not supported"`, or `NotImplementedError`.
+    ///
+    /// - Parameter code: The `throw` or `raise` statement.
+    /// - Returns: Whether it refuses rather than fails.
+    public static func saysUnsupported(_ code: String) -> Bool {
+        let flat = code.lowercased().filter { $0.isLetter }
+        return ["unsupported", "notsupported", "notimplemented", "unimplemented", "unavailable"].contains {
+            flat.contains($0)
+        }
+    }
+
+    /// Capitalized standard-library and platform types, which are never project types.
+    private static let libraryTypes: Set<String> = [
+        "Any", "AnyObject", "Array", "Bool", "Character", "Data", "Date", "Decimal", "Dict", "Dictionary", "Double",
+        "Error", "Float", "Int", "List", "Map", "Never", "Object", "Optional", "Promise", "Record", "Result", "Self",
+        "Set", "String", "Substring", "Tuple", "Type", "UUID", "URL", "Union", "Void"
+    ]
+
+    /// Reports whether a bare type name could name a project type: capitalized and not a standard-library type.
+    ///
+    /// - Parameter name: The bare type name.
+    /// - Returns: Whether collaboration facts should keep it.
+    public static func isProjectTypeCandidate(_ name: String) -> Bool {
+        name.first?.isUppercase == true && !libraryTypes.contains(name)
     }
 
     /// Writes a parameter or field the way structure facts store it.

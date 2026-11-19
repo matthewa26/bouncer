@@ -123,6 +123,16 @@ struct TypeHierarchy: Sendable {
         return result
     }
 
+    /// Lists a class's ancestors like `ancestors(of:)`, but none when a parent has the class's own name: a
+    /// class named like its parent extends a same-named class from elsewhere (`class Codec(codecs.Codec)`),
+    /// which name resolution would wrongly match to a sibling.
+    ///
+    /// - Parameter type: The class.
+    /// - Returns: Its ancestors, nearest first, or none.
+    func trustedAncestors(of type: DeclaredType) -> [DeclaredType] {
+        (parents[type.id] ?? []).contains { $0.name == type.name } ? [] : ancestors(of: type)
+    }
+
     /// Measures a class's depth of inheritance: the longest chain of project ancestors above it.
     ///
     /// - Parameters:

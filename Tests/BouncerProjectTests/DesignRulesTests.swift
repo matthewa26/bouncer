@@ -387,7 +387,7 @@ final class DesignRulesTests: XCTestCase {
         try JSONFactsStore(repoRoot: root).save([stored])
         XCTAssertEqual(JSONFactsStore(repoRoot: root).cachedFacts(path: "a.ts", contentHash: "h"), stored)
         let text = try String(contentsOf: root.appendingPathComponent(".bouncer-cache/facts.json"), encoding: .utf8)
-        XCTAssertTrue(text.contains("\"version\":4"))
+        XCTAssertTrue(text.contains("\"version\":5"))
         XCTAssertFalse(text.contains("refused"), "empty lists are left out")
     }
 

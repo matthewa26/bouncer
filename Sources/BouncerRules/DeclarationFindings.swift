@@ -20,13 +20,30 @@ public enum DeclarationFindings {
         _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext, naming: NamingPatterns
     ) -> [Finding] {
         let groups: [[Finding]] = [
+            functionFindings(summary, file: file, context: context, naming: naming),
+            structureFindings(summary, file: file, context: context),
+            designFindings(summary, file: file, context: context)
+        ]
+        return groups.flatMap { $0 }
+    }
+
+    /// Runs the single-location, function-size, documentation, and naming rules, in a fixed order.
+    ///
+    /// - Parameters:
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    ///   - naming: The language's identifier patterns.
+    /// - Returns: The combined findings.
+    static func functionFindings(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext, naming: NamingPatterns
+    ) -> [Finding] {
+        let groups: [[Finding]] = [
             markerFindings(summary, file: file, context: context),
             longFunction(summary, file: file, context: context),
             cyclomaticComplexity(summary, file: file, context: context),
             missingDocumentation(summary, file: file, context: context),
-            namingConvention(summary, file: file, context: context, naming: naming),
-            structureFindings(summary, file: file, context: context),
-            designFindings(summary, file: file, context: context)
+            namingConvention(summary, file: file, context: context, naming: naming)
         ]
         return groups.flatMap { $0 }
     }
@@ -47,6 +64,22 @@ public enum DeclarationFindings {
             switchOnTypeSmell(summary, file: file, context: context),
             godClass(summary, file: file, context: context),
             metrics,
+            declarationShapeFindings(summary, file: file, context: context)
+        ]
+        return groups.flatMap { $0 }
+    }
+
+    /// Runs the cohesion, type-shape, naming, dead-code, and size-shape rules, in a fixed order.
+    ///
+    /// - Parameters:
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The combined findings.
+    static func declarationShapeFindings(
+        _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
+    ) -> [Finding] {
+        let groups: [[Finding]] = [
             lackOfCohesion(summary, file: file, context: context),
             typeShapeFindings(summary, file: file, context: context),
             nameFindings(summary, file: file, context: context),

@@ -57,8 +57,19 @@ public struct RecursiveFileWalker: TargetFileProvider {
             enumerator.skipDescendants()
             return
         }
-        guard !isDirectory(url), !excludeFilter.excludes(url) else { return }
+        guard isReadableFile(url), !excludeFilter.excludes(url) else { return }
         results.append(url)
+    }
+
+    /// Checks whether a path leads to a file, following symlinks, so links to directories (which the
+    /// enumerator doesn't descend into) and broken links aren't collected as files.
+    ///
+    /// - Parameter url: The enumerated path.
+    /// - Returns: Whether the path, or its symlink target, is an existing non-directory.
+    private func isReadableFile(_ url: URL) -> Bool {
+        var targetIsDirectory: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &targetIsDirectory)
+        return exists && !targetIsDirectory.boolValue
     }
 
     /// Checks whether a path is one of the conventionally-skipped directories.

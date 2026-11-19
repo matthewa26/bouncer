@@ -263,6 +263,19 @@ final class RobustnessRulesTests: XCTestCase {
         XCTAssertEqual(lines(source, .go, rule: "go-unmanaged-goroutine"), [3, 8])
     }
 
+    func testDoesNotBorrowCoordinationFromCodeAfterTheFunction() {
+        let source = """
+            func fire() {
+            \tgo doWork()
+            }
+
+            var mu sync.Mutex
+
+            func shutdown(ctx context.Context) {}
+            """
+        XCTAssertEqual(lines(source, .go, rule: "go-unmanaged-goroutine"), [2])
+    }
+
     func testSkipsGoroutinesWithContextWaitGroupOrChannel() {
         let source = """
             func a(ctx context.Context) {

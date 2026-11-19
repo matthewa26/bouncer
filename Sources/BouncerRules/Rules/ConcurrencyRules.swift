@@ -97,7 +97,8 @@ public struct GoUnmanagedGoroutineRule: Rule {
     private static func isUnmanaged(at index: Int, in file: SourceFile) -> Bool {
         guard TextMatching.matches(goStatement, file.lines[index]) else { return false }
         let start = file.lines[...index].lastIndex { TextMatching.matches(functionStart, $0) } ?? index
-        let end = max(SourceText.blockEnd(from: start, in: file), SourceText.blockEnd(from: index, in: file))
+        let ownBlockEnd = file.lines[index].contains("{") ? SourceText.blockEnd(from: index, in: file) : index
+        let end = max(SourceText.blockEnd(from: start, in: file), ownBlockEnd)
         return !file.lines[start...end].contains { TextMatching.matches(coordination, SourceText.code(of: $0)) }
     }
 }

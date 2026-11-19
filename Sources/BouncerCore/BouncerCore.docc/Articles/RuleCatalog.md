@@ -30,6 +30,10 @@ These run on every language.
 | `redundant-comment` | A one-line comment that only restates the statement below it; off unless configured | warning | none |
 | `trailing-whitespace` | A line ending in a space or tab | warning | none |
 | `secret-looking-pattern` | A line matching a small set of credential-shaped patterns | warning | none |
+| `inconsistent-indent` | A block indented by a different number of spaces than the file's other blocks, reported once per file (not Go or SQL) | warning | none |
+| `hardcoded-ip` | An IPv4 address in a string literal, except loopback, `0.x`, link-local, multicast and netmasks, documentation ranges, versions, and test files | warning | `allow`: address prefixes to accept (none) |
+| `duplicate-import` (Swift, TS/JS, Python, Go) | A module imported twice in one file | warning | none |
+| `unsorted-imports` (Swift, TS/JS, Python) | An import out of alphabetical order within its group; off unless configured | warning | none |
 | `missing-final-newline` | A non-empty file that doesn't end with a newline | warning | none |
 | `crlf-line-endings` | A file using Windows (CRLF) line endings, reported once per file | warning | none |
 | `mixed-indentation` | A file indenting some lines with tabs and others with spaces | warning | none |
@@ -104,6 +108,15 @@ parameter. The heuristic languages don't get these rules.
 | `unused-private-symbol` | A file-private declaration nothing else in its file uses: Swift `private`/`fileprivate` functions, properties, and types; unexported top-level TS/JS functions, classes, and variables in modules; `_`-prefixed Python module-level functions and classes | warning | none |
 | `unused-import` (TS/JS, Python) | An import binding the file never uses | warning | none |
 | `unused-parameter` | A parameter its function never uses; TS/JS only flags parameters after the last used one; off unless configured | warning | none |
+| `large-type` | Logical lines in one class, struct, enum, actor, protocol, or interface (Go: struct and interface types) | warning | `maxLines` (400) |
+| `long-closure` | Logical lines in a closure, lambda, or anonymous function, reporting only the outermost | warning | `maxLines` (20) |
+| `long-boolean-expression` | Operands in one `&&`/`\|\|` (`and`/`or`) chain, counted through parentheses and negation; `==`/`__eq__`/`equals` implementations are exempt | warning | `maxOperands` (4) |
+| `too-many-locals` | Distinct local variables declared in a function, excluding nested functions and closures (a TS/JS destructuring pattern counts once) | warning | `maxLocals` (10) |
+| `too-many-generic-parameters` (Swift, TS/JS, Go) | Generic parameters on one type or function | warning | `maxParameters` (4) |
+| `long-identifier` | A variable, property, parameter, function, or type name longer than the maximum; test functions are exempt | warning | `maxLength` (50) |
+| `boolean-name-prefix` (Swift, TS/JS, Python) | A boolean variable or property whose name doesn't read as a yes/no question; off unless configured | warning | `prefixes` (is, has, should, can, will, did, was, and more), `includeParameters` (false) |
+| `type-in-name` | A name whose last word restates its declared or literal type, such as `userList: [User]` or `idSet = Set<Int>()` | warning | `suffixes` (List, Array, Dict, Dictionary, Map, Set, Bool, Boolean, Int, Integer, Double, Float) |
+| `file-name-mismatch` (Swift, TS/JS) | A file whose only visible top-level type is named differently from the file | warning | none |
 
 `cognitive-complexity` follows SonarSource's scheme: each `if`, loop, `switch`, `catch`, and
 ternary adds one plus its nesting level; `else` and `else if` add one; each run of mixed
@@ -140,6 +153,22 @@ spans files, and the compiler already rejects unused imports. `unused-parameter`
 `_`-prefixed names, stub bodies (empty, or only a `throw`/`fatalError`/`pass`/`raise`), methods of
 subclasses and conforming types, Python `self`/`cls`/`*args`/`**kwargs`, protocol dunders, pytest
 tests and fixtures, and TypeScript constructor parameter properties.
+
+`long-closure` skips named function expressions (`long-function` measures them), Swift
+`= { … }()` initializers and result-builder bodies passed to a type (`VStack { … }`), test-suite
+blocks (`describe`, `it`, Go's `t.Run`), and JavaScript immediately invoked functions.
+`boolean-name-prefix` accepts a name whose first word is one of `prefixes` or a third-person verb
+(`startsWith…`), or that has an `is`/`has`/`was` word later (`tokenIsMissing`); `ALL_CAPS`
+constants and `ok` are exempt, and Go is skipped, since `ok` and `found` are idiomatic there.
+`type-in-name` leaves `String`/`Str` out of its default suffixes, since names like
+`lineNumberString` usually mean the string form of a non-string value. `file-name-mismatch` only
+applies when a file holds exactly one visible top-level type and nothing else visible but that
+type's own extensions (in TS/JS, only `export`ed declarations count). It compares names ignoring
+case, `-`, `_`, and `.`, so `user-service.ts` and `user.service.ts` match `UserService`; it
+ignores a `Test`/`Tests` suffix and a TS `I` interface prefix, accepts either side of
+`Type+Extension.swift` and a type whose name contains the file's, and skips `main`, `index`,
+`package`, `mod`, `.d.ts`, `.test.`, `.spec.`, and `.stories.` files. Python and Go have no
+file-per-type convention, so it doesn't apply to them.
 
 ### `missing-documentation`'s `scope` parameter
 
@@ -209,6 +238,10 @@ mistake in that language, layered on top of the shared rules above:
 | Go | `skipped-test` | `t.Skip`/`t.Skipf`/`t.SkipNow` |
 | SQL | `sql-select-star` | `SELECT *` instead of named columns |
 | SQL | `sql-missing-where` | `UPDATE`/`DELETE` with no `WHERE` clause |
+| Swift | `swift-shell-injection` | A `Process` running a shell with `-c` and an interpolated command string |
+| TypeScript/JavaScript | `insecure-random` | `Math.random()` feeding a token, ID, secret, password, nonce, salt, or session value |
+| Python | `insecure-random` | The `random` module feeding a token, ID, secret, or password |
+| Go | `insecure-random` | `math/rand` feeding a token, ID, or secret |
 
 These are all declarative pattern rules, the same mechanism `customRules` in your own
 `.bouncer` file uses; see <doc:Configuration>. Adding one for a language that doesn't have it
@@ -230,6 +263,9 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `missing-test-file` | A source file with no conventionally named test file; off unless configured | warning | none |
 | `unused-public-symbol` | A Swift `public`/`open` declaration no other target uses; off unless configured | warning | `publicTargets`, `ignoreNames` |
 | `duplicate-code` | A block of code copied into another file, exactly or with renamed identifiers or changed literals | warning | `minTokens` (50), `minLines` (6), `ignoreLiterals` (true), `ignore` (none) |
+| `hotspot` | A file that changes often and is complex: commits over `sinceDays` days × total cyclomatic complexity; the top `top` are reported at their most complex function | warning | `sinceDays` (180), `minCommits` (5), `minComplexity` (30), `top` (5), `ignore` (none) |
+| `change-coupling` | Two files that keep changing in the same commits although neither imports the other | warning | `sinceDays` (180), `minShared` (5), `minRatio` (0.5), `maxFilesPerCommit` (30) |
+| `single-author-file` | A file nearly all of whose recent commits are by one author (bus factor 1); off unless configured | warning | `sinceDays` (365), `minCommits` (5), `minShare` (0.9) |
 
 `layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
 or any later one, never an earlier one, and files matching no layer are unconstrained. For
@@ -271,6 +307,27 @@ Go cgo preambles, and it doesn't run on unrecognized languages. `redundant-comme
 line comment of two or more content words that all appear in the next statement's identifiers,
 keywords, or the verbs its operators imply, such as `// increment counter` above `counter += 1`.
 
+`inconsistent-indent` measures each block's first line against the line that opens it (`{`,
+Python's `:`, a shell `then`/`do`/`else`), skipping blocks opened on continuation lines or inside
+an open bracket, comments, multi-line strings, and tab-indented lines (those are
+`mixed-indentation`'s). The most common step is the file's width; it reports the first block that
+differs, once per file, only when that width covers at least two blocks and more than the others
+combined. `hardcoded-ip` only looks inside quoted strings on code lines and skips test, fixture,
+and mock files. It still flags private ranges (`10.x`, `172.16–31.x`, `192.168.x`), which are
+deployment details too; list prefixes such as `"10."` in `allow` to accept them. IPv6 isn't
+checked. `insecure-random` needs the random value to be assigned to a token-, ID-, or
+secret-like name, built with `.toString(36)`, or produced in a function with such a name; Python
+needs `import random`, and Go a `math/rand` import without `crypto/rand`.
+`swift-shell-injection` follows only an interpolated string literal right after `"-c"`, with a
+shell named in the same argument list or as the nearest `executableURL`/`launchPath`; a command
+built into a variable first isn't followed. `duplicate-import` ignores Swift imports in different
+`#if` branches, Python imports that aren't at module level, and TypeScript type-only or
+namespace imports next to value imports. `unsorted-imports` compares runs of import lines with no
+blank line or comment between them, ignoring case and Swift attributes; TypeScript and JavaScript
+sort packages before `@/`/`~` aliases, then `../`, then `./`, and side-effect imports stay put;
+Python accepts isort's default or a plain order by module. Go isn't checked, since gofmt sorts
+imports.
+
 `missing-test-file` looks for `foo.test.ts`/`foo.spec.ts`, `test_foo.py`/`foo_test.py`,
 `foo_test.go`, or `FooTests.swift`/`FooTest.swift` anywhere in the project. It's off by default;
 turn it on by listing it under `rules`.
@@ -285,6 +342,18 @@ are left to `duplicate-block`. Set `ignoreLiterals` to `false` to require litera
 match, and list generated or vendored paths in `ignore` (or `exclude`). Copies with small edits
 or inserted lines (Type-3 clones) show up only as their unchanged parts.
 
+`hotspot`, `change-coupling`, and `single-author-file` read the repository's history with one
+`git log` call per run. They count the window back from `HEAD`'s commit date rather than today,
+skip merge commits, follow renames to each file's current path, and tell authors apart by email
+as `.mailmap` maps it. Outside a git repository they do nothing. `hotspot` measures the
+`10 × top` most-changed code files with the same analyzers as `cyclomatic-complexity`, and skips
+generated files (a header saying `DO NOT EDIT`, `@generated`, or `Code generated by`).
+`change-coupling` scores a pair as shared commits over the average of the two files' commit
+counts and ignores commits touching more than `maxFilesPerCommit` files. It only pairs files in
+the dependency graph that aren't in the same Swift target or Go package and aren't joined by an
+import either way, since that coupling is already visible. `single-author-file` stays quiet when
+the window has fewer than two authors.
+
 Imports are resolved per language. TypeScript and JavaScript resolve relative specifiers (trying
 each TS/JS extension, `index` files, and `.js` written for a `.ts` file); `baseUrl` and `paths`
 aliases from each file's nearest `tsconfig.json`, following relative `extends` chains; and the
@@ -295,6 +364,26 @@ package import such as `@acme/ui` or `@acme/ui/button` resolves through `exports
 `import X` to the SwiftPM target in `Sources/X` or `Tests/X`. Python resolves dotted and relative
 imports to `.py` files or packages at the root or under `src/`. Go resolves imports under the
 `go.mod` module path to package directories.
+
+## Change rules
+
+`bouncer check` runs these over the change being checked, whether or not `project.inCheck` is set.
+
+| Rule ID | Checks | Default severity | Parameters |
+|---|---|---|---|
+| `oversized-change` | A staged change too big to review well, reported once at its largest changed file | warning | `maxChangedLines` (400), `maxFiles` (30), `ignore` (none) |
+| `complexity-ratchet` | A function already over the complexity or length limit on the base branch that got worse | warning | `base` (see below), `maxComplexity` (`cyclomatic-complexity`'s `max`), `maxLines` (`long-function`'s `maxLines`) |
+
+`oversized-change` only applies to staged files (not `--files` or `--stdin`). It counts added
+plus deleted lines from `git diff --cached`, so a pure rename counts 0, and leaves out lockfiles
+(`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Package.resolved`, `go.sum`, `Cargo.lock`,
+`poetry.lock`, `Gemfile.lock`, `composer.lock`), `*.snap` files, `exclude`, and `ignore`.
+`complexity-ratchet` compares each checked file with its version at the merge base of `HEAD` and
+`base`, by default the first of `origin/main`, `main`, `origin/master`, and `master` that exists;
+with none, it does nothing. Functions are matched by name, and a function is reported only if it
+was already over a limit at the base and grew. New, renamed, and unnamed functions, names
+declared a different number of times in the two versions, and functions that merely cross a
+limit are left to `cyclomatic-complexity` and `long-function`.
 
 ## Coverage
 

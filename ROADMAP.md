@@ -41,16 +41,16 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Long file (`file-length`) | F | |
 | ✅ | Long line (`long-lines`) | F | |
 | ✅ | Long parameter list (`long-parameter-list`) | F | Default 5, Kirby 3. Swift, TS, JS, Python, Go |
-| ⬜ | Large class: line count per type | F | `god-class` counts members, not lines |
+| ✅ | Large class: line count per type (`large-type`) | F | Default 400 logical lines; `god-class` counts members |
 | ✅ | Too many methods per type (`too-many-methods`); Swift, TS, JS, Python | F | |
 | ✅ | Too many fields / stored properties per type (`too-many-fields`); Swift, TS, JS | F | |
 | ✅ | Too many types per file (`too-many-types`) | F | |
 | ✅ | Too many return statements per function (`too-many-returns`) | F | Default 4, Kirby 3. Swift, TS, JS, Python, Go |
-| ⬜ | Long lambda/closure body | F | |
-| ⬜ | Long boolean expression (number of `&&`/`\|\|` operands) | F | |
+| ✅ | Long lambda/closure body (`long-closure`) | F | Default 20 |
+| ✅ | Long boolean expression (number of `&&`/`\|\|` operands) (`long-boolean-expression`) | F | Default 4 |
 | ✅ | Long method chain (train wreck) (`long-message-chain`) | F | |
-| ⬜ | Too many local variables | F | |
-| ⬜ | Too many generic parameters | F | |
+| ✅ | Too many local variables (`too-many-locals`) | F | Default 10 |
+| ✅ | Too many generic parameters (`too-many-generic-parameters`) | F | Default 4; Swift, TS, JS, Go |
 
 ## 2. Complexity
 
@@ -172,17 +172,17 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|
 | ✅ | Naming convention (case style per language) | F |
 | ✅ | Identifier too short, except loop indices and conventional names (`short-identifier`); Swift, TS, JS | F |
-| ⬜ | Identifier too long | F |
-| ⬜ | Boolean names without `is`/`has`/`should` | F |
+| ✅ | Identifier too long (`long-identifier`) | F |
+| ✅ | Boolean names without `is`/`has`/`should` (`boolean-name-prefix`, opt-in) | F |
 | ✅ | Negated boolean names (`negated-boolean-name`); Swift, TS, JS | F |
 | ✅ | Hungarian notation (`hungarian-notation`); Swift, TS, JS | F |
-| ⬜ | Type-in-name suffixes (`userList`, `nameString`) | F |
+| ✅ | Type-in-name suffixes (`userList`, `nameString`) (`type-in-name`) | F |
 | ⬜ | Abbreviations not in an allowlist | F |
 | ✅ | Magic numbers (`magic-number`); Swift, TS, JS, Python, Go | F |
 | ✅ | Magic strings: literals repeated in a file (`duplicated-string-literal`); Swift, TS, JS | F |
 | ✅ | Boolean parameters (flag arguments) (`boolean-parameter`); Swift, TS, JS, Python, Go. Initializers are exempt | F |
 | ⬜ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) | X |
-| ⬜ | Inconsistent file name vs. primary type name | F |
+| ✅ | Inconsistent file name vs. primary type name (`file-name-mismatch`; Swift, TS, JS) | F |
 
 ## 8. Documentation
 
@@ -233,11 +233,11 @@ The **Scope** column says what analysis a check needs:
 | ✅ | SQL `UPDATE`/`DELETE` without `WHERE` | F |
 | ✅ | SQL built by string concatenation or interpolation (`sql-string-building`); every language | F |
 | ✅ | Shell command built from variables (`python-shell-injection`, `js-shell-injection`, `go-shell-injection`) | F |
-| ⬜ | Swift `Process` launched through a shell with interpolated input | T |
+| ✅ | Swift `Process` launched through a shell with interpolated input (`swift-shell-injection`; literal interpolation only) | T |
 | ✅ | Weak crypto: MD5, SHA-1, DES, ECB (`weak-crypto`); every language | F |
-| ⬜ | `Math.random` used for tokens or IDs | T |
+| ✅ | `Math.random` used for tokens or IDs (`insecure-random`; also Python `random`, Go `math/rand`) | T |
 | ✅ | `http://` in non-local code (`insecure-http-url`); every language | F |
-| ⬜ | Hardcoded IP addresses | F |
+| ✅ | Hardcoded IP addresses (`hardcoded-ip`; IPv4 in strings) | F |
 | ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F |
 | ⬜ | Path traversal: user input joined into a file path | T |
 | ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F |
@@ -266,10 +266,10 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Trailing whitespace | F |
 | ✅ | Missing newline at end of file (`missing-final-newline`) | F |
 | ✅ | Mixed tabs and spaces (`mixed-indentation`) | F |
-| ⬜ | Inconsistent indent width | F |
+| ✅ | Inconsistent indent width (`inconsistent-indent`) | F |
 | ✅ | CRLF line endings (`crlf-line-endings`) | F |
 | ✅ | Multiple consecutive blank lines (`consecutive-blank-lines`) | F |
-| ⬜ | Unsorted or duplicate imports | F |
+| ✅ | Unsorted or duplicate imports (`duplicate-import`; opt-in `unsorted-imports`, not Go) | F |
 | ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F |
 | ✅ | Shell `set -x` left on (`shell-debug-trace`) | F |
 | ⬜ | Debug leftovers in C, C++, and PowerShell (hard to tell from real output) | F |
@@ -278,11 +278,11 @@ The **Scope** column says what analysis a check needs:
 
 | ✓ | Check | Scope |
 |---|---|---|
-| ⬜ | Hotspots: high churn × high complexity | X + git |
-| ⬜ | Bus factor / single-author files | X + git |
-| ⬜ | Change coupling: files that always change together | X + git |
-| ⬜ | Oversized commits or diffs | git |
-| ⬜ | Complexity or size increased vs. the base branch (ratchet) | X + git |
+| ✅ | Hotspots: high churn × high complexity (`hotspot`) | X + git |
+| ✅ | Bus factor / single-author files (`single-author-file`, opt-in) | X + git |
+| ✅ | Change coupling: files that always change together (`change-coupling`) | X + git |
+| ✅ | Oversized commits or diffs (`oversized-change`, staged diff) | git |
+| ✅ | Complexity or size increased vs. the base branch (`complexity-ratchet`) | X + git |
 
 ---
 
@@ -296,8 +296,9 @@ The **Scope** column says what analysis a check needs:
   - Dead-code rules and `unused-public-symbol` match by name, not by symbol, so a same-named identifier hides a dead declaration. Symbol-level Swift matching through the compiler's index store is deferred until there's demand.
   - `duplicate-code` finds exact and renamed copies (Type-1/2), not copies with small edits (Type-3), and its region edges can start a line or two late.
   - Coupling is an import count. These are labelled as proxies in the docs.
+- **Git-aware rules:** `hotspot`, `change-coupling`, and `single-author-file` read history in the project pass; `oversized-change` and `complexity-ratchet` run in `check` through the change pass (`ChangePhase`), independent of `project.inCheck`. Function complexity for both comes from `LanguageAnalyzer.measureFunctions`.
 - **Architecture:** the project pass (`ProjectRules` over cached `FileFacts` in `.bouncer-cache/facts.json`) is where cross-file rules go, such as cycles, layers, unused exports, and clones. It runs in `review` and `baseline update`, and in `check` only with `project.inCheck`. Each file is parsed once for both per-file rules and facts.
 - **Easiest wins:**
-  - Many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto and a missing newline at the end of a file.
+  - Many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as a new language's debug-print or unsafe-call pattern.
   - Shared AST rules live once in `DeclarationFindings`. A new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it.
   - Per-type metrics sit on `CollectedType`, as LCOM4 does via `CohesionGraph`.

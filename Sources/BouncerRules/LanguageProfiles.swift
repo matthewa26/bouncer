@@ -119,6 +119,12 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "powershell-plaintext-password", pattern: #"-AsPlainText\b"#,
                 message: "Avoid converting or storing plaintext passwords; use secure credential handling instead."
+            ),
+            PatternRuleSpec(
+                id: "powershell-debug-leftover",
+                pattern: #"(?i:\bSet-PSDebug\s+-Trace\s+[12]\b|\$DebugPreference\s*=\s*['"]?Continue\b|"#
+                    + #"\bWait-Debugger\b|\bSet-PSBreakpoint\b)|\bWrite-Host\s+["']\s*\[?(?:DEBUG|DBG)\b"#,
+                message: "Debugging left on (Set-PSDebug -Trace, $DebugPreference, a breakpoint, or a DEBUG message)."
             )
         ]
     )
@@ -185,10 +191,6 @@ public enum LanguageProfiles {
         lineCommentPrefixes: ["//"],
         extraPatternRules: [
             PatternRuleSpec(
-                id: "swift-fatal-error", pattern: #"\bfatalError\("#,
-                message: "fatalError crashes the process; throw or handle the error instead."
-            ),
-            PatternRuleSpec(
                 id: "swift-unchecked-sendable", pattern: #"@unchecked\s+Sendable|nonisolated\(unsafe\)"#,
                 message: "Opts out of data-race checking; prove it's safe, or use an actor or lock."
             ),
@@ -235,7 +237,8 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "cpp-using-namespace-std", pattern: #"^\s*using\s+namespace\s+std\s*;"#,
                 message: "Avoid 'using namespace std;' at file scope; it pollutes the global namespace."
-            )
+            ),
+            PatternRuleSpec(id: "cpp-debug-print", pattern: CDebugOutput.cppPattern, message: CDebugOutput.message)
         ]
     )
 
@@ -253,7 +256,8 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "c-unsafe-string-function", pattern: #"\b(strcpy|strcat|sprintf)\s*\("#,
                 message: "Unbounded string function; prefer the bounded variant (strncpy/strncat/snprintf)."
-            )
+            ),
+            PatternRuleSpec(id: "c-debug-print", pattern: CDebugOutput.cPattern, message: CDebugOutput.message)
         ]
     )
 

@@ -17,7 +17,22 @@ public enum TextRules {
             CommentedOutCodeRule(profile: profile), RedundantCommentRule(profile: profile)
         ]
         let patterns = CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
-        return shared + importAndSecurityRules(profile: profile) + patterns
+        return shared + importAndSecurityRules(profile: profile) + robustnessRules(profile: profile) + patterns
+    }
+
+    /// Builds the error-handling, concurrency, test-hygiene, convention, and data-flow security text rules.
+    ///
+    /// - Parameter profile: The language's profile, for comment syntax.
+    /// - Returns: The rules, bound to `profile` where they need it.
+    private static func robustnessRules(profile: LanguageProfile) -> [Rule] {
+        let rules: [Rule] = [
+            EmptyCatchTextRule(),SwiftCrashCallRule.makeFatalError(),
+            SwiftCrashCallRule.makePrecondition(), GoUnwrappedErrorRule(), GenericErrorMessageRule(),
+            ResourceLeakRule(), FireAndForgetTaskRule(), GoUnmanagedGoroutineRule(),
+            MissingFileHeaderRule(profile: profile), AbbreviationRule(), ForbiddenImportRule(), PathTraversalRule(),
+            LoggedSecretRule()
+        ]
+        return rules + FlakyTestCallRule.makeAll()
     }
 
     /// Builds the import-hygiene, indentation-width, and security text rules.

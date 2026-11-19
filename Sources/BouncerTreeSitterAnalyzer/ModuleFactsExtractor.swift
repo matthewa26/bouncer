@@ -50,6 +50,19 @@ enum TreeWalk {
     static func unquote(_ literal: String) -> String {
         literal.trimmingCharacters(in: CharacterSet(charactersIn: "\"'`"))
     }
+
+    /// Collects a tree's structure facts with one language's collector.
+    ///
+    /// - Parameters:
+    ///   - collector: The language's collector type.
+    ///   - root: The parse tree's root.
+    ///   - text: Reads a node's source text.
+    /// - Returns: The file's types, functions, and `switch` subjects.
+    static func structure(
+        _ collector: StructureCollector.Type, root: Node, text: (Node) -> String?
+    ) -> StructureFacts {
+        withoutActuallyEscaping(text) { collector.init(text: $0).collect(root) }
+    }
 }
 
 /// Python: `import a.b` and `from .a import b`, as dotted specifiers (relative ones keep their dots).
@@ -67,7 +80,8 @@ struct PythonModuleFacts: ModuleFactsExtractor {
                 imports.append(ImportFact(specifier: specifier, line: TreeWalk.line(node)))
             }
         }
-        return ModuleFacts(imports: imports)
+        let structure = TreeWalk.structure(PythonStructure.self, root: root, text: text)
+        return ModuleFacts(imports: imports, structure: structure)
     }
 
     /// Lists the modules one import statement names.
@@ -102,6 +116,6 @@ struct GoModuleFacts: ModuleFactsExtractor {
                   let path = node.child(byFieldName: "path").flatMap(text) else { return }
             imports.append(ImportFact(specifier: TreeWalk.unquote(path), line: TreeWalk.line(node)))
         }
-        return ModuleFacts(imports: imports)
+        return ModuleFacts(imports: imports, structure: TreeWalk.structure(GoStructure.self, root: root, text: text))
     }
 }

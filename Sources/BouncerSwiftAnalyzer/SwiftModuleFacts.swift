@@ -24,26 +24,43 @@ enum SwiftModuleFacts {
     /// Extracts module facts from a parsed file.
     ///
     /// - Parameter parsed: The parsed file.
-    /// - Returns: Its imports, public declarations, and referenced names.
+    /// - Returns: Its imports, public declarations, referenced names, and structure.
     static func facts(of parsed: Parsed) -> ModuleFacts {
         let api = SwiftPublicAPICollector(converter: parsed.converter)
-        api.walk(parsed.tree)
         let references = SwiftReferenceCollector(viewMode: .sourceAccurate)
-        references.walk(parsed.tree)
-        return ModuleFacts(imports: imports(of: parsed), exports: api.exports, references: references.names.sorted())
+        let structure = SwiftStructureCollector(parsed)
+        for visitor in [api, references, structure] as [SyntaxVisitor] { visitor.walk(parsed.tree) }
+        let names = references.names.sorted()
+        return ModuleFacts(
+            imports: imports(of: parsed), exports: api.exports, references: names, structure: structure.structure
+        )
     }
 
-    /// Reads a file's imports by module name.
+    /// Reads a file's imports by module name, including those inside `#if` blocks.
     ///
     /// - Parameter parsed: The parsed file.
     /// - Returns: Its imports.
     private static func imports(of parsed: Parsed) -> [ImportFact] {
-        let declarations = parsed.tree.statements.compactMap { $0.item.as(ImportDeclSyntax.self) }
+        let declarations = importDeclarations(in: parsed.tree.statements)
         let imports = declarations.compactMap { node -> ImportFact? in
             guard let module = node.path.first?.name.text else { return nil }
             let line = parsed.converter.location(for: node.positionAfterSkippingLeadingTrivia).line
             return ImportFact(specifier: module, line: line)
         }
         return imports
+    }
+
+    /// Lists the import declarations among file-level statements, descending into `#if` clauses.
+    ///
+    /// - Parameter statements: The statements.
+    /// - Returns: The imports, in source order.
+    private static func importDeclarations(in statements: CodeBlockItemListSyntax) -> [ImportDeclSyntax] {
+        statements.flatMap { statement -> [ImportDeclSyntax] in
+            if let declaration = statement.item.as(ImportDeclSyntax.self) { return [declaration] }
+            let clauses = statement.item.as(IfConfigDeclSyntax.self)?.clauses ?? []
+            return clauses.flatMap { clause in
+                clause.elements?.as(CodeBlockItemListSyntax.self).map(importDeclarations) ?? []
+            }
+        }
     }
 }

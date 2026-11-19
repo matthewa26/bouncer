@@ -2,24 +2,27 @@ import Foundation
 import BouncerCore
 import BouncerGit
 
-/// `check`'s change rules: `oversized-change` over the staged diff and `complexity-ratchet` against the base
-/// branch. Each does nothing outside a git repository.
+/// `check`'s change rules: `oversized-change` over the staged diff, and `complexity-ratchet` and
+/// `public-api-growth` against the base branch. Each does nothing outside a git repository.
 public struct ChangeRules: ChangeAnalyzer {
     private let source: ChangeSource
     private let oversized: OversizedChangeRule?
     private let ratchet: ComplexityRatchetRule
+    private let apiGrowth: PublicAPIGrowthRule?
 
     /// Creates the change rules.
     ///
     /// - Parameters:
     ///   - source: Reads the staged diff and base-branch file versions.
-    ///   - measurer: Measures functions for `complexity-ratchet`.
+    ///   - measurer: Measures functions for `complexity-ratchet`, and parses module facts for
+    ///     `public-api-growth` if it can.
     ///   - checksStagedDiff: Whether the files checked are the staged ones, so `oversized-change` applies.
     ///   - exclude: The config's `exclude` globs, left out of the staged diff's size.
     public init(source: ChangeSource, measurer: FunctionMeasuring, checksStagedDiff: Bool, exclude: [String] = []) {
         self.source = source
         oversized = checksStagedDiff ? OversizedChangeRule(exclude: exclude) : nil
         ratchet = ComplexityRatchetRule(measurer: measurer)
+        apiGrowth = (measurer as? ModuleFactsParsing).map(PublicAPIGrowthRule.init)
     }
 
     /// Runs each enabled change rule.
@@ -30,8 +33,9 @@ public struct ChangeRules: ChangeAnalyzer {
     /// - Returns: The combined findings.
     public func findings(for files: [SourceFile], context: AnalysisContext) -> [Finding] {
         let size = oversizedFinding(files, context: context).map { [$0] } ?? []
-        guard context.settings(for: ratchet.id).enabled else { return size }
-        return size + ratchet.evaluate(files, source: source, context: context)
+        let growth = apiGrowth?.evaluate(files, source: source, context: context) ?? []
+        guard context.settings(for: ratchet.id).enabled else { return size + growth }
+        return size + ratchet.evaluate(files, source: source, context: context) + growth
     }
 
     /// Runs `oversized-change` over the staged diff, when it applies and is enabled.

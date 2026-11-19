@@ -15,7 +15,8 @@ struct JavaScriptModuleFacts: ModuleFactsExtractor {
             if let fact = importFact(node, text: text) { imports.append(fact) }
             if node.nodeType == "export_statement" { exports += exportFacts(node, text: text) }
         }
-        return ModuleFacts(imports: imports, exports: exports)
+        let structure = TreeWalk.structure(JavaScriptStructure.self, root: root, text: text)
+        return ModuleFacts(imports: imports, exports: exports, structure: structure)
     }
 
     /// Reads an import, re-export, `require`, or dynamic `import()`.

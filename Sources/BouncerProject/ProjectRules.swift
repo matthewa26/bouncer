@@ -32,10 +32,17 @@ public struct ProjectRules: ProjectAnalyzer {
         rules = [
             ImportCycleRule(), LayerViolationRule(), UnusedExportRule(), HighFanOutRule(), HubModuleRule(),
             UnstableDependencyRule(), MissingTestFileRule(), UnusedPublicSymbolRule(), duplicates
-        ]
+        ] + Self.designRules
         self.history = history
         historyRules = (measurer.map { [HotspotRule(measurer: $0)] } ?? []) + [ChangeCouplingRule(), SingleAuthorRule()]
     }
+
+    /// The cross-file design rules over types, functions, and manifests.
+    private static let designRules: [ProjectRule] = [
+        DeepInheritanceRule(), ManySubclassesRule(), RefusedBequestRule(), ParallelInheritanceRule(),
+        MainSequenceDistanceRule(), DataClumpRule(), RepeatedSwitchRule(), SingleImplementationRule(),
+        UnusedDependencyRule(), InconsistentTerminologyRule(), MissingReadmeRule()
+    ]
 
     /// Fingerprints a file for `duplicate-code`.
     ///

@@ -11,9 +11,10 @@ public protocol FunctionMeasuring: Sendable {
 }
 
 /// Measures functions through each language's analyzer, which reports the same complexity and logical line
-/// counts its `cyclomatic-complexity` and `long-function` rules use. Languages without an analyzer, such as
-/// plain text, Markdown, and config files, aren't measured.
-public struct AnalyzerFunctionMeasurer: FunctionMeasuring {
+/// counts its `cyclomatic-complexity` and `long-function` rules use, and parses module facts the way the
+/// project pass does. Languages without an analyzer, such as plain text, Markdown, and config files, aren't
+/// measured.
+public struct AnalyzerFunctionMeasurer: FunctionMeasuring, ModuleFactsParsing {
     private let analyzers: [Language: LanguageAnalyzer]
 
     /// Creates a measurer.
@@ -30,5 +31,14 @@ public struct AnalyzerFunctionMeasurer: FunctionMeasuring {
     public func functions(in file: SourceFile) -> [FunctionMeasure]? {
         guard let analyzer = analyzers[file.language] else { return nil }
         return (try? analyzer.measureFunctions(file: file))?.flatMap { $0 }?.sorted { $0.line < $1.line }
+    }
+
+    /// Parses a file's module facts with its language's analyzer.
+    ///
+    /// - Parameter file: The file.
+    /// - Returns: Its facts, or `nil` for a language without them or a parse failure.
+    public func moduleFacts(in file: SourceFile) -> ModuleFacts? {
+        guard let analyzer = analyzers[file.language] else { return nil }
+        return (try? analyzer.moduleFacts(file: file)) ?? nil
     }
 }

@@ -123,7 +123,16 @@ public struct UnstableDependencyRule: ProjectRule {
     /// - Parameter index: The project's dependency graph.
     /// - Returns: Each node's instability, from 0 (stable) to 1 (unstable).
     static func instability(_ index: ProjectIndex) -> [String: Double] {
-        let outgoing = index.dependencies, incoming = index.dependents
+        instability(outgoing: index.dependencies, incoming: index.dependents)
+    }
+
+    /// Computes instability over any dependency graph, such as one between folders.
+    ///
+    /// - Parameters:
+    ///   - outgoing: Each node's dependencies.
+    ///   - incoming: Each node's dependents.
+    /// - Returns: Each connected node's instability, from 0 (stable) to 1 (unstable).
+    static func instability(outgoing: [String: Set<String>], incoming: [String: Set<String>]) -> [String: Double] {
         let nodes = Set(outgoing.keys).union(incoming.keys)
         return Dictionary(uniqueKeysWithValues: nodes.map { node in
             let ce = Double(outgoing[node]?.count ?? 0), ca = Double(incoming[node]?.count ?? 0)

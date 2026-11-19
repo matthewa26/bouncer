@@ -211,6 +211,84 @@ final class DuplicateCodeTests: XCTestCase {
         XCTAssertEqual(first, findings(files.reversed()).map { "\($0.filePath.path):\($0.line):\($0.message)" })
     }
 
+    // MARK: - Near-duplicates (Type-3)
+
+    /// The standard block with one line edited: a line inserted, a line changed, or a line deleted.
+    private func edited(_ edit: String) -> String {
+        let lines = block().components(separatedBy: "\n")
+        switch edit {
+        case "inserted":
+            return (lines[..<9] + ["    precondition(limit >= 0, \"negative\")"] + lines[9...]).joined(separator: "\n")
+        case "changed":
+            return lines.map { $0.contains("guard total") ? "    guard total * 3 <= limit + 999 else {" : $0 }
+                .joined(separator: "\n")
+        default:
+            return lines.filter { !$0.contains("let average") }.map { $0.replacingOccurrences(of: "average", with: "total") }
+                .joined(separator: "\n")
+        }
+    }
+
+    func testJoinsCopiesSeparatedByAnInsertedChangedOrDeletedLine() {
+        for edit in ["inserted", "changed", "deleted"] {
+            let found = findings([("a.swift", file("a", block())), ("b.swift", file("b", edited(edit)))])
+            XCTAssertEqual(located(found), ["b.swift"], edit)
+            let message = found.first?.message ?? ""
+            XCTAssertTrue(message.hasPrefix("Nearly duplicates lines "), "\(edit): \(message)")
+            XCTAssertTrue(message.range(of: #"\(\d+ tokens, ~\d+% identical\)\.$"#, options: .regularExpression) != nil,
+                          "\(edit): \(message)")
+        }
+    }
+
+    func testANearDuplicateCoversBothSidesOfTheEdit() {
+        let found = findings([("a.swift", file("a", block())), ("b.swift", file("b", edited("inserted")))])
+        let exact = findings([("a.swift", file("a", block())), ("b.swift", file("b", edited("inserted")))],
+                             params: ["maxGap": .int(0)])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(exact.allSatisfy { $0.message.hasPrefix("Duplicates lines ") }, exact.map(\.message).description)
+        let span = { (finding: Finding) -> Int in
+            Int(finding.message.split(separator: "–")[1].split(separator: " ")[0]) ?? 0
+        }
+        XCTAssertGreaterThan(span(found[0]), exact.map(span).max() ?? 0, "the joined region reaches past the edit")
+    }
+
+    func testDoesNotJoinBelowTheSimilarityOrPastTheGap() {
+        let files = [("a.swift", file("a", block())), ("b.swift", file("b", edited("changed")))]
+        let strict = findings(files, params: ["minSimilarity": .int(99)])
+        XCTAssertTrue(strict.allSatisfy { !$0.message.hasPrefix("Nearly") }, strict.map(\.message).description)
+        XCTAssertTrue(findings(files, params: ["maxGap": .int(0)]).allSatisfy { !$0.message.hasPrefix("Nearly") })
+        let filler = (0..<6).map { "    let unrelated\($0) = labels.map { $0.count + \($0) }.reduce(0, +)" }
+        let lines = block().components(separatedBy: "\n")
+        let distant = (lines[..<9] + filler + lines[9...]).joined(separator: "\n")
+        let far = findings([("a.swift", file("a", block())), ("b.swift", file("b", distant))])
+        XCTAssertTrue(far.allSatisfy { !$0.message.hasPrefix("Nearly") }, far.map(\.message).description)
+    }
+
+    func testExactAndRenamedCopiesKeepTheirMessage() {
+        let renamed = block("describe", values: "numbers", total: "sum")
+        let found = findings([("a.swift", file("a", block())), ("b.swift", file("b", renamed))])
+        XCTAssertEqual(found.map(\.message), findings([("a.swift", file("a", block())), ("b.swift", file("b", renamed))],
+                                                       params: ["maxGap": .int(0)]).map(\.message))
+        XCTAssertFalse(found.first?.message.contains("identical") ?? true)
+    }
+
+    func testMergerJoinsOnlyCloseOrderedSimilarRuns() {
+        let run = { (first: Range<Int>, second: Range<Int>) in
+            CloneRun(firstFile: 0, secondFile: 1, firstEntries: first.lowerBound...first.lowerBound,
+                     secondEntries: second.lowerBound...second.lowerBound, firstTokens: first, secondTokens: second,
+                     matched: first.count, longestPiece: first.count)
+        }
+        let merger = CloneMerger(maxGap: 30, minSimilarity: 80)
+        let joined = merger.merged([run(0..<60, 0..<60), run(70..<130, 75..<135)])
+        XCTAssertEqual(joined.count, 1)
+        XCTAssertEqual(joined.first?.tokens, 135)
+        XCTAssertEqual(joined.first?.matched, 130, "the smaller gap is credited")
+        XCTAssertEqual(merger.merged([run(0..<60, 0..<60), run(100..<160, 100..<160)]).count, 2, "gap too wide")
+        XCTAssertEqual(merger.merged([run(0..<60, 0..<60), run(50..<110, 65..<125)]).count, 2, "overlapping")
+        XCTAssertEqual(merger.merged([run(0..<20, 0..<20), run(45..<65, 45..<65)]).count, 2, "too dissimilar")
+        XCTAssertEqual(CloneMerger(maxGap: 0, minSimilarity: 80).merged([run(0..<60, 0..<60), run(70..<130, 75..<135)])
+            .count, 2)
+    }
+
     // MARK: - Cache
 
     func testFactsStoreRoundTripsFingerprintsAndRebuildsAnOldVersion() throws {

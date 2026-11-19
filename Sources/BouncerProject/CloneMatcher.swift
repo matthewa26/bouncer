@@ -33,21 +33,28 @@ struct CloneSpan: Hashable, Comparable {
     }
 }
 
-/// A stretch of normalized tokens that two different files share.
+/// A stretch of normalized tokens that two different files share, exactly or nearly.
 struct CloneRegion {
     let first: CloneSpan
     let second: CloneSpan
+    /// The region's length in tokens, on its longer side.
     let tokens: Int
+    /// The tokens estimated identical: all of them for an exact or renamed copy, fewer for a near-duplicate.
+    let matched: Int
+
+    /// Whether the region joins copies separated by small edits, rather than being one unbroken copy.
+    var isNear: Bool { matched < tokens }
 }
 
-/// Finds maximal regions shared by pairs of files from their winnowed fingerprints.
+/// Finds maximal runs shared by pairs of files from their winnowed fingerprints.
 ///
 /// Matching fingerprints are grouped by file pair and diagonal (the difference of their token offsets), since
 /// an exact or renamed copy keeps every token at the same distance from its counterpart. Along a diagonal,
-/// consecutive matches no more than `gramLength` tokens apart are merged into one region: their k-grams then
-/// overlap or abut, so every token in between is covered by a matching k-gram, which verifies the region
+/// consecutive matches no more than `gramLength` tokens apart are merged into one run: their k-grams then
+/// overlap or abut, so every token in between is covered by a matching k-gram, which verifies the run
 /// token by token (up to 53-bit hash collisions) without re-reading either file. Edges are conservative: a
-/// region can start and end up to `window - 1` tokens inside the true copy.
+/// run can start and end up to `window - 1` tokens inside the true copy. `CloneMerger` then joins runs
+/// that a small edit separates.
 struct CloneMatcher {
     /// Fingerprints shared by more places than this are boilerplate, and are left out to bound the work.
     static let maxOccurrences = 50
@@ -87,13 +94,13 @@ struct CloneMatcher {
         clones = fingerprinted.map(\.1)
     }
 
-    /// Finds every region shared by two different files, in a stable order.
+    /// Finds every run shared by two different files, in a stable order.
     ///
-    /// - Returns: The regions, one per file pair and diagonal run.
-    func regions() -> [CloneRegion] {
+    /// - Returns: The runs, one per file pair and diagonal run.
+    func runs() -> [CloneRun] {
         let diagonals = matches()
         return diagonals.keys.sorted().flatMap { diagonal in
-            runs(diagonals[diagonal] ?? [], in: diagonal).map { region($0, in: diagonal) }
+            runs(diagonals[diagonal] ?? [], in: diagonal).map { run($0, in: diagonal) }
         }
     }
 
@@ -153,19 +160,44 @@ struct CloneMatcher {
         }
     }
 
-    /// Describes one run as a region: its lines in each file and its length in tokens.
+    /// Describes one diagonal run by its fingerprint entries and token offsets.
     ///
     /// - Parameters:
-    ///   - run: The run's matches, in token order; never empty.
+    ///   - matches: The run's matches, in token order; never empty.
     ///   - diagonal: The diagonal it lies on.
+    /// - Returns: The run.
+    private func run(_ matches: [(Int, Int)], in diagonal: Diagonal) -> CloneRun {
+        let (head, tail) = (matches[0], matches[matches.count - 1])
+        let firstTokens = tokens(diagonal.first, from: head.0, to: tail.0)
+        return CloneRun(
+            firstFile: diagonal.first, secondFile: diagonal.second, firstEntries: head.0...tail.0,
+            secondEntries: head.1...tail.1, firstTokens: firstTokens,
+            secondTokens: tokens(diagonal.second, from: head.1, to: tail.1), matched: firstTokens.count,
+            longestPiece: firstTokens.count
+        )
+    }
+
+    /// Finds the tokens from one fingerprint's k-gram to another's.
+    ///
+    /// - Parameters:
+    ///   - file: The file.
+    ///   - head: The first fingerprint's entry.
+    ///   - tail: The last fingerprint's entry.
+    /// - Returns: The token offsets covered.
+    private func tokens(_ file: Int, from head: Int, to tail: Int) -> Range<Int> {
+        let offsets = clones[file].offsets
+        return offsets[head]..<(offsets[tail] + CloneFingerprinter.gramLength)
+    }
+
+    /// Describes a run as a region: its lines in each file, its length, and how much of it matches.
+    ///
+    /// - Parameter run: A run from `runs()`, joined or not.
     /// - Returns: The region.
-    private func region(_ run: [(Int, Int)], in diagonal: Diagonal) -> CloneRegion {
-        let (head, tail) = (run[0], run[run.count - 1])
-        let offsets = clones[diagonal.first].offsets
-        return CloneRegion(
-            first: span(diagonal.first, from: head.0, to: tail.0),
-            second: span(diagonal.second, from: head.1, to: tail.1),
-            tokens: offsets[tail.0] + CloneFingerprinter.gramLength - offsets[head.0]
+    func region(_ run: CloneRun) -> CloneRegion {
+        CloneRegion(
+            first: span(run.firstFile, from: run.firstEntries.lowerBound, to: run.firstEntries.upperBound),
+            second: span(run.secondFile, from: run.secondEntries.lowerBound, to: run.secondEntries.upperBound),
+            tokens: run.tokens, matched: run.matched
         )
     }
 

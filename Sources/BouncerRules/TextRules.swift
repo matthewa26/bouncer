@@ -17,8 +17,14 @@ public enum TextRules {
             CommentedOutCodeRule(profile: profile), RedundantCommentRule(profile: profile)
         ]
         let patterns = CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
-        return shared + importAndSecurityRules(profile: profile) + robustnessRules(profile: profile) + patterns
+        return shared + importAndSecurityRules(profile: profile) + robustnessRules(profile: profile) + typeAndStateRules
+            + patterns
     }
+
+    /// The return-type, enum-style, and shared-state text rules, which need no profile.
+    private static let typeAndStateRules: [Rule] = [
+        NullCollectionReturnRule(), PreferUnionTypeRule(), SharedMutableStateRule()
+    ]
 
     /// Builds the error-handling, concurrency, test-hygiene, convention, and data-flow security text rules.
     ///

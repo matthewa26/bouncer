@@ -1,14 +1,17 @@
 import Foundation
 import BouncerCore
 
-/// Flags a block of code copied into another file, exactly or with renamed identifiers and changed literals.
+/// Flags a block of code copied into another file, exactly, with renamed identifiers and changed literals, or
+/// with small edits.
 ///
 /// Each file is tokenized without whitespace or comments, with identifiers and literals normalized, and
 /// fingerprinted by winnowing (see `CloneFingerprinter`); the fingerprints are cached with the file's facts.
-/// Shared fingerprints are merged into maximal regions, and regions of at least `minTokens` tokens and
-/// `minLines` lines are grouped into clone classes. Each copy but the first (by path, then line) gets one
-/// finding naming the first; when only the first copy is being checked, it's reported there instead. Copies
-/// within one file are left to `duplicate-block`. Covers Swift, TypeScript/JavaScript, Python, and Go.
+/// Shared fingerprints are merged into maximal regions, regions that a small edit separates are joined into
+/// near-duplicates (see `CloneMerger`; `maxGap` and `minSimilarity`), and regions matching at least
+/// `minTokens` tokens over `minLines` lines are grouped into clone classes. Each copy but the first (by path,
+/// then line) gets one finding naming the first; when only the first copy is being checked, it's reported there
+/// instead. Near-duplicates are reported as such, with an estimate of how much is identical. Copies within one
+/// file are left to `duplicate-block`. Covers Swift, TypeScript/JavaScript, Python, and Go.
 public struct DuplicateCodeRule: ProjectRule {
     public let id = "duplicate-code"
     static let defaultMinTokens = 50
@@ -40,17 +43,29 @@ public struct DuplicateCodeRule: ProjectRule {
     /// - Parameters:
     ///   - index: The project's facts, with fingerprints.
     ///   - targets: The paths being checked; only copies in these are reported.
-    ///   - context: Repo-wide state, with `minTokens`, `minLines`, and `ignore`.
+    ///   - context: Repo-wide state, with `minTokens`, `minLines`, `maxGap`, `minSimilarity`, and `ignore`.
     /// - Returns: One finding per reported copy.
     public func evaluate(_ index: ProjectIndex, targets: Set<String>, context: AnalysisContext) -> [Finding] {
         let parameters = context.settings(for: id).parameters
         let files = compared(index, ignoring: parameters.stringList("ignore", default: []))
         let minTokens = parameters.int("minTokens", default: Self.defaultMinTokens)
         let minLines = parameters.int("minLines", default: Self.defaultMinLines)
-        let regions = CloneMatcher(files: files).regions().filter {
-            $0.tokens >= minTokens && min($0.first.codeLines, $0.second.codeLines) >= minLines
+        let matcher = CloneMatcher(files: files)
+        let regions = merger(parameters).merged(matcher.runs()).map(matcher.region).filter {
+            $0.matched >= minTokens && min($0.first.codeLines, $0.second.codeLines) >= minLines
         }
         return CloneClasses.group(regions).flatMap { findings(for: $0, targets: targets, context: context) }
+    }
+
+    /// Builds the near-duplicate joiner from the rule's `maxGap` and `minSimilarity` settings.
+    ///
+    /// - Parameter parameters: The rule's parameters.
+    /// - Returns: The joiner.
+    private func merger(_ parameters: RuleParameters) -> CloneMerger {
+        CloneMerger(
+            maxGap: parameters.int("maxGap", default: CloneMerger.defaultMaxGap),
+            minSimilarity: parameters.double("minSimilarity", default: CloneMerger.defaultMinSimilarity)
+        )
     }
 
     /// Lists the files to compare: every indexed file not matching an `ignore` glob, sorted by path.
@@ -95,8 +110,11 @@ public struct DuplicateCodeRule: ProjectRule {
         at copy: CloneSpan, copying original: CloneSpan, in clones: CloneClass, context: AnalysisContext
     ) -> Finding {
         let count = clones.members.count
-        let size = count > 2 ? "\(clones.tokens) tokens, one of \(count) copies" : "\(clones.tokens) tokens"
-        let message = "Duplicates lines \(original.start)–\(original.end) of \(original.path) (\(size))."
+        let similarity = clones.isNear ? ", ~\(clones.percentIdentical)% identical" : ""
+        let copies = count > 2 ? ", one of \(count) copies" : ""
+        let verb = clones.isNear ? "Nearly duplicates" : "Duplicates"
+        let size = "\(clones.tokens) tokens\(similarity)\(copies)"
+        let message = "\(verb) lines \(original.start)–\(original.end) of \(original.path) (\(size))."
         return ProjectFinding.make(id, copy.path, copy.start, message, context)
     }
 }

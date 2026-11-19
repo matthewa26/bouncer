@@ -9,6 +9,10 @@ struct RunAndExitOptions {
     let noUpdateCheckFlag: Bool
     let isAgentInvocation: Bool
     let format: OutputFormat
+    /// Where `--output` asked for the report to go, or `nil` for the terminal.
+    var outputPath: String? = nil
+    /// The repository root, which holds the default HTML report location.
+    var repoRoot: URL? = nil
 }
 
 /// Runs an `AnalysisRunner`, prints its output, checks for an update, and exits with its code.
@@ -38,8 +42,8 @@ enum RunAndExit {
     ///   - options: The update-check and reporting options this run should use.
     /// - Throws: `ExitCode` with the analysis result's mapped code, or a `HookExecutor.PreCheckFailure`.
     private static func attemptRun(_ runner: AnalysisRunner, options: RunAndExitOptions) async throws {
-        let (exitCode, output) = try await runner.run()
-        print(output)
+        let (exitCode, output, summary) = try await runner.run()
+        try ReportDelivery.deliver(output, summary: summary, options: options)
         await UpdateCheckPresenter.run(
             config: options.updateCheckConfig, noUpdateCheckFlag: options.noUpdateCheckFlag,
             isAgentInvocation: options.isAgentInvocation, format: options.format

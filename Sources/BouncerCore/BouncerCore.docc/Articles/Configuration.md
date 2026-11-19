@@ -51,9 +51,9 @@ declared globally and a hook declared in the repo both run.
 ### `output`
 
 Controls console rendering. `verbosity` is one of `verbose`, `normal`, `quiet`, or `condensed`
-(see ``OutputVerbosity``). It only affects human-readable console output; `--format json` always
-returns the complete structured findings regardless of this setting, since machine consumers
-want completeness.
+(see ``OutputVerbosity``). It affects console output; `--format table` uses only `condensed`
+(the summary line alone), and `--format json` and `--format html` always hold the complete
+findings regardless of this setting, since machine consumers want completeness.
 
 ### `coverage`
 
@@ -148,6 +148,7 @@ baseline, so `baseline update` doesn't record it.
 ## Command-line overrides
 
 Most settings can also be set per-invocation with a flag, which takes precedence over both
-config layers for that one run: `--severity-threshold`, `--format`, `--verbosity`,
+config layers for that one run: `--severity-threshold`, `--format` (`console`, `table`, `json`, or
+`html`; see <doc:GettingStarted>), `--output`, `--verbosity`,
 `--profile`, and (on `review`) `--coverage-report`/`--coverage-format`. Run `bouncer check --help`
 or `bouncer review --help` for the complete flag list.

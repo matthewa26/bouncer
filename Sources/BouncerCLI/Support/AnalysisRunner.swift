@@ -1,5 +1,6 @@
 import Foundation
 import BouncerCore
+import BouncerReporting
 import BouncerConfig
 import BouncerHooks
 
@@ -21,15 +22,15 @@ struct AnalysisRunner {
 
     /// Runs pre-check hooks, analysis, and post-check hooks, and renders the result.
     ///
-    /// - Returns: The process exit code and the rendered report text.
+    /// - Returns: The process exit code, the rendered report, and its one-line summary.
     /// - Throws: `HookExecutor.PreCheckFailure` if a `preCheck` hook fails, or an error from the engine itself.
-    func run() async throws -> (exitCode: Int32, output: String) {
+    func run() async throws -> (exitCode: Int32, output: String, summary: String) {
         try HookExecutor.runPreCheck(hooks, repoRoot: repoRoot)
         let engine = makeEngine()
         let result = try engine.run()
-        let output = ReporterFactory.make(format: format).report(result, verbosity: verbosity)
+        let output = ReporterFactory.make(format: format, repoRoot: repoRoot).report(result, verbosity: verbosity)
         HookExecutor.runPostCheck(hooks, repoRoot: repoRoot)
-        return (ExitCodeMapper.exitCode(for: result, threshold: severityThreshold), output)
+        return (ExitCodeMapper.exitCode(for: result, threshold: severityThreshold), output, ReportSummary.line(result))
     }
 
     /// Builds the analysis engine from this runner's resolved dependencies.

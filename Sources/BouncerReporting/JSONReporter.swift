@@ -79,7 +79,7 @@ public struct JSONReporter: Reporter {
     /// - Returns: The encoded JSON string.
     private func encode(_ value: any Encodable) -> String {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(value) else { return "{}" }
         return String(data: data, encoding: .utf8) ?? "{}"
     }

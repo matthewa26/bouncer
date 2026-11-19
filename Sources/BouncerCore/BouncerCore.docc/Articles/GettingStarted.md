@@ -55,6 +55,33 @@ bouncer review . --format json
 `--format json` is worth knowing about even outside of CI: it's the structured output a coding
 agent should ask for when it wants findings it can act on, rather than parsing console text.
 
+## Reports
+
+`check` and `review` print their findings to the terminal by default. `--format` picks another
+shape, and `--output <file>` writes it to a file instead of printing it:
+
+- `console`, the default: one line per finding, for a terminal.
+- `table`: an aligned Markdown table of severity, rule, location, and message, most severe first,
+  ending with a summary line. It reads well in a terminal and pastes cleanly into an issue, a pull
+  request, or an AI chat.
+- `json`: the complete structured findings, for scripts, CI, and coding agents.
+- `html`: one self-contained page with no external files, so it opens straight from disk. Its
+  **Table** view filters by text and severity and sorts by any column; its **JSON** view shows the
+  same data as `--format json`, with buttons to copy or download it.
+
+```sh
+bouncer review . --format html                       # writes .bouncer-cache/report.html
+bouncer review . --format json --output report.json  # for another tool to read
+bouncer check --format table                         # staged changes, as a table
+```
+
+When a report goes to a file, Bouncer prints the summary, the file's path, and a `file://` link
+to open it. Under WSL, where a Linux path or a `localhost` address doesn't reach the file from a
+Windows browser or tool, it also prints the Windows address: `file://wsl.localhost/<distro>/…`
+(and `\\wsl.localhost\<distro>\…`) for files in the Linux filesystem, or the drive path, such as
+`C:\Users\…`, for files under `/mnt/c`. `.bouncer-cache/` is git-ignored, so the default HTML
+report never gets committed.
+
 ## Wiring up Husky
 
 Bouncer has no Node or npm dependency of its own. The entire Husky integration is one line in

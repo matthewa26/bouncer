@@ -25,8 +25,11 @@ struct Check: AsyncParsableCommand {
     @Option(help: "An explicit .bouncer path, overriding the layered config resolution.")
     var config: String?
 
-    @Option(help: "console or json.")
+    @Option(help: ArgumentHelp(stringLiteral: OutputFormat.help))
     var format: OutputFormat = .console
+
+    @Option(help: "Write the report to this file instead of printing it.")
+    var output: String?
 
     @Option(help: "verbose, normal, quiet, or condensed.")
     var verbosity: OutputVerbosity?
@@ -70,7 +73,7 @@ struct Check: AsyncParsableCommand {
         let runner = try makeRunner(repoRoot: repoRoot, resolution: resolution, hooks: hooks)
         let options = RunAndExitOptions(
             updateCheckConfig: resolution.merged.updateCheck, noUpdateCheckFlag: noUpdateCheck,
-            isAgentInvocation: isAgentInvocation, format: format
+            isAgentInvocation: isAgentInvocation, format: format, outputPath: output, repoRoot: repoRoot
         )
         try await RunAndExit.run(runner, options: options)
     }

@@ -36,6 +36,8 @@ bouncer check --files a.swift b.py     # analyze exactly these files (agent post
 bouncer check --stdin                  # analyze a newline-delimited file list piped in
 bouncer review .                       # recursively audit a directory, independent of git
 bouncer review . --format json         # structured output for CI or an agent
+bouncer review . --format table        # an aligned Markdown table, to read or paste anywhere
+bouncer review . --format html         # a self-contained page with table and JSON views
 bouncer configure                      # create or edit .bouncer interactively
 bouncer configure --set coverage.threshold=90
 bouncer configure --husky              # wire 'bouncer check' into .husky/pre-commit

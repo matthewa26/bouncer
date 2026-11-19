@@ -9,6 +9,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     private var switches: [CollectedSwitch] = []
     private var importCount = 0
     private let converter: SourceLocationConverter
+    private let overview = SwiftFileOverview()
 
     /// Creates a summary builder for a parsed file.
     ///
@@ -40,7 +41,12 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameter node: The function declaration being visited.
     /// - Returns: `.visitChildren`, so nested declarations are also visited.
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
-        collect(name: node.name.text, node: node, signature: node.signature, body: node.body)
+        let labels = node.signature.parameterClause.parameters.map(\.firstName.text)
+        let name = node.name.text, isTest = SwiftAssertionFinder.isTest(node)
+        return collect(name: name, node: node, signature: node.signature, body: node.body, traits: Traits(
+            selfCall: overview.isOverloaded(name) ? nil : SwiftCallSignature(name: name, labels: labels),
+            isTest: isTest
+        ))
     }
 
     /// Collects an initializer's body and doc comment status, under the name `"init"`.
@@ -48,7 +54,23 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameter node: The initializer declaration being visited.
     /// - Returns: `.visitChildren`, so nested declarations are also visited.
     override func visit(_ node: InitializerDeclSyntax) -> SyntaxVisitorContinueKind {
-        collect(name: "init", node: node, signature: node.signature, body: node.body)
+        collect(name: "init", node: node, signature: node.signature, body: node.body, traits: Traits())
+    }
+
+    /// Reads the file-wide facts before any declaration is collected.
+    ///
+    /// - Parameter node: The file.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: SourceFileSyntax) -> SyntaxVisitorContinueKind {
+        overview.walk(node)
+        return .visitChildren
+    }
+
+    /// How a function is checked beyond its body: the self-call signature (`nil` for an initializer or an
+    /// overload, whose same-labeled calls may mean another declaration) and whether it's a test.
+    private struct Traits {
+        var selfCall: SwiftCallSignature?
+        var isTest = false
     }
 
     /// Collects a function or initializer that has a body; protocol requirements have none.
@@ -56,16 +78,18 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameters:
     ///   - name: The declared name.
     ///   - node: The declaration, for its leading trivia and modifiers.
-    ///   - signature: Its signature, for its parameter count.
+    ///   - signature: Its signature, for its parameters, return type, and effects.
     ///   - body: Its body, if any.
+    ///   - traits: Its self-call signature and test status.
     /// - Returns: `.visitChildren`, so nested declarations are also visited.
     private func collect(
-        name: String, node: some WithModifiersSyntax, signature: FunctionSignatureSyntax, body: CodeBlockSyntax?
+        name: String, node: some WithModifiersSyntax, signature: FunctionSignatureSyntax, body: CodeBlockSyntax?,
+        traits: Traits
     ) -> SyntaxVisitorContinueKind {
         guard let body else { return .visitChildren }
         let declaration = FunctionDeclaration(
-            name: name, leadingTrivia: node.leadingTrivia, modifiers: node.modifiers,
-            parameters: signature.parameterClause.parameters
+            name: name, leadingTrivia: node.leadingTrivia, modifiers: node.modifiers, signature: signature,
+            traits: traits
         )
         functions.append(collectFunction(declaration, body: body))
         return .visitChildren
@@ -113,7 +137,19 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         let name: String
         let leadingTrivia: Trivia
         let modifiers: DeclModifierListSyntax
-        let parameters: FunctionParameterListSyntax
+        let signature: FunctionSignatureSyntax
+        let traits: Traits
+
+        /// The declared parameters.
+        var parameters: FunctionParameterListSyntax { signature.parameterClause.parameters }
+
+        /// Reads the doc comment and signature facts, for the doc-completeness rules.
+        ///
+        /// - Parameter body: The declaration's body block.
+        /// - Returns: The facts, or `nil` without a doc comment.
+        func documentation(of body: CodeBlockSyntax) -> DocumentationFacts? {
+            SwiftDocumentation.facts(trivia: leadingTrivia, signature: signature, body: body)
+        }
 
         /// The boolean flag parameters; 0 for an initializer, since storing a `Bool` isn't branching on one.
         var flagCount: Int {
@@ -125,8 +161,13 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         /// - Parameter body: The declaration's body block.
         /// - Returns: The function's measurements.
         func metrics(of body: CodeBlockSyntax) -> FunctionMetrics {
-            SwiftFunctionMetricsCollector.measure(
-                body, parameterCount: parameters.count, booleanParameterCount: flagCount
+            let shape = SwiftFunctionMetricsCollector.BodyShape(
+                flow: SwiftFlowCollector.measure(body, signature: traits.selfCall),
+                halstead: SwiftHalstead.counts(of: body),
+                testAssertionCount: traits.isTest ? SwiftAssertionFinder.assertionCount(in: body) : nil
+            )
+            return SwiftFunctionMetricsCollector.measure(
+                body, parameterCount: parameters.count, booleanParameterCount: flagCount, shape: shape
             )
         }
     }
@@ -145,7 +186,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         return CollectedFunction(
             name: declaration.name, startLine: start, endLine: end, branchCount: counter.count,
             hasDocComment: declaration.leadingTrivia.hasComment, visibility: Self.visibility(of: declaration.modifiers),
-            metrics: declaration.metrics(of: body)
+            metrics: declaration.metrics(of: body), documentation: declaration.documentation(of: body)
         )
     }
 
@@ -171,13 +212,22 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     ///   - node: The type declaration, for its member block and start position.
     /// - Returns: The collected type.
     private func collectedType(name: String, node: some DeclGroupSyntax) -> CollectedType {
-        let memberBlock = node.memberBlock
-        let startLine = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
-        let endLine = converter.location(for: memberBlock.endPositionBeforeTrailingTrivia).line
+        let structure = SwiftTypeStructure.structure(of: node, isExtended: overview.extendedTypes.contains(name))
+        let (startLine, endLine) = extent(of: node)
         return CollectedType(
-            name: name, memberCount: memberBlock.members.count, startLine: startLine, endLine: endLine,
-            cohesionGroups: SwiftCohesion.groupCount(of: memberBlock),
-            shape: SwiftCohesion.shape(of: memberBlock, isClass: node.is(ClassDeclSyntax.self))
+            name: name, memberCount: node.memberBlock.members.count, startLine: startLine, endLine: endLine,
+            cohesionGroups: CohesionGraph.groupCount(structure.methods),
+            shape: SwiftCohesion.shape(of: node.memberBlock, isClass: node.is(ClassDeclSyntax.self)),
+            structure: structure
         )
+    }
+
+    /// Finds a type declaration's first and last lines.
+    ///
+    /// - Parameter node: The type declaration.
+    /// - Returns: The 1-indexed lines its declaration starts and its member block ends on.
+    private func extent(of node: some DeclGroupSyntax) -> (Int, Int) {
+        let start = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
+        return (start, converter.location(for: node.memberBlock.endPositionBeforeTrailingTrivia).line)
     }
 }

@@ -123,9 +123,8 @@ final class SwiftMarkerCollector: SyntaxVisitor {
     /// - Parameter node: The function declaration.
     /// - Returns: `.visitChildren`.
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
-        guard let body = node.body, isTest(node), !SwiftAssertionFinder.containsAssertion(body) else {
-            return .visitChildren
-        }
+        guard let body = node.body, SwiftAssertionFinder.isTest(node),
+              !SwiftAssertionFinder.containsAssertion(body) else { return .visitChildren }
         return record(.testWithoutAssertions, at: node.name)
     }
 
@@ -158,18 +157,6 @@ final class SwiftMarkerCollector: SyntaxVisitor {
             current = call.calledExpression.as(MemberAccessExprSyntax.self)?.base
         }
         return count
-    }
-
-    /// Reports whether a function is a test: an XCTest-style `test…` method or a swift-testing `@Test`.
-    ///
-    /// - Parameter node: The function declaration.
-    /// - Returns: Whether it's a test.
-    private func isTest(_ node: FunctionDeclSyntax) -> Bool {
-        let hasTestAttribute = node.attributes.contains {
-            $0.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "Test"
-        }
-        let isXCTestMethod = node.name.text.hasPrefix("test") && node.signature.parameterClause.parameters.isEmpty
-        return hasTestAttribute || isXCTestMethod
     }
 
     /// Converts a node's position to its 1-indexed line.

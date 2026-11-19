@@ -17,6 +17,7 @@ extension TreeSitterQualityCollector {
         if let alternative = elseAfterExit(node, type: type) { found.append((.elseAfterReturn, alternative, 0)) }
         if isMutableGlobal(node, type: type) { found.append((.globalMutableState, node, 0)) }
         if let length = chainLength(node, type: type) { found.append((.longMessageChain, node, length)) }
+        if let reach = demeterReach(node, type: type) { found.append((.lawOfDemeter, node, reach)) }
         return found
     }
 
@@ -88,6 +89,18 @@ extension TreeSitterQualityCollector {
             return false
         }
         return body.range(of: tests.assertionPattern, options: .regularExpression) == nil
+    }
+
+    /// Counts a test's assertions: the matches of the language's assertion pattern in its text.
+    ///
+    /// - Parameters:
+    ///   - node: The function node.
+    ///   - name: Its resolved name.
+    /// - Returns: The count for a test, or `nil` for any other function.
+    func assertionCount(_ node: Node, name: String) -> Int? {
+        guard let tests = conventions.tests, isTest(node, name: name, tests: tests), let body = text(node),
+              let regex = try? NSRegularExpression(pattern: tests.assertionPattern) else { return nil }
+        return regex.numberOfMatches(in: body, range: NSRange(body.startIndex..., in: body))
     }
 
     /// Reads the name a declaration introduces, for the naming rules.

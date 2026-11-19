@@ -1,20 +1,9 @@
 import SwiftSyntax
 import BouncerRules
 
-/// Measures a Swift type's LCOM4 cohesion from its member block.
+/// Reads a Swift type's members for its shape and its method-field graph, from which `SwiftTypeStructure`
+/// builds LCOM4 and the other cohesion measures.
 enum SwiftCohesion {
-    /// Counts how many unrelated groups a type's instance methods split into.
-    ///
-    /// - Parameter members: The type's member block.
-    /// - Returns: The LCOM4 group count, per `CohesionGraph`.
-    static func groupCount(of members: MemberBlockSyntax) -> Int {
-        let methods = members.members.compactMap { $0.decl.as(FunctionDeclSyntax.self) }.filter { !isStatic($0) }
-        let memberNames = Set(methods.map(\.name.text)).union(propertyNames(in: members))
-        return CohesionGraph.groupCount(methods.map {
-            CohesionGraph.Method(name: $0.name.text, references: references(in: $0, to: memberNames))
-        })
-    }
-
     /// Counts a type's methods (excluding initializers) and stored properties.
     ///
     /// - Parameters:
@@ -28,11 +17,27 @@ enum SwiftCohesion {
         return TypeShape(methodCount: methods, fieldCount: stored, isClass: isClass)
     }
 
-    /// Lists the names of a type's instance properties.
+    /// Lists a type's instance methods, leaving out `static` and `class` ones.
+    ///
+    /// - Parameter members: The type's member block.
+    /// - Returns: The methods, in order.
+    static func instanceMethods(in members: MemberBlockSyntax) -> [FunctionDeclSyntax] {
+        members.members.compactMap { $0.decl.as(FunctionDeclSyntax.self) }.filter { !isStatic($0) }
+    }
+
+    /// Lists the names of a type's instance methods and properties.
+    ///
+    /// - Parameter members: The type's member block.
+    /// - Returns: Every member name a method could reference.
+    static func memberNames(_ members: MemberBlockSyntax) -> Set<String> {
+        Set(instanceMethods(in: members).map(\.name.text)).union(propertyNames(in: members))
+    }
+
+    /// Lists the names of a type's properties.
     ///
     /// - Parameter members: The type's member block.
     /// - Returns: Every property name declared in it.
-    private static func propertyNames(in members: MemberBlockSyntax) -> Set<String> {
+    static func propertyNames(in members: MemberBlockSyntax) -> Set<String> {
         let variables = members.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }
         let patterns = variables.flatMap { $0.bindings.map(\.pattern) }
         return Set(patterns.compactMap { $0.as(IdentifierPatternSyntax.self)?.identifier.text })
@@ -44,7 +49,7 @@ enum SwiftCohesion {
     ///   - method: The method.
     ///   - memberNames: The type's property and method names.
     /// - Returns: The member names it uses, with or without `self.`.
-    private static func references(in method: FunctionDeclSyntax, to memberNames: Set<String>) -> Set<String> {
+    static func references(in method: FunctionDeclSyntax, to memberNames: Set<String>) -> Set<String> {
         guard let body = method.body else { return [] }
         let collector = ReferenceCollector(viewMode: .sourceAccurate)
         collector.walk(body)

@@ -13,7 +13,7 @@ final class TreeSitterSummaryBuilder {
     private var markers: [CollectedMarker] = []
     private var names: [CollectedName] = []
     private var strings: [CollectedString] = []
-    private lazy var quality: TreeSitterQualityCollector? = spec.quality.map {
+    lazy var quality: TreeSitterQualityCollector? = spec.quality.map {
         TreeSitterQualityCollector(spec: spec, quality: $0, text: { [unowned self] in self.text(of: $0) })
     }
 
@@ -43,6 +43,7 @@ final class TreeSitterSummaryBuilder {
     ///   - unused: The file's unused declarations, from the language's `DeadCodeExtractor`.
     /// - Returns: Everything gathered during the walk.
     func build(root: Node, unused: [UnusedDeclaration] = []) -> DeclarationSummary {
+        quality?.moduleNames = importedNames(in: root)
         walk(root)
         let shapes = collectShapes(root)
         return DeclarationSummary(
@@ -168,7 +169,8 @@ final class TreeSitterSummaryBuilder {
         return CollectedFunction(
             name: name, startLine: line(of: node.pointRange.lowerBound), endLine: line(of: node.pointRange.upperBound),
             branchCount: countBranches(in: body), hasDocComment: isDocumented(node),
-            visibility: visibility(of: node, name: name), metrics: quality?.metrics(of: node, body: body)
+            visibility: visibility(of: node, name: name), metrics: quality?.metrics(of: node, body: body, name: name),
+            documentation: documentationFacts(of: node, body: body)
         )
     }
 
@@ -179,10 +181,11 @@ final class TreeSitterSummaryBuilder {
         guard let body = node.child(byFieldName: "body") else { return }
         let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
         let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
+        let structure = quality.flatMap { $0.structure(of: node, body: body) { self.countBranches(in: $0) + 1 } }
         types.append(CollectedType(
             name: name, memberCount: body.namedChildCount, startLine: startLine, endLine: endLine,
-            cohesionGroups: quality.flatMap { $0.cohesionGroups(of: body) },
-            shape: quality.flatMap { $0.shape(of: body) }
+            cohesionGroups: structure.map { CohesionGraph.groupCount($0.methods) },
+            shape: quality.flatMap { $0.shape(of: body) }, structure: structure
         ))
     }
 
@@ -198,7 +201,7 @@ final class TreeSitterSummaryBuilder {
     ///
     /// - Parameter node: The subtree to count within.
     /// - Returns: The number of decision-point nodes found.
-    private func countBranches(in node: Node) -> Int {
+    func countBranches(in node: Node) -> Int {
         var count = 0
         for index in 0..<node.childCount {
             guard let child = node.child(at: index), let type = child.nodeType else { continue }
@@ -274,7 +277,7 @@ final class TreeSitterSummaryBuilder {
     ///
     /// - Parameter node: The function declaration node.
     /// - Returns: Whether the body opens with a docstring.
-    private func hasDocstring(_ node: Node) -> Bool {
+    func hasDocstring(_ node: Node) -> Bool {
         guard let body = node.child(byFieldName: "body"), let first = body.namedChild(at: 0) else { return false }
         guard first.nodeType == "expression_statement" else { return false }
         return first.namedChild(at: 0)?.nodeType == "string"
@@ -286,7 +289,7 @@ final class TreeSitterSummaryBuilder {
     ///   - node: The declaration node.
     ///   - prefix: Text the comment must start with, such as `/**`, or empty for any comment.
     /// - Returns: Whether an adjacent comment documents it.
-    private func hasPrecedingComment(_ node: Node, prefix: String = "") -> Bool {
+    func hasPrecedingComment(_ node: Node, prefix: String = "") -> Bool {
         guard let previous = node.previousNamedSibling, previous.nodeType == "comment" else { return false }
         guard prefix.isEmpty || (text(of: previous)?.hasPrefix(prefix) ?? false) else { return false }
         return previous.pointRange.upperBound.row + 1 == node.pointRange.lowerBound.row

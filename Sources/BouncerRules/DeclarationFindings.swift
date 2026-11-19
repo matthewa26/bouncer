@@ -25,6 +25,7 @@ public enum DeclarationFindings {
             + missingDocumentation(summary, file: file, context: context)
             + namingConvention(summary, file: file, context: context, naming: naming)
             + structureFindings(summary, file: file, context: context)
+            + designFindings(summary, file: file, context: context)
     }
 
     /// Runs the coupling, type-shape, and function-metric rules, in a fixed order.
@@ -50,7 +51,7 @@ public enum DeclarationFindings {
 
     public static let lackOfCohesionRuleID = "lack-of-cohesion"
 
-    /// Flags every type whose methods split into more independent groups (LCOM4) than allowed.
+    /// Flags every type whose methods are less cohesive than allowed, by LCOM4 or the configured `variant`.
     ///
     /// - Parameters:
     ///   - summary: The declarations collected from the file's syntax tree.
@@ -62,11 +63,9 @@ public enum DeclarationFindings {
     ) -> [Finding] {
         let settings = context.settings(for: lackOfCohesionRuleID)
         guard settings.enabled else { return [] }
-        let maxGroups = settings.parameters.int("maxGroups", default: 2)
+        let variant = CohesionVariant(settings.parameters)
         return summary.types.compactMap { type in
-            guard let groups = type.cohesionGroups, groups > maxGroups else { return nil }
-            let message = "Type \"\(type.name)\" splits into \(groups) unrelated method groups (LCOM4), "
-                + "over \(maxGroups)."
+            guard let message = variant.violation(by: type) else { return nil }
             return finding(lackOfCohesionRuleID, type.startLine, message, settings.severity, file)
         }
     }
@@ -95,8 +94,7 @@ public enum DeclarationFindings {
     private static func markerFindings(
         of kind: MarkerKind, _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
-        let settings = context.settings(for: kind.ruleID)
-        guard settings.enabled else { return [] }
+        guard let settings = enabledSettings(kind.ruleID, optIn: kind.isOptIn, context: context) else { return [] }
         let limit = kind.threshold.map { settings.parameters.int($0.parameter, default: $0.defaultLimit) }
         let unit = kind.threshold?.unit ?? ""
         return summary.markers.filter { $0.kind == kind && $0.value > (limit ?? -1) }.map { marker in
@@ -112,6 +110,7 @@ public enum DeclarationFindings {
         let defaultLimit: Int
         let value: @Sendable (FunctionMetrics) -> Int
         let describe: @Sendable (Int) -> String
+        var optIn = false
     }
 
     static let metricRules: [MetricRule] = [
@@ -143,7 +142,7 @@ public enum DeclarationFindings {
             ruleID: "too-many-locals", parameter: "maxLocals", defaultLimit: 10,
             value: { $0.localVariableCount }, describe: { "\($0) local variables" }
         )
-    ]
+    ] + flowMetricRules
 
     /// Flags every measured function over one metric rule's limit.
     ///
@@ -156,8 +155,7 @@ public enum DeclarationFindings {
     static func metricFindings(
         _ rule: MetricRule, _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
-        let settings = context.settings(for: rule.ruleID)
-        guard settings.enabled else { return [] }
+        guard let settings = enabledSettings(rule.ruleID, optIn: rule.optIn, context: context) else { return [] }
         let limit = settings.parameters.int(rule.parameter, default: rule.defaultLimit)
         return summary.functions.compactMap { function in
             guard let metrics = function.metrics, rule.value(metrics) > limit else { return nil }

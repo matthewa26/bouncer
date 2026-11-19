@@ -53,7 +53,18 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     /// - Returns: The combined findings.
     private func findings(_ parsed: Parsed, context: AnalysisContext) -> [Finding] {
         genericFindings(file: parsed.file, context: context)
-            + DeclarationFindings.all(summarize(parsed), file: parsed.file, context: context, naming: Self.naming)
+            + DeclarationFindings.all(
+                summarize(parsed, measuresChains: Self.measuresChains(context)), file: parsed.file, context: context,
+                naming: Self.naming
+            )
+    }
+
+    /// Reports whether the opt-in `law-of-demeter` rule is on, so member chains need measuring.
+    ///
+    /// - Parameter context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: Whether a config enables the rule.
+    private static func measuresChains(_ context: AnalysisContext) -> Bool {
+        context.ruleSettings[MarkerKind.lawOfDemeter.ruleID]?.enabled == true
     }
 
     /// Reads a Swift file's module facts for the project pass.
@@ -66,17 +77,28 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
 
     /// Collects everything the shared AST rules need from an already-parsed file.
     ///
-    /// - Parameter parsed: The parsed file.
+    /// - Parameters:
+    ///   - parsed: The parsed file.
+    ///   - measuresChains: Whether to measure member chains for the opt-in `law-of-demeter` rule.
     /// - Returns: Its declaration summary.
-    private func summarize(_ parsed: Parsed) -> DeclarationSummary {
+    private func summarize(_ parsed: Parsed, measuresChains: Bool = false) -> DeclarationSummary {
         let builder = Self.walk(SwiftDeclarationSummaryBuilder(converter: parsed.converter), over: parsed)
         let markers = Self.walk(SwiftMarkerCollector(converter: parsed.converter), over: parsed)
         let names = Self.walk(SwiftNameCollector(converter: parsed.converter), over: parsed)
         let shapes = Self.walk(SwiftShapeCollector(converter: parsed.converter), over: parsed)
         return builder.summary(
-            markers: markers.markers + shapes.markers, names: names,
+            markers: markers.markers + shapes.markers + (measuresChains ? Self.chainMarkers(in: parsed) : []),
+            names: names,
             shapes: shapes.facts(typedNames: names.typedNames), unused: Self.unusedDeclarations(in: parsed)
         )
+    }
+
+    /// Measures every member chain's reach, for `law-of-demeter`.
+    ///
+    /// - Parameter parsed: The parsed file.
+    /// - Returns: One marker per measured chain.
+    private static func chainMarkers(in parsed: Parsed) -> [CollectedMarker] {
+        walk(SwiftDemeterCollector(converter: parsed.converter), over: parsed).markers
     }
 
     /// Walks a visitor over a whole parsed file.

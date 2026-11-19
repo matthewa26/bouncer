@@ -13,6 +13,8 @@ public struct CollectedFunction: Sendable {
     public let visibility: DeclarationVisibility
     /// Size and shape measurements, or `nil` where the analyzer doesn't measure this language.
     public let metrics: FunctionMetrics?
+    /// Its doc comment and signature, for the doc-completeness rules; `nil` if undocumented or unchecked.
+    public let documentation: DocumentationFacts?
 
     /// Creates a collected function.
     ///
@@ -24,9 +26,10 @@ public struct CollectedFunction: Sendable {
     ///   - hasDocComment: Whether it's documented per its language's convention.
     ///   - visibility: Its access level.
     ///   - metrics: Its size and shape measurements, if measured.
+    ///   - documentation: Its doc comment and signature, if the doc-completeness rules check it.
     public init(
-        name: String, startLine: Int, endLine: Int, branchCount: Int,
-        hasDocComment: Bool, visibility: DeclarationVisibility, metrics: FunctionMetrics? = nil
+        name: String, startLine: Int, endLine: Int, branchCount: Int, hasDocComment: Bool,
+        visibility: DeclarationVisibility, metrics: FunctionMetrics? = nil, documentation: DocumentationFacts? = nil
     ) {
         self.name = name
         self.startLine = startLine
@@ -35,6 +38,7 @@ public struct CollectedFunction: Sendable {
         self.hasDocComment = hasDocComment
         self.visibility = visibility
         self.metrics = metrics
+        self.documentation = documentation
     }
 }
 
@@ -49,6 +53,12 @@ public struct FunctionMetrics: Sendable, Equatable {
     public let typeCheckCount: Int
     /// Local variables declared in the body, excluding nested functions and closures.
     public let localVariableCount: Int
+    /// NPath, `if` pyramids, loop jumps, and unconditional recursion.
+    public let flow: FlowMetrics
+    /// Operator and operand counts, for Halstead's measures and the maintainability index.
+    public let halstead: HalsteadCounts
+    /// For a test function, how many assertions it makes; `nil` for any other function.
+    public let testAssertionCount: Int?
 
     /// Creates a function's measurements.
     ///
@@ -61,9 +71,13 @@ public struct FunctionMetrics: Sendable, Equatable {
     ///   - maxNestingDepth: The deepest nesting of control-flow structures.
     ///   - typeCheckCount: The number of runtime type checks.
     ///   - localVariableCount: The number of distinct local variables declared in the body itself.
+    ///   - flow: The control-flow measurements.
+    ///   - halstead: The operator and operand counts.
+    ///   - testAssertionCount: The assertion count if it's a test, else `nil`.
     public init(
         parameterCount: Int, booleanParameterCount: Int, returnCount: Int,
-        cognitiveComplexity: Int, maxNestingDepth: Int, typeCheckCount: Int = 0, localVariableCount: Int = 0
+        cognitiveComplexity: Int, maxNestingDepth: Int, typeCheckCount: Int = 0, localVariableCount: Int = 0,
+        flow: FlowMetrics = FlowMetrics(), halstead: HalsteadCounts = HalsteadCounts(), testAssertionCount: Int? = nil
     ) {
         self.parameterCount = parameterCount
         self.booleanParameterCount = booleanParameterCount
@@ -72,6 +86,7 @@ public struct FunctionMetrics: Sendable, Equatable {
         self.maxNestingDepth = maxNestingDepth
         self.typeCheckCount = typeCheckCount
         self.localVariableCount = localVariableCount
+        (self.flow, self.halstead, self.testAssertionCount) = (flow, halstead, testAssertionCount)
     }
 }
 
@@ -93,9 +108,13 @@ public enum MarkerKind: String, Sendable, CaseIterable {
     case testWithoutAssertions = "test-without-assertions"
     case longBooleanExpression = "long-boolean-expression"
     case tooManyGenericParameters = "too-many-generic-parameters"
+    case lawOfDemeter = "law-of-demeter"
 
     /// The rule ID this marker is reported under.
     public var ruleID: String { rawValue }
+
+    /// Whether the rule only runs when a config enables it.
+    public var isOptIn: Bool { self == .lawOfDemeter }
 
     /// For markers that carry a measurement, the parameter limiting it, its default, and its unit.
     public var threshold: (parameter: String, defaultLimit: Int, unit: String)? {
@@ -105,7 +124,8 @@ public enum MarkerKind: String, Sendable, CaseIterable {
     private static let thresholds: [MarkerKind: (parameter: String, defaultLimit: Int, unit: String)] = [
         .longMessageChain: ("maxCalls", 5, "calls"),
         .longBooleanExpression: ("maxOperands", 4, "operands"),
-        .tooManyGenericParameters: ("maxParameters", 4, "generic parameters")
+        .tooManyGenericParameters: ("maxParameters", 4, "generic parameters"),
+        .lawOfDemeter: ("maxReach", 2, "steps past the first object")
     ]
 
     /// The finding message for this marker.
@@ -127,7 +147,8 @@ public enum MarkerKind: String, Sendable, CaseIterable {
         .longMessageChain: "Long chain of calls (Law of Demeter); name the intermediate results.",
         .testWithoutAssertions: "Test has no assertions, so it can only fail by crashing.",
         .longBooleanExpression: "Long boolean expression; name its parts with local variables or a helper.",
-        .tooManyGenericParameters: "Too many generic parameters; group related ones into a type."
+        .tooManyGenericParameters: "Too many generic parameters; group related ones into a type.",
+        .lawOfDemeter: "Reaches through a chain of other objects (Law of Demeter); ask the first one to do the work."
     ]
 }
 
@@ -200,6 +221,8 @@ public struct CollectedType: Sendable {
     public let cohesionGroups: Int?
     /// Its member counts, where measured; `isClass` separates classes from value types for `data-class`.
     public let shape: TypeShape?
+    /// Its methods' field use, complexity, and delegation, for the class-design rules; `nil` if unmeasured.
+    public let structure: TypeStructure?
 
     /// Creates a collected type.
     ///
@@ -210,9 +233,10 @@ public struct CollectedType: Sendable {
     ///   - endLine: The 1-indexed last line of the type.
     ///   - cohesionGroups: Its LCOM4 method-group count, if measured.
     ///   - shape: Its method and field counts, if measured.
+    ///   - structure: Its methods' field use, complexity, and delegation, if measured.
     public init(
         name: String, memberCount: Int, startLine: Int, endLine: Int,
-        cohesionGroups: Int? = nil, shape: TypeShape? = nil
+        cohesionGroups: Int? = nil, shape: TypeShape? = nil, structure: TypeStructure? = nil
     ) {
         self.name = name
         self.memberCount = memberCount
@@ -220,6 +244,7 @@ public struct CollectedType: Sendable {
         self.endLine = endLine
         self.cohesionGroups = cohesionGroups
         self.shape = shape
+        self.structure = structure
     }
 }
 

@@ -9,6 +9,8 @@ struct TreeSitterQualityCollector {
     let spec: TreeSitterLanguageSpec
     let quality: TreeSitterQualitySpec
     let text: (Node) -> String?
+    /// Names the file's Python imports bind, which start module paths rather than object chains.
+    var moduleNames: Set<String> = []
 
     /// Running totals for one function's walk.
     private struct Tally {
@@ -31,15 +33,26 @@ struct TreeSitterQualityCollector {
     /// - Parameters:
     ///   - node: The function node, for its parameters.
     ///   - body: Its body.
+    ///   - name: Its resolved name, for the recursion and test checks.
     /// - Returns: The function's measurements.
-    func metrics(of node: Node, body: Node) -> FunctionMetrics {
+    func metrics(of node: Node, body: Node, name: String) -> FunctionMetrics {
         var tally = Tally()
         walkChildren(of: body, depth: Depth(), tally: &tally)
         return FunctionMetrics(
             parameterCount: weight(of: parameters(of: node)), booleanParameterCount: flagCount(of: node),
             returnCount: tally.returns, cognitiveComplexity: tally.score, maxNestingDepth: tally.maxDepth,
-            typeCheckCount: tally.typeChecks, localVariableCount: tally.locals.count
+            typeCheckCount: tally.typeChecks, localVariableCount: tally.locals.count,
+            flow: flowMetrics(of: node, body: body, name: name), halstead: halstead(of: body),
+            testAssertionCount: assertionCount(node, name: name)
         )
+    }
+
+    /// Lists a function's declared parameters, for the doc-completeness facts.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: The parameter nodes, without receivers like `self`.
+    func parameterNodes(of node: Node) -> [Node] {
+        parameters(of: node)
     }
 
     /// Lists a function's declared parameters, skipping comments, separators, and receivers like `self`.

@@ -23,21 +23,32 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
         super.init(viewMode: .sourceAccurate)
     }
 
+    /// The measurements other walks take of the same body.
+    struct BodyShape {
+        let flow: FlowMetrics
+        let halstead: HalsteadCounts
+        let testAssertionCount: Int?
+    }
+
     /// Measures a function body.
     ///
     /// - Parameters:
     ///   - body: The function's body block.
     ///   - parameterCount: The function's declared parameter count.
     ///   - booleanParameterCount: How many of those are boolean flags.
+    ///   - shape: Its flow, Halstead counts, and test assertions, measured separately.
     /// - Returns: The function's measurements.
-    static func measure(_ body: CodeBlockSyntax, parameterCount: Int, booleanParameterCount: Int) -> FunctionMetrics {
+    static func measure(
+        _ body: CodeBlockSyntax, parameterCount: Int, booleanParameterCount: Int, shape: BodyShape
+    ) -> FunctionMetrics {
         let collector = SwiftFunctionMetricsCollector()
         collector.walk(body)
         return FunctionMetrics(
             parameterCount: parameterCount, booleanParameterCount: booleanParameterCount,
             returnCount: collector.returnCount, cognitiveComplexity: collector.score,
             maxNestingDepth: collector.maxControlDepth, typeCheckCount: collector.typeChecks,
-            localVariableCount: collector.locals.count
+            localVariableCount: collector.locals.count, flow: shape.flow, halstead: shape.halstead,
+            testAssertionCount: shape.testAssertionCount
         )
     }
 

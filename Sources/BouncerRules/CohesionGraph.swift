@@ -7,18 +7,23 @@
 /// they touch every field by design. Parsers supply each method's referenced member names.
 public enum CohesionGraph {
     /// One method and the names of the type's members it references.
-    public struct Method: Sendable {
+    public struct Method: Sendable, Equatable {
         public let name: String
         public let references: Set<String>
+        /// The field whose same-named method this one does nothing but call, such as `store` for
+        /// `func load() { store.load() }`; `nil` for a method that does its own work.
+        public let delegate: String?
 
         /// Creates a method entry.
         ///
         /// - Parameters:
         ///   - name: The method's name.
         ///   - references: Member names its body uses, such as `count` from `self.count`.
-        public init(name: String, references: Set<String>) {
+        ///   - delegate: The field it only forwards to, if it's a pure delegation.
+        public init(name: String, references: Set<String>, delegate: String? = nil) {
             self.name = name
             self.references = references
+            self.delegate = delegate
         }
     }
 
@@ -28,13 +33,21 @@ public enum CohesionGraph {
     /// - Returns: The LCOM4 value; a type with fewer than two methods is 1.
     public static func groupCount(_ methods: [Method]) -> Int {
         guard methods.count > 1 else { return 1 }
-        var groups = Array(0..<methods.count)
-        for i in methods.indices {
-            for j in methods.indices where j > i && areConnected(methods[i], methods[j]) {
-                merge(&groups, i, j)
-            }
+        return Set(components(methods.count) { areConnected(methods[$0], methods[$1]) }).count
+    }
+
+    /// Splits elements into the connected components of an undirected graph.
+    ///
+    /// - Parameters:
+    ///   - count: How many elements there are.
+    ///   - isEdge: Whether two elements, by index with the first lower, are joined.
+    /// - Returns: Each element's component representative; equal values share a component.
+    static func components(_ count: Int, isEdge: (Int, Int) -> Bool) -> [Int] {
+        var groups = Array(0..<count)
+        for i in 0..<count {
+            for j in (i + 1)..<max(i + 1, count) where isEdge(i, j) { merge(&groups, i, j) }
         }
-        return Set(methods.indices.map { root(groups, $0) }).count
+        return (0..<count).map { root(groups, $0) }
     }
 
     /// Reports whether two methods share a member or one calls the other.

@@ -18,6 +18,8 @@ struct TreeSitterQualitySpec: Sendable {
     var conventions = ConventionSpec()
     /// Node types for the size rules and the type-aware naming rules.
     var shapes = ShapeSpec()
+    /// Node types for NPath, `if` pyramids, loop jumps, recursion, Halstead, and doc completeness.
+    var flow: FlowSpec?
 }
 
 /// A node type whose named field (or, with no field, the node itself) has one of the given texts.
@@ -64,6 +66,10 @@ struct ChainSpec: Sendable {
     let calleeField: String
     let memberNodeType: String
     let objectField: String
+    /// The member access's field holding the member's name, such as `property` in `a.property`.
+    let propertyField: String
+    /// Whether an uppercase member names a type, as in `models.User()`, rather than an exported member (Go).
+    var uppercaseIsType = true
 }
 
 /// How to recognize a test and whether it asserts anything.
@@ -193,7 +199,8 @@ extension TreeSitterQualitySpec {
         ),
         initializerNames: ["constructor"],
         conventions: javascriptConventions,
-        shapes: .javascript
+        shapes: .javascript,
+        flow: .javascript
     )
 
     private static let javascriptConventions = ConventionSpec(
@@ -202,7 +209,7 @@ extension TreeSitterQualitySpec {
         rootNodeTypes: ["program"], rootWrapperNodeTypes: ["export_statement"],
         chain: ChainSpec(
             callNodeType: "call_expression", calleeField: "function", memberNodeType: "member_expression",
-            objectField: "object"
+            objectField: "object", propertyField: "property"
         ),
         typeChecks: [FieldMatch(nodeType: "binary_expression", field: "operator", texts: ["instanceof"])],
         tests: TestSpec(
@@ -254,7 +261,8 @@ extension TreeSitterQualitySpec {
         conventions: ConventionSpec(
             ifNodeType: "if_statement", globalStatementNodeTypes: ["global_statement"],
             chain: ChainSpec(
-                callNodeType: "call", calleeField: "function", memberNodeType: "attribute", objectField: "object"
+                callNodeType: "call", calleeField: "function", memberNodeType: "attribute", objectField: "object",
+                propertyField: "attribute"
             ),
             typeChecks: [FieldMatch(nodeType: "call", field: "function", texts: ["isinstance", "type"])],
             tests: TestSpec(
@@ -262,7 +270,8 @@ extension TreeSitterQualitySpec {
                 assertionPattern: #"\bassert\b|\.assert\w*\(|pytest\.raises"#
             )
         ),
-        shapes: .python
+        shapes: .python,
+        flow: .python
     )
 
     /// Go's quality node types. Go has no classes, ternaries, or `catch`, so those rules don't apply.
@@ -303,7 +312,7 @@ extension TreeSitterQualitySpec {
             ifNodeType: "if_statement", mutableGlobalNodes: ["var_declaration": nil], rootNodeTypes: ["source_file"],
             chain: ChainSpec(
                 callNodeType: "call_expression", calleeField: "function", memberNodeType: "selector_expression",
-                objectField: "operand"
+                objectField: "operand", propertyField: "field", uppercaseIsType: false
             ),
             typeChecks: [FieldMatch(nodeType: "type_assertion_expression", field: nil, texts: [])],
             tests: TestSpec(
@@ -311,6 +320,7 @@ extension TreeSitterQualitySpec {
                 assertionPattern: #"\bt\.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)\(|\b(assert|require)\.\w+\("#
             )
         ),
-        shapes: .go
+        shapes: .go,
+        flow: .go
     )
 }

@@ -42,6 +42,8 @@ public enum DeclarationFindings {
             + godClass(summary, file: file, context: context)
             + metricRules.flatMap { metricFindings($0, summary, file: file, context: context) }
             + lackOfCohesion(summary, file: file, context: context)
+            + typeShapeFindings(summary, file: file, context: context)
+            + nameFindings(summary, file: file, context: context)
     }
 
     public static let lackOfCohesionRuleID = "lack-of-cohesion"
@@ -77,12 +79,27 @@ public enum DeclarationFindings {
     public static func markerFindings(
         _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
-        MarkerKind.allCases.flatMap { kind -> [Finding] in
-            let settings = context.settings(for: kind.ruleID)
-            guard settings.enabled else { return [] }
-            return summary.markers.filter { $0.kind == kind }.map {
-                finding(kind.ruleID, $0.line, kind.message, settings.severity, file)
-            }
+        MarkerKind.allCases.flatMap { markerFindings(of: $0, summary, file: file, context: context) }
+    }
+
+    /// Flags every marker of one kind, honoring the kind's threshold if it has one.
+    ///
+    /// - Parameters:
+    ///   - kind: The marker kind.
+    ///   - summary: The declarations collected from the file's syntax tree.
+    ///   - file: The file being analyzed.
+    ///   - context: Repo-wide state, including this rule's resolved settings.
+    /// - Returns: One finding per marker over its threshold, or per marker for an unthresholded kind.
+    private static func markerFindings(
+        of kind: MarkerKind, _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
+    ) -> [Finding] {
+        let settings = context.settings(for: kind.ruleID)
+        guard settings.enabled else { return [] }
+        let limit = kind.threshold.map { settings.parameters.int($0.parameter, default: $0.defaultLimit) }
+        let unit = kind.threshold?.unit ?? ""
+        return summary.markers.filter { $0.kind == kind && $0.value > (limit ?? -1) }.map { marker in
+            let measured = limit.map { " (\(marker.value) \(unit), over \($0))" } ?? ""
+            return finding(kind.ruleID, marker.line, kind.message + measured, settings.severity, file)
         }
     }
 
@@ -103,6 +120,10 @@ public enum DeclarationFindings {
         MetricRule(
             ruleID: "boolean-parameter", parameter: "maxBooleanParameters", defaultLimit: 0,
             value: { $0.booleanParameterCount }, describe: { "\($0) boolean flag parameter(s)" }
+        ),
+        MetricRule(
+            ruleID: "type-check-chain", parameter: "maxTypeChecks", defaultLimit: 2,
+            value: { $0.typeCheckCount }, describe: { "\($0) runtime type checks" }
         ),
         MetricRule(
             ruleID: "too-many-returns", parameter: "maxReturns", defaultLimit: 4,
@@ -312,7 +333,7 @@ public enum DeclarationFindings {
     ///   - severity: The severity to report at.
     ///   - file: The file the finding applies to.
     /// - Returns: The constructed finding.
-    private static func finding(
+    static func finding(
         _ ruleID: String, _ line: Int, _ message: String, _ severity: Severity, _ file: SourceFile
     ) -> Finding {
         Finding(ruleID: ruleID, severity: severity, filePath: file.path, line: line, message: message)

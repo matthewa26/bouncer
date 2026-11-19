@@ -14,6 +14,64 @@ struct TreeSitterQualitySpec: Sendable {
     let cohesion: CohesionSpec?
     /// Method names that initialize an instance, which skip flag-parameter counting and LCOM4.
     let initializerNames: Set<String>
+    /// Node types for the convention rules (`else` after exit, global state, call chains, and so on).
+    var conventions = ConventionSpec()
+}
+
+/// A node type whose named field (or, with no field, the node itself) has one of the given texts.
+struct FieldMatch: Sendable {
+    let nodeType: String
+    let field: String?
+    let texts: Set<String>
+}
+
+/// Node types for the convention rules. Each part left at its default turns its rule off.
+struct ConventionSpec: Sendable {
+    /// `if` nodes whose `consequence` field ends in a jump while an `alternative` field follows.
+    var ifNodeType: String?
+    /// Declarations that create mutable globals, keyed by node type; a non-nil value is the keyword
+    /// the declaration must start with, such as `let` (to skip `const`).
+    var mutableGlobalNodes: [String: String?] = [:]
+    /// Parent node types that make a declaration top-level, such as `program`.
+    var rootNodeTypes: Set<String> = []
+    /// Wrappers between a top-level declaration and the root, such as `export_statement`.
+    var rootWrapperNodeTypes: Set<String> = []
+    /// Node types that mark mutable global state wherever they appear, such as Python's `global`.
+    var globalStatementNodeTypes: Set<String> = []
+    /// Calls and member access, for measuring call chains.
+    var chain: ChainSpec?
+    /// Runtime type checks, such as `x instanceof T` or `isinstance(x, T)`.
+    var typeChecks: [FieldMatch] = []
+    /// How to recognize tests and their assertions.
+    var tests: TestSpec?
+    /// Declarations whose names the naming rules check, mapped to the field holding the name.
+    var nameFields: [String: String] = [:]
+    /// Parameter lists whose bare identifier children are parameter names.
+    var parameterListTypes: Set<String> = []
+    /// Loops whose declared variables (`for (let i …)`) are exempt from the naming rules.
+    var loopNodeTypes: Set<String> = []
+    /// String literal node types, the child types holding their text, and children that mean interpolation.
+    var stringNodeTypes: Set<String> = []
+    var stringContentTypes: Set<String> = []
+    var interpolationTypes: Set<String> = []
+}
+
+/// Call and member-access node types, for following a chain like `a.b().c()` back through its receivers.
+struct ChainSpec: Sendable {
+    let callNodeType: String
+    let calleeField: String
+    let memberNodeType: String
+    let objectField: String
+}
+
+/// How to recognize a test and whether it asserts anything.
+struct TestSpec: Sendable {
+    /// Calls whose function argument is a test body, such as `it` and `test`.
+    let callbackCallees: Set<String>
+    /// A pattern a test function's name matches, such as `^test`.
+    let namePattern: String?
+    /// A pattern matching an assertion anywhere in a test's text.
+    let assertionPattern: String
 }
 
 /// What scores cognitive complexity, deepens nesting, and counts as a `return`.
@@ -131,7 +189,27 @@ extension TreeSitterQualitySpec {
             memberAccessNodeType: "member_expression", objectField: "object", propertyField: "property",
             receiverText: "this", staticKeyword: "static"
         ),
-        initializerNames: ["constructor"]
+        initializerNames: ["constructor"],
+        conventions: javascriptConventions
+    )
+
+    private static let javascriptConventions = ConventionSpec(
+        ifNodeType: "if_statement",
+        mutableGlobalNodes: ["lexical_declaration": "let", "variable_declaration": nil],
+        rootNodeTypes: ["program"], rootWrapperNodeTypes: ["export_statement"],
+        chain: ChainSpec(
+            callNodeType: "call_expression", calleeField: "function", memberNodeType: "member_expression",
+            objectField: "object"
+        ),
+        typeChecks: [FieldMatch(nodeType: "binary_expression", field: "operator", texts: ["instanceof"])],
+        tests: TestSpec(
+            callbackCallees: ["it", "test"], namePattern: nil,
+            assertionPattern: #"\b(expect|assert)\w*\s*\(|\.should\b"#
+        ),
+        nameFields: ["variable_declarator": "name", "required_parameter": "pattern", "optional_parameter": "pattern"],
+        parameterListTypes: ["formal_parameters"], loopNodeTypes: ["for_statement", "for_in_statement"],
+        stringNodeTypes: ["string", "template_string"], stringContentTypes: ["string_fragment"],
+        interpolationTypes: ["template_substitution"]
     )
 
     /// Python's quality node types. Decorated methods (`@staticmethod`, `@property`, …) are left out of LCOM4.
@@ -169,7 +247,18 @@ extension TreeSitterQualitySpec {
             memberAccessNodeType: "attribute", objectField: "object", propertyField: "attribute",
             receiverText: "self", staticKeyword: nil
         ),
-        initializerNames: ["__init__"]
+        initializerNames: ["__init__"],
+        conventions: ConventionSpec(
+            ifNodeType: "if_statement", globalStatementNodeTypes: ["global_statement"],
+            chain: ChainSpec(
+                callNodeType: "call", calleeField: "function", memberNodeType: "attribute", objectField: "object"
+            ),
+            typeChecks: [FieldMatch(nodeType: "call", field: "function", texts: ["isinstance", "type"])],
+            tests: TestSpec(
+                callbackCallees: [], namePattern: "^test",
+                assertionPattern: #"\bassert\b|\.assert\w*\(|pytest\.raises"#
+            )
+        )
     )
 
     /// Go's quality node types. Go has no classes, ternaries, or `catch`, so those rules don't apply.
@@ -205,6 +294,18 @@ extension TreeSitterQualitySpec {
         ),
         markers: [],
         cohesion: nil,
-        initializerNames: []
+        initializerNames: [],
+        conventions: ConventionSpec(
+            ifNodeType: "if_statement", mutableGlobalNodes: ["var_declaration": nil], rootNodeTypes: ["source_file"],
+            chain: ChainSpec(
+                callNodeType: "call_expression", calleeField: "function", memberNodeType: "selector_expression",
+                objectField: "operand"
+            ),
+            typeChecks: [FieldMatch(nodeType: "type_assertion_expression", field: nil, texts: [])],
+            tests: TestSpec(
+                callbackCallees: [], namePattern: "^Test[A-Z_]",
+                assertionPattern: #"\bt\.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)\(|\b(assert|require)\.\w+\("#
+            )
+        )
     )
 }

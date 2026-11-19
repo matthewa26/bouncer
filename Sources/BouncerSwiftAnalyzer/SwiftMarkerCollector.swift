@@ -83,6 +83,52 @@ final class SwiftMarkerCollector: SyntaxVisitor {
         return record(.nestedTernary, at: first)
     }
 
+    /// Records an `else` whose `if` branch always exits, so the `else` only adds nesting.
+    ///
+    /// - Parameter node: The `if` expression.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: IfExprSyntax) -> SyntaxVisitorContinueKind {
+        guard let elseKeyword = node.elseKeyword, let last = node.body.statements.last, isJump(last.item) else {
+            return .visitChildren
+        }
+        return record(.elseAfterReturn, at: elseKeyword)
+    }
+
+    /// Records a stored top-level or `static` `var`: state any code can change. Computed properties hold none.
+    ///
+    /// - Parameter node: The variable declaration.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
+        guard node.bindingSpecifier.tokenKind == .keyword(.var),
+              node.bindings.contains(where: { $0.accessorBlock == nil }) else { return .visitChildren }
+        let isStatic = node.modifiers.contains { [.keyword(.static), .keyword(.class)].contains($0.name.tokenKind) }
+        let isTopLevel = node.parent?.parent?.parent?.is(SourceFileSyntax.self) ?? false
+        return isStatic || isTopLevel ? record(.globalMutableState, at: node) : .visitChildren
+    }
+
+    /// Records the length of each outermost chain of calls, such as `a.b().c().d()`.
+    ///
+    /// - Parameter node: A call.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
+        guard !(node.parent?.is(MemberAccessExprSyntax.self) ?? false) else { return .visitChildren }
+        let length = chainLength(from: ExprSyntax(node))
+        guard length > 1 else { return .visitChildren }
+        markers.append(CollectedMarker(kind: .longMessageChain, line: line(of: node), value: length))
+        return .visitChildren
+    }
+
+    /// Records a test method that never asserts anything.
+    ///
+    /// - Parameter node: The function declaration.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
+        guard let body = node.body, isTest(node), !SwiftAssertionFinder.containsAssertion(body) else {
+            return .visitChildren
+        }
+        return record(.testWithoutAssertions, at: node.name)
+    }
+
     /// Records an integer literal that isn't given a name.
     ///
     /// - Parameter node: The literal.
@@ -97,6 +143,41 @@ final class SwiftMarkerCollector: SyntaxVisitor {
     /// - Returns: `.visitChildren`.
     override func visit(_ node: FloatLiteralExprSyntax) -> SyntaxVisitorContinueKind {
         recordIfMagic(node, text: node.literal.text)
+    }
+
+    /// Counts the calls in a chain, following each call's receiver back through member access.
+    ///
+    /// - Parameter expression: The outermost call.
+    /// - Returns: How many calls the chain holds.
+    private func chainLength(from expression: ExprSyntax) -> Int {
+        var current: ExprSyntax? = expression, count = 0
+        while let node = current {
+            let unwrapped = node.as(OptionalChainingExprSyntax.self)?.expression ?? node
+            guard let call = unwrapped.as(FunctionCallExprSyntax.self) else { break }
+            count += 1
+            current = call.calledExpression.as(MemberAccessExprSyntax.self)?.base
+        }
+        return count
+    }
+
+    /// Reports whether a function is a test: an XCTest-style `test…` method or a swift-testing `@Test`.
+    ///
+    /// - Parameter node: The function declaration.
+    /// - Returns: Whether it's a test.
+    private func isTest(_ node: FunctionDeclSyntax) -> Bool {
+        let hasTestAttribute = node.attributes.contains {
+            $0.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "Test"
+        }
+        let isXCTestMethod = node.name.text.hasPrefix("test") && node.signature.parameterClause.parameters.isEmpty
+        return hasTestAttribute || isXCTestMethod
+    }
+
+    /// Converts a node's position to its 1-indexed line.
+    ///
+    /// - Parameter node: The node.
+    /// - Returns: Its line.
+    private func line(of node: some SyntaxProtocol) -> Int {
+        converter.location(for: node.positionAfterSkippingLeadingTrivia).line
     }
 
     /// Records a marker at a node's first non-trivia position.

@@ -73,6 +73,19 @@ parameter. The heuristic languages don't get these rules.
 | `long-parameter-list` | A function's declared parameter count | warning | `maxParameters` (5) |
 | `boolean-parameter` | Boolean flag parameters (typed `Bool`/`boolean`, or defaulting to `true`/`false`); initializers are exempt | warning | `maxBooleanParameters` (0) |
 | `lack-of-cohesion` | LCOM4: how many unrelated groups a type's methods split into | warning | `maxGroups` (2) |
+| `type-check-chain` | Runtime type checks per function (`instanceof`, `is`, `as?`, `isinstance`, Go type assertions) | warning | `maxTypeChecks` (2) |
+| `too-many-methods` | A class's method count, excluding initializers | warning | `maxMethods` (20) |
+| `too-many-fields` | A class's stored property count | warning | `maxFields` (15) |
+| `data-class` | A class with two or more fields and no methods (not structs) | warning | none |
+| `too-many-types` | Classes and structs declared in one file | warning | `maxTypes` (5) |
+| `else-after-return` | An `else` after a branch that always returns, throws, breaks, or continues | warning | none |
+| `global-mutable-state` | A stored top-level or `static var`, a top-level `let`/`var` in TS/JS, Python's `global`, a Go package `var` | warning | none |
+| `long-message-chain` | A chain of calls such as `a.b().c().d()` (Law of Demeter) | warning | `maxCalls` (5) |
+| `test-without-assertions` | A test (`test…`/`@Test` in Swift, `it`/`test` callbacks in TS/JS, `test_` in Python, `Test…` in Go) that never asserts | warning | none |
+| `short-identifier` | A variable or parameter name shorter than the minimum, except `i`, `j`, `k`, `x`, `y`, `z`, `e`, `n`, `t`, `_`, `id`, `ok` | warning | `minLength` (2) |
+| `negated-boolean-name` | A name like `isNotReady` or `notFound` | warning | none |
+| `hungarian-notation` | A name with a type prefix, such as `strName`, `bIsOpen`, `arrItems`, `m_value` | warning | none |
+| `duplicated-string-literal` | The same plain string literal repeated in a file | warning | `minOccurrences` (3), `minLength` (5) |
 | `too-many-returns` | A function's `return` count, excluding nested functions and closures | warning | `maxReturns` (4) |
 | `cognitive-complexity` | SonarSource-style cognitive complexity, which penalizes nesting | warning | `max` (15) |
 | `nesting-depth` | How deeply `if`/loop/`switch`/`catch` structures nest in a function | warning | `maxDepth` (4) |
@@ -102,6 +115,11 @@ as `setTimeout(run, 3000)`, is flagged.
 the other, counting both `self.x`/`this.x` and Swift's implicit-`self` references. Initializers
 and `static` methods are left out. A value of 1 means every method is connected; 2 or more means
 the type holds that many independent responsibilities that could be split apart.
+
+The naming and duplicated-string rules, and class field counts, run on Swift, TypeScript, and
+JavaScript; the other rules in this table also run on Python and Go where the language has the
+construct. `duplicated-string-literal` will also flag the repeated target names in a Swift
+`Package.swift`; raise `minOccurrences` or exclude the manifest if that's noise for you.
 
 `empty-catch` accepts a comment inside the braces as a deliberate "nothing to do here".
 

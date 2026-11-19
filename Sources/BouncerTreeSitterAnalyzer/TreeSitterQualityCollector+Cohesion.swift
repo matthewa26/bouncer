@@ -30,6 +30,28 @@ extension TreeSitterQualityCollector {
         return member.child(byFieldName: nameField).flatMap(text).map { ($0, value) }
     }
 
+    /// Counts a class's methods (excluding initializers) and fields, where the language declares fields.
+    ///
+    /// - Parameter body: The class body node.
+    /// - Returns: The class's shape, or `nil` without a cohesion spec that names field declarations.
+    func shape(of body: Node) -> TypeShape? {
+        guard let cohesion = quality.cohesion, !cohesion.fieldNameFields.isEmpty else { return nil }
+        let members = (0..<body.namedChildCount).compactMap { body.namedChild(at: $0) }
+        let methods = members.compactMap(method(from:)).filter { !quality.initializerNames.contains($0.name) }
+        let fields = members.filter { member in
+            cohesion.fieldNameFields[member.nodeType ?? ""] != nil && !holdsFunction(member)
+        }
+        return TypeShape(methodCount: methods.count, fieldCount: fields.count, isClass: true)
+    }
+
+    /// Reports whether a field's value is a function, which makes it a method for these counts.
+    ///
+    /// - Parameter field: The field declaration.
+    /// - Returns: Whether its value is a function expression.
+    private func holdsFunction(_ field: Node) -> Bool {
+        spec.functionNodeTypes.contains(field.child(byFieldName: "value")?.nodeType ?? "")
+    }
+
     /// Collects every member name a method reaches through `this`, such as `count` in `this.count`.
     ///
     /// - Parameter node: The method node.

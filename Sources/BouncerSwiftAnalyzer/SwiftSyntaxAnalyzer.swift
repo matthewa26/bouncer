@@ -23,15 +23,24 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     ///   - context: Repo-wide state, including every rule's resolved settings.
     /// - Returns: The combined findings.
     public func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] {
+        genericFindings(file: file, context: context)
+            + DeclarationFindings.all(summarize(file), file: file, context: context, naming: Self.naming)
+    }
+
+    /// Parses a file and collects everything the shared AST rules need from it.
+    ///
+    /// - Parameter file: The Swift file.
+    /// - Returns: Its declaration summary.
+    private func summarize(_ file: SourceFile) -> DeclarationSummary {
         let tree = Parser.parse(source: file.contents)
         let converter = SourceLocationConverter(fileName: file.path.path, tree: tree)
         let builder = SwiftDeclarationSummaryBuilder(converter: converter)
         builder.walk(tree)
         let markers = SwiftMarkerCollector(converter: converter)
         markers.walk(tree)
-        let summary = builder.summary(markers: markers.markers)
-        return genericFindings(file: file, context: context)
-            + DeclarationFindings.all(summary, file: file, context: context, naming: Self.naming)
+        let names = SwiftNameCollector(converter: converter)
+        names.walk(tree)
+        return builder.summary(markers: markers.markers, names: names)
     }
 
     /// Runs the language-agnostic heuristic rules shared with every other language.

@@ -15,6 +15,7 @@ struct TreeSitterQualityCollector {
         var score = 0
         var returns = 0
         var maxDepth = 0
+        var typeChecks = 0
     }
 
     /// The walk position: how deeply nested the current node is, and in what.
@@ -35,7 +36,8 @@ struct TreeSitterQualityCollector {
         walkChildren(of: body, depth: Depth(), tally: &tally)
         return FunctionMetrics(
             parameterCount: weight(of: parameters(of: node)), booleanParameterCount: flagCount(of: node),
-            returnCount: tally.returns, cognitiveComplexity: tally.score, maxNestingDepth: tally.maxDepth
+            returnCount: tally.returns, cognitiveComplexity: tally.score, maxNestingDepth: tally.maxDepth,
+            typeCheckCount: tally.typeChecks
         )
     }
 
@@ -109,6 +111,7 @@ struct TreeSitterQualityCollector {
         guard let type = node.nodeType else { return }
         tally.score += increment(for: node, type: type, nesting: depth.nesting)
         if type == quality.complexity.returnNodeType, !depth.inNestedFunction { tally.returns += 1 }
+        if isTypeCheck(node, type: type) { tally.typeChecks += 1 }
         let childDepth = nestedDepth(below: node, type: type, from: depth)
         tally.maxDepth = max(tally.maxDepth, childDepth.control)
         walkChildren(of: node, depth: childDepth, tally: &tally)

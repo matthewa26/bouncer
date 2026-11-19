@@ -20,11 +20,14 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
 
     /// Assembles the collected summary. Call after visiting the whole tree.
     ///
-    /// - Parameter markers: The file's single-location smells, from `SwiftMarkerCollector`.
+    /// - Parameters:
+    ///   - markers: The file's single-location smells, from `SwiftMarkerCollector`.
+    ///   - names: The file's declared names and string literals, from `SwiftNameCollector`.
     /// - Returns: Everything gathered during the walk.
-    func summary(markers: [CollectedMarker]) -> DeclarationSummary {
+    func summary(markers: [CollectedMarker], names: SwiftNameCollector) -> DeclarationSummary {
         DeclarationSummary(
-            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers
+            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers,
+            declaredNames: names.names, stringLiterals: names.strings
         )
     }
 
@@ -169,7 +172,8 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         let endLine = converter.location(for: memberBlock.endPositionBeforeTrailingTrivia).line
         return CollectedType(
             name: name, memberCount: memberBlock.members.count, startLine: startLine, endLine: endLine,
-            cohesionGroups: SwiftCohesion.groupCount(of: memberBlock)
+            cohesionGroups: SwiftCohesion.groupCount(of: memberBlock),
+            shape: SwiftCohesion.shape(of: memberBlock, isClass: node.is(ClassDeclSyntax.self))
         )
     }
 }

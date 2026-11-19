@@ -11,6 +11,8 @@ final class TreeSitterSummaryBuilder {
     private var switches: [CollectedSwitch] = []
     private var importCount = 0
     private var markers: [CollectedMarker] = []
+    private var names: [CollectedName] = []
+    private var strings: [CollectedString] = []
     private lazy var quality: TreeSitterQualityCollector? = spec.quality.map {
         TreeSitterQualityCollector(spec: spec, quality: $0, text: { [unowned self] in self.text(of: $0) })
     }
@@ -41,7 +43,8 @@ final class TreeSitterSummaryBuilder {
     func build(root: Node) -> DeclarationSummary {
         walk(root)
         return DeclarationSummary(
-            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers
+            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers,
+            declaredNames: names, stringLiterals: strings
         )
     }
 
@@ -80,9 +83,40 @@ final class TreeSitterSummaryBuilder {
         guard node.isNamed, let quality else { return }
         let here = line(of: node.pointRange.lowerBound)
         markers += quality.markers(at: node, type: type).map { CollectedMarker(kind: $0, line: here) }
-        guard let unreachable = quality.unreachableStatement(in: node, type: type) else { return }
-        markers.append(CollectedMarker(kind: .unreachableCode, line: line(of: unreachable.pointRange.lowerBound)))
+        if let unreachable = quality.unreachableStatement(in: node, type: type) {
+            markers.append(CollectedMarker(kind: .unreachableCode, line: line(of: unreachable.pointRange.lowerBound)))
+        }
+        collectConventionFacts(node, type: type, quality: quality)
     }
+
+    /// Records the convention rules' facts at one node: markers, declared names, and string literals.
+    ///
+    /// - Parameters:
+    ///   - node: The node to check.
+    ///   - type: Its type.
+    ///   - quality: The language's quality collector.
+    private func collectConventionFacts(_ node: Node, type: String, quality: TreeSitterQualityCollector) {
+        markers += quality.conventionMarkers(at: node, type: type).map {
+            CollectedMarker(kind: $0.kind, line: line(of: $0.at.pointRange.lowerBound), value: $0.value)
+        }
+        collectNameAndString(node, type: type, line: line(of: node.pointRange.lowerBound), quality: quality)
+    }
+
+
+    /// Records a node's declared name or string literal, if it's either.
+    ///
+    /// - Parameters:
+    ///   - node: The node to check.
+    ///   - type: Its type.
+    ///   - line: Its 1-indexed line.
+    ///   - quality: The language's quality collector.
+    private func collectNameAndString(_ node: Node, type: String, line: Int, quality: TreeSitterQualityCollector) {
+        if let name = quality.declaredName(node, type: type) { names.append(CollectedName(name: name, line: line)) }
+        if let string = quality.stringLiteral(node, type: type) {
+            strings.append(CollectedString(text: string, line: line))
+        }
+    }
+
 
     /// Reports whether a node is a module-loading call such as `require("x")`.
     ///
@@ -101,7 +135,11 @@ final class TreeSitterSummaryBuilder {
     /// - Parameter node: The function/method declaration node.
     private func collectFunction(_ node: Node) {
         guard let body = node.child(byFieldName: "body") else { return }
-        functions.append(makeCollectedFunction(node, body: body))
+        let function = makeCollectedFunction(node, body: body)
+        functions.append(function)
+        if quality?.isTestWithoutAssertions(node, name: function.name) == true {
+            markers.append(CollectedMarker(kind: .testWithoutAssertions, line: function.startLine))
+        }
     }
 
     /// Builds a `CollectedFunction` from a declaration node and its body.
@@ -128,7 +166,8 @@ final class TreeSitterSummaryBuilder {
         let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
         types.append(CollectedType(
             name: name, memberCount: body.namedChildCount, startLine: startLine, endLine: endLine,
-            cohesionGroups: quality.flatMap { $0.cohesionGroups(of: body) }
+            cohesionGroups: quality.flatMap { $0.cohesionGroups(of: body) },
+            shape: quality.flatMap { $0.shape(of: body) }
         ))
     }
 

@@ -42,13 +42,13 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Long line (`long-lines`) | F | |
 | ✅ | Long parameter list (`long-parameter-list`) | F | Default 5, Kirby 3. Swift, TS, JS, Python, Go |
 | ⬜ | Large class: line count per type | F | `god-class` counts members, not lines |
-| ⬜ | Too many methods per type | F | |
-| ⬜ | Too many fields / stored properties per type | F | |
-| ⬜ | Too many types per file | F | One primary type per file |
+| ✅ | Too many methods per type (`too-many-methods`); Swift, TS, JS, Python | F | |
+| ✅ | Too many fields / stored properties per type (`too-many-fields`); Swift, TS, JS | F | |
+| ✅ | Too many types per file (`too-many-types`) | F | |
 | ✅ | Too many return statements per function (`too-many-returns`) | F | Default 4, Kirby 3. Swift, TS, JS, Python, Go |
 | ⬜ | Long lambda/closure body | F | |
 | ⬜ | Long boolean expression (number of `&&`/`\|\|` operands) | F | |
-| ⬜ | Long method chain (train wreck) | F | Also a Law of Demeter signal |
+| ✅ | Long method chain (train wreck) (`long-message-chain`) | F | |
 | ⬜ | Too many local variables | F | |
 | ⬜ | Too many generic parameters | F | |
 
@@ -65,7 +65,7 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Maintainability Index | F | Combines Halstead, cyclomatic and LOC |
 | ✅ | Nested ternaries (`nested-ternary`) | F | Swift, TS, JS, Python |
 | ⬜ | Arrow code: deep `if` pyramids; suggest guard clauses | F | |
-| ⬜ | `else` after `return`/`throw` | F | |
+| ✅ | `else` after `return`/`throw` (`else-after-return`) | F | |
 | ⬜ | Too many `break`/`continue` in a loop | F | |
 | ⬜ | Recursion without an obvious base case | T | |
 
@@ -85,7 +85,7 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|---|
 | ✅ | Switch statements on a type tag | F | `switch-on-type-smell` |
 | ⬜ | Repeated switches on the same discriminator | X | The same `switch x.kind` in several places |
-| ⬜ | Type-checking chains (`is`/`as?`/`instanceof`/`isinstance`) | F | Replace with polymorphism |
+| ✅ | Type-checking chains (`type-check-chain`) | F | Replace with polymorphism |
 | ⬜ | Temporary field | T | A field set or used in only one method path |
 | ⬜ | Refused bequest | X/T | A subclass overrides methods to throw or no-op |
 | ⬜ | Alternative classes with different interfaces | X | |
@@ -107,7 +107,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS, Python, Go |
 | ⬜ | Speculative generality: protocol/interface with one implementation, unused params, hooks | X | Matches your "no single-implementation interfaces" principle |
 | ⬜ | Lazy class: a type that does almost nothing | F | Very few members |
-| ⬜ | Data class: only fields and accessors, no behavior | F | |
+| ✅ | Data class: only fields, no behavior (`data-class`); classes only, not structs | F | |
 | ⬜ | Commented-out code | F | Comment lines that parse as code |
 | ⬜ | Excessive or redundant comments (restating the code) | F | |
 | ✅ | TODO/FIXME/HACK density | F | `todo-density` |
@@ -118,9 +118,9 @@ The **Scope** column says what analysis a check needs:
 | ✅ | High coupling, measured by import count | F | `high-coupling` (a proxy only) |
 | ⬜ | Feature envy | T | A method uses another type's members more than its own |
 | ⬜ | Inappropriate intimacy | X | Two types access each other's internals |
-| ⬜ | Message chains / Law of Demeter (`a.b().c().d()`) | F | |
+| ✅ | Message chains / Law of Demeter (`long-message-chain`) | F | |
 | ⬜ | Middle man: a type that mostly just delegates | F | |
-| ⬜ | Global mutable state / singletons | F | `static var`, `shared`, module-level mutables |
+| ✅ | Global mutable state (`global-mutable-state`) | F | |
 
 ## 4. Object-oriented design metrics (Chidamber–Kemerer and others)
 
@@ -171,14 +171,15 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Check | Scope |
 |---|---|---|
 | ✅ | Naming convention (case style per language) | F |
-| ⬜ | Identifier too short (`x`, `tmp`), except loop indices | F |
+| ✅ | Identifier too short, except loop indices and conventional names (`short-identifier`); Swift, TS, JS | F |
 | ⬜ | Identifier too long | F |
 | ⬜ | Boolean names without `is`/`has`/`should` | F |
-| ⬜ | Negated booleans (`isNotEnabled`, `!notReady`) | F |
-| ⬜ | Hungarian notation or type-in-name (`strName`, `userList`) | F |
+| ✅ | Negated boolean names (`negated-boolean-name`); Swift, TS, JS | F |
+| ✅ | Hungarian notation (`hungarian-notation`); Swift, TS, JS | F |
+| ⬜ | Type-in-name suffixes (`userList`, `nameString`) | F |
 | ⬜ | Abbreviations not in an allowlist | F |
 | ✅ | Magic numbers (`magic-number`); Swift, TS, JS, Python, Go | F |
-| ⬜ | Magic strings | F |
+| ✅ | Magic strings: literals repeated in a file (`duplicated-string-literal`); Swift, TS, JS | F |
 | ✅ | Boolean parameters (flag arguments) (`boolean-parameter`); Swift, TS, JS, Python, Go. Initializers are exempt | F |
 | ⬜ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) | X |
 | ⬜ | Inconsistent file name vs. primary type name | F |
@@ -252,7 +253,7 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Branch coverage threshold | X (report) |
 | ⬜ | Coverage on changed lines only (diff coverage) | X + git |
 | ⬜ | Source file with no matching test file | X |
-| ⬜ | Test with no assertions | F |
+| ✅ | Test with no assertions (`test-without-assertions`) | F |
 | ✅ | Disabled, skipped, or focused tests (`skipped-test`); TS/JS, Swift, Python, Go, Java | F |
 | ⬜ | Sleeps or real network or clock calls in tests (flakiness) | F |
 | ⬜ | Test function too long or with too many assertions | F |

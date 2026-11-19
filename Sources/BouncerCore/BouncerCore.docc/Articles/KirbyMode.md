@@ -30,6 +30,10 @@ not a lock.
 - `boolean-parameter` to none and `lack-of-cohesion` to a single method group (LCOM4 = 1),
   both at `error`: a flag argument means a function does two things, and a type whose methods
   split into separate groups does two jobs.
+- `type-check-chain` to at most one runtime type check per function, `long-message-chain` to
+  four calls, and `data-class` and `global-mutable-state` at `error`: type switches belong in
+  polymorphism, long chains break the Law of Demeter, data needs its behavior beside it, and
+  shared mutable state couples everything that touches it.
 - Every single-location smell (`force-unwrap`, `force-try`, `force-cast`,
   `implicitly-unwrapped-optional`, `non-null-assertion`, `explicit-any`, `nested-ternary`,
   `empty-catch`, `unreachable-code`, `magic-number`) at `error` rather than `warning`.

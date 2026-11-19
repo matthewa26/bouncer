@@ -15,6 +15,7 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
     private var controlDepth = 0
     private var maxControlDepth = 0
     private var closureDepth = 0
+    private var typeChecks = 0
 
     /// Creates a collector.
     init() {
@@ -34,7 +35,7 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
         return FunctionMetrics(
             parameterCount: parameterCount, booleanParameterCount: booleanParameterCount,
             returnCount: collector.returnCount, cognitiveComplexity: collector.score,
-            maxNestingDepth: collector.maxControlDepth
+            maxNestingDepth: collector.maxControlDepth, typeCheckCount: collector.typeChecks
         )
     }
 
@@ -178,6 +179,33 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
     override func visitPost(_ node: FunctionDeclSyntax) {
         nesting -= 1
         closureDepth -= 1
+    }
+
+    /// Counts an `is` type check.
+    ///
+    /// - Parameter node: The unfolded `is` expression.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: UnresolvedIsExprSyntax) -> SyntaxVisitorContinueKind {
+        typeChecks += 1
+        return .visitChildren
+    }
+
+    /// Counts a `case is T` pattern.
+    ///
+    /// - Parameter node: The type pattern.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: IsTypePatternSyntax) -> SyntaxVisitorContinueKind {
+        typeChecks += 1
+        return .visitChildren
+    }
+
+    /// Counts an `as?` conditional cast, ignoring plain `as` and `as!`.
+    ///
+    /// - Parameter node: The unfolded cast expression.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: UnresolvedAsExprSyntax) -> SyntaxVisitorContinueKind {
+        if node.questionOrExclamationMark?.tokenKind == .postfixQuestionMark { typeChecks += 1 }
+        return .visitChildren
     }
 
     /// Counts a `return` that belongs to this function, not to a nested closure or function.

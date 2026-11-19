@@ -24,7 +24,11 @@ public enum KirbyProfile {
             "cognitive-complexity": entry(severity: .error, params: ["max": .int(8)]),
             "nesting-depth": entry(severity: .error, params: ["maxDepth": .int(3)]),
             "boolean-parameter": entry(severity: .error, params: ["maxBooleanParameters": .int(0)]),
-            "lack-of-cohesion": entry(severity: .error, params: ["maxGroups": .int(1)])
+            "lack-of-cohesion": entry(severity: .error, params: ["maxGroups": .int(1)]),
+            "type-check-chain": entry(severity: .error, params: ["maxTypeChecks": .int(1)]),
+            "long-message-chain": entry(severity: .error, params: ["maxCalls": .int(4)]),
+            "data-class": entry(severity: .error),
+            "global-mutable-state": entry(severity: .error)
         ].merging(smellsAsErrors) { explicit, _ in explicit }
     )
 

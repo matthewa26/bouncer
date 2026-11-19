@@ -10,12 +10,12 @@ One installer for every platform. It picks the right build for your OS and CPU, 
 
 ```sh
 # macOS, Linux, and WSL (x86-64 or ARM64): installs to ~/.local/bin
-curl -fsSL https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | sh
+curl -fsSL https://matthewa26.github.io/bouncer/install.ps1 | sh
 ```
 
 ```powershell
 # Windows PowerShell or PowerShell 7: installs to %LOCALAPPDATA%\Programs\bouncer and adds it to your user PATH
-irm https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | iex
+irm https://matthewa26.github.io/bouncer/install.ps1 | iex
 ```
 
 `install.ps1` is a single polyglot file that runs under both `sh` and PowerShell. Set `BOUNCER_VERSION` to pin a release, `BOUNCER_INSTALL_DIR` to change where it goes, or `BOUNCER_NO_MODIFY_PATH=1` to leave your Windows PATH alone.
@@ -25,7 +25,7 @@ The release builds behind it run without Swift installed: a universal macOS bina
 Other ways to install:
 
 - **Build from source**: `swift build -c release` (needs a Swift 6 toolchain).
-- **Prebuilt archive**: download the archive for your platform from the latest GitHub release and check it against `SHA256SUMS`.
+- **Prebuilt archive**: download the archive for your platform from [the site's download folder](https://matthewa26.github.io/bouncer/download/latest/SHA256SUMS) (the latest release) or a GitHub release, and check it against `SHA256SUMS`.
 - **Homebrew**: `brew tap matthewa26/tap && brew install bouncer`. Works natively on macOS and Linux. On Windows, Homebrew only runs inside **WSL2** (a real Linux kernel) - it does not work under WSL1 or natively on Windows. For native Windows without WSL, use the installer above.
 
 ## Usage
@@ -114,3 +114,11 @@ Scripts/windows-vm/windows-vm.sh test                                          #
 ```
 
 `create` installs Windows unattended (accepting its license and creating a local `bouncer` account), then the VS Build Tools, Swift, Git, PowerShell 7, and OpenSSH. `test` boots a throwaway copy, copies in your working tree over SSH, and runs `swift build`, `swift test`, the release packaging script, and both installer tests under Windows PowerShell 5.1 and PowerShell 7. After editing the provisioning script, `reprovision` applies the change without reinstalling. VM state lives in `~/.cache/bouncer-windows-vm`.
+
+## License
+
+Copyright (C) 2026 Matthew Ayers.
+
+Bouncer is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License v3.0](LICENSE), or (at your option) any later version. The
+vendored tree-sitter grammars under `Sources/CTreeSitter*` keep their own MIT licenses.

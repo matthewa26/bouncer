@@ -63,6 +63,8 @@ public struct FileFacts: Codable, Sendable, Equatable {
     public let path: String
     public let contentHash: String
     public let module: ModuleFacts
+    /// The file's duplicate-code fingerprints, or `nil` when the project rules didn't compute any.
+    public let clones: CloneFacts?
 
     /// Creates file facts.
     ///
@@ -70,9 +72,53 @@ public struct FileFacts: Codable, Sendable, Equatable {
     ///   - path: The repo-relative path.
     ///   - contentHash: A hash of the file's contents, for cache invalidation.
     ///   - module: The file's imports and exports.
-    public init(path: String, contentHash: String, module: ModuleFacts) {
+    ///   - clones: The file's duplicate-code fingerprints, if computed.
+    public init(path: String, contentHash: String, module: ModuleFacts, clones: CloneFacts? = nil) {
         self.path = path
         self.contentHash = contentHash
         self.module = module
+        self.clones = clones
+    }
+
+    /// Returns a copy with different duplicate-code fingerprints.
+    ///
+    /// - Parameter clones: The fingerprints, or `nil` for none.
+    /// - Returns: The same facts carrying `clones`.
+    public func with(clones: CloneFacts?) -> FileFacts {
+        FileFacts(path: path, contentHash: contentHash, module: module, clones: clones)
+    }
+}
+
+/// A file's winnowed token fingerprints, for finding code duplicated across files.
+///
+/// Fingerprint `i` is the hash of the normalized k-gram starting at token `offsets[i]`. It spans code lines
+/// `lines[i]` through `endLines[i]`, counted from 0 over lines that hold at least one token, and
+/// `lineNumbers` maps each code line to its 1-indexed line in the file. The arrays are parallel, which keeps
+/// the cache file compact.
+public struct CloneFacts: Codable, Sendable, Equatable {
+    /// Identifies the tokenizer and parameters that produced these fingerprints; others are recomputed.
+    public let scheme: String
+    public let hashes: [Int]
+    public let offsets: [Int]
+    public let lines: [Int]
+    public let endLines: [Int]
+    public let lineNumbers: [Int]
+
+    /// Creates a fingerprint set.
+    ///
+    /// - Parameters:
+    ///   - scheme: The tokenizer and parameters that produced it.
+    ///   - hashes: Each fingerprint's k-gram hash.
+    ///   - offsets: Each fingerprint's first token index.
+    ///   - lines: Each fingerprint's first code line.
+    ///   - endLines: Each fingerprint's last code line.
+    ///   - lineNumbers: Each code line's 1-indexed line in the file.
+    public init(scheme: String, hashes: [Int], offsets: [Int], lines: [Int], endLines: [Int], lineNumbers: [Int]) {
+        self.scheme = scheme
+        self.hashes = hashes
+        self.offsets = offsets
+        self.lines = lines
+        self.endLines = endLines
+        self.lineNumbers = lineNumbers
     }
 }

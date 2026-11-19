@@ -11,6 +11,28 @@ public protocol ProjectAnalyzer: Sendable {
     ///   - context: Repo-wide state, including every rule's resolved settings.
     /// - Returns: The findings, each attributed to one file and line.
     func findings(for facts: [FileFacts], targets: Set<String>, context: AnalysisContext) -> [Finding]
+
+    /// Fingerprints a file for duplicate-code detection, which works on text rather than module facts.
+    ///
+    /// - Parameters:
+    ///   - file: The file.
+    ///   - cached: Fingerprints cached for the file's current contents, reusable if their scheme still matches.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The fingerprints, or `nil` when no rule needs them.
+    func cloneFacts(for file: SourceFile, cached: CloneFacts?, context: AnalysisContext) -> CloneFacts?
+}
+
+extension ProjectAnalyzer {
+    /// Analyzers without text-based rules compute no fingerprints.
+    ///
+    /// - Parameters:
+    ///   - file: The file.
+    ///   - cached: Unused.
+    ///   - context: Unused.
+    /// - Returns: `nil`.
+    public func cloneFacts(for file: SourceFile, cached: CloneFacts?, context: AnalysisContext) -> CloneFacts? {
+        nil
+    }
 }
 
 /// Remembers files' module facts between runs, keyed by path and content hash.
@@ -54,6 +76,8 @@ public struct ProjectPhase: Sendable {
         let parse: (SourceFile) throws -> ModuleFacts?
         /// Target files' facts from the main pass, keyed by repo-relative path, so they aren't parsed twice.
         var parsed: [String: FileFacts] = [:]
+        /// Target files as the main pass read them, keyed by repo-relative path, so they aren't read twice.
+        var sources: [String: SourceFile] = [:]
     }
 
     /// Indexes the project and returns project findings that land in one of the target files.
@@ -72,20 +96,22 @@ public struct ProjectPhase: Sendable {
         }
     }
 
-    /// Returns one file's facts, from the cache when its content is unchanged, otherwise by parsing it.
+    /// Returns one file's facts, from the main pass or the cache when possible, otherwise by parsing it,
+    /// with duplicate-code fingerprints that are likewise reused from the cache while still valid.
     ///
     /// - Parameters:
     ///   - url: The file.
-    ///   - context: Repo-wide state, for the repo root.
+    ///   - context: Repo-wide state, for the repo root and the project rules' settings.
     ///   - access: Reads and parses the file.
     /// - Returns: Its facts, or `nil` for a language without module facts.
     private func facts(for url: URL, context: AnalysisContext, access: FileAccess) throws -> FileFacts? {
         let path = RepoPath.relative(url, to: context.repoRoot)
-        if let parsed = access.parsed[path] { return parsed }
-        let file = try access.read(url)
-        let hash = StableHash.hex(file.contents)
-        if let cached = store.cachedFacts(path: path, contentHash: hash) { return cached }
-        return try access.parse(file).map { FileFacts(path: path, contentHash: hash, module: $0) }
+        let file = try access.sources[path] ?? access.read(url)
+        let hash = access.parsed[path]?.contentHash ?? StableHash.hex(file.contents)
+        let cached = store.cachedFacts(path: path, contentHash: hash)
+        let fresh = { try access.parse(file).map { FileFacts(path: path, contentHash: hash, module: $0) } }
+        guard let base = try access.parsed[path] ?? cached ?? fresh() else { return nil }
+        return base.with(clones: analyzer.cloneFacts(for: file, cached: cached?.clones, context: context))
     }
 }
 

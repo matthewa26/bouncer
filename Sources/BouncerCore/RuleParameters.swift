@@ -61,4 +61,15 @@ public struct RuleParameters: Sendable, Equatable {
         if case .stringList(let value)? = values[name] { return value }
         return fallback
     }
+
+    /// Reads a boolean parameter, falling back to a default if absent.
+    ///
+    /// - Parameters:
+    ///   - name: The parameter name.
+    ///   - fallback: The value to use if the parameter isn't set.
+    /// - Returns: The configured value, or `fallback`.
+    public func bool(_ name: String, default fallback: Bool) -> Bool {
+        if case .bool(let value)? = values[name] { return value }
+        return fallback
+    }
 }

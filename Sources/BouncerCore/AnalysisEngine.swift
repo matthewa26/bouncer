@@ -106,6 +106,7 @@ public struct AnalysisEngine: Sendable {
         let byPath = Dictionary(files.map { (repoPath(of: $0.path), $0) }) { first, _ in first }
         var access = ProjectPhase.FileAccess(read: loadSourceFile) { try analyzer(for: $0).moduleFacts(file: $0) }
         access.parsed = parsedFacts(files: files, analyses: analyses)
+        access.sources = byPath
         return try project.findings(targets: Set(byPath.keys), context: context, access: access).filter { finding in
             let file = byPath[repoPath(of: finding.filePath)]
             return file.map { !isBaselined(finding, in: $0) } ?? true

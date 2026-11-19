@@ -18,13 +18,25 @@ public protocol ProjectRule: Sendable {
 /// The project pass's analyzer: builds the dependency graph from every file's facts and runs each rule.
 public struct ProjectRules: ProjectAnalyzer {
     private let rules: [ProjectRule]
+    private let duplicates = DuplicateCodeRule()
 
     /// Creates the analyzer with the built-in project rules.
     public init() {
         rules = [
             ImportCycleRule(), LayerViolationRule(), UnusedExportRule(), HighFanOutRule(), HubModuleRule(),
-            UnstableDependencyRule(), MissingTestFileRule(), UnusedPublicSymbolRule()
+            UnstableDependencyRule(), MissingTestFileRule(), UnusedPublicSymbolRule(), duplicates
         ]
+    }
+
+    /// Fingerprints a file for `duplicate-code`.
+    ///
+    /// - Parameters:
+    ///   - file: The file.
+    ///   - cached: Fingerprints cached for the file's current contents.
+    ///   - context: Repo-wide state, including the rule's settings.
+    /// - Returns: The fingerprints, or `nil` for a language that isn't tokenized.
+    public func cloneFacts(for file: SourceFile, cached: CloneFacts?, context: AnalysisContext) -> CloneFacts? {
+        duplicates.cloneFacts(for: file, cached: cached, context: context)
     }
 
     /// Indexes the project and runs every enabled project rule.

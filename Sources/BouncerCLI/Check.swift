@@ -90,7 +90,8 @@ struct Check: AsyncParsableCommand {
             hooks: hooks, coverageConfig: coverage ? resolution.merged.coverage : nil, format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
             severityThreshold: severityThreshold, useBaseline: !noBaseline,
-            projectIndex: ProjectPassFactory.checkIndex(repoRoot: repoRoot, config: resolution.merged)
+            projectIndex: ProjectPassFactory.checkIndex(repoRoot: repoRoot, config: resolution.merged),
+            changeRules: ProjectPassFactory.changeRules(checksStagedDiff: !isAgentInvocation, config: resolution.merged)
         )
     }
 

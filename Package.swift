@@ -62,7 +62,7 @@ let package = Package(
             ]
         ),
         .target(name: "BouncerCoverage", dependencies: ["BouncerCore"]),
-        .target(name: "BouncerProject", dependencies: ["BouncerCore"]),
+        .target(name: "BouncerProject", dependencies: ["BouncerCore", "BouncerGit"]),
         .target(name: "BouncerReporting", dependencies: ["BouncerCore"]),
         .target(name: "BouncerGit", dependencies: ["BouncerCore"]),
         .target(name: "BouncerConfig", dependencies: ["BouncerCore", "BouncerRules"]),

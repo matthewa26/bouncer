@@ -62,6 +62,20 @@ public struct RuleParameters: Sendable, Equatable {
         return fallback
     }
 
+    /// Reads a fractional parameter, accepting a whole number too, falling back to a default if absent.
+    ///
+    /// - Parameters:
+    ///   - name: The parameter name.
+    ///   - fallback: The value to use if the parameter isn't set.
+    /// - Returns: The configured value, or `fallback`.
+    public func double(_ name: String, default fallback: Double) -> Double {
+        switch values[name] {
+        case .double(let value)?: return value
+        case .int(let value)?: return Double(value)
+        default: return fallback
+        }
+    }
+
     /// Reads a boolean parameter, falling back to a default if absent.
     ///
     /// - Parameters:

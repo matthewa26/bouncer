@@ -16,6 +16,8 @@ struct AnalysisRunner {
     let useBaseline: Bool
     /// The files the project pass indexes, or `nil` to skip project rules.
     var projectIndex: TargetFileProvider? = nil
+    /// `check`'s change rules (oversized diff, complexity ratchet), or `nil` to skip them.
+    var changeRules: ChangeAnalyzer? = nil
 
     /// Runs pre-check hooks, analysis, and post-check hooks, and renders the result.
     ///
@@ -41,7 +43,7 @@ struct AnalysisRunner {
             context: AnalysisContext(repoRoot: repoRoot, ruleSettings: mergedConfig.resolvedRuleSettings()),
             baseline: loadBaseline(),
             coverage: CoverageResolver.makeConfiguration(coverage: coverageConfig, repoRoot: repoRoot),
-            project: projectIndex.map { ProjectPassFactory.make(index: $0, repoRoot: repoRoot) }
+            project: projectIndex.map { ProjectPassFactory.make(index: $0, repoRoot: repoRoot) }, change: changeRules
         )
     }
 

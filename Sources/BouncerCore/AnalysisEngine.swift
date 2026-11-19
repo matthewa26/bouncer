@@ -34,6 +34,7 @@ public struct AnalysisEngine: Sendable {
     private let baseline: Baseline
     private let coverage: CoverageConfiguration?
     private let project: ProjectPhase?
+    private let change: ChangeAnalyzer?
 
     /// Creates an analysis engine from its fully-resolved dependencies.
     ///
@@ -46,6 +47,7 @@ public struct AnalysisEngine: Sendable {
     ///   - baseline: Previously accepted findings to exclude from the result.
     ///   - coverage: Coverage checking configuration, or `nil` to skip it.
     ///   - project: The project pass (import cycles, unused exports, …), or `nil` to skip it.
+    ///   - change: The change rules (oversized diff, complexity ratchet), or `nil` to skip them.
     public init(
         fileProvider: TargetFileProvider,
         contentsProvider: FileContentsProvider,
@@ -54,7 +56,8 @@ public struct AnalysisEngine: Sendable {
         context: AnalysisContext,
         baseline: Baseline = .empty,
         coverage: CoverageConfiguration? = nil,
-        project: ProjectPhase? = nil
+        project: ProjectPhase? = nil,
+        change: ChangeAnalyzer? = nil
     ) {
         self.fileProvider = fileProvider
         self.contentsProvider = contentsProvider
@@ -64,9 +67,10 @@ public struct AnalysisEngine: Sendable {
         self.baseline = baseline
         self.coverage = coverage
         self.project = project
+        self.change = change
     }
 
-    /// Analyzes every target file, runs the project pass, and checks coverage, if configured.
+    /// Analyzes every target file, runs the project pass and change rules, and checks coverage, if configured.
     ///
     /// - Returns: The combined findings and coverage report.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
@@ -77,7 +81,7 @@ public struct AnalysisEngine: Sendable {
             analysis.findings.filter { !isBaselined($0, in: file) }
         }
         let coverageReport = try loadCoverageReport()
-        let all = findings + (try projectFindings(for: files, analyses: analyses))
+        let all = findings + (try projectFindings(for: files, analyses: analyses)) + changeFindings(for: files)
         return AnalysisResult(findings: all + coverageFindings(from: coverageReport), coverage: coverageReport)
     }
 
@@ -107,9 +111,28 @@ public struct AnalysisEngine: Sendable {
         var access = ProjectPhase.FileAccess(read: loadSourceFile) { try analyzer(for: $0).moduleFacts(file: $0) }
         access.parsed = parsedFacts(files: files, analyses: analyses)
         access.sources = byPath
-        return try project.findings(targets: Set(byPath.keys), context: context, access: access).filter { finding in
-            let file = byPath[repoPath(of: finding.filePath)]
-            return file.map { !isBaselined(finding, in: $0) } ?? true
+        return unbaselined(try project.findings(targets: Set(byPath.keys), context: context, access: access), byPath)
+    }
+
+    /// Runs the change rules, keeping findings the baseline doesn't accept.
+    ///
+    /// - Parameter files: The target files.
+    /// - Returns: The change findings, or none without change rules.
+    private func changeFindings(for files: [SourceFile]) -> [Finding] {
+        guard let change else { return [] }
+        let byPath = Dictionary(files.map { (repoPath(of: $0.path), $0) }) { first, _ in first }
+        return unbaselined(change.findings(for: files, context: context), byPath)
+    }
+
+    /// Drops findings the baseline accepts, judging each by the target file it lands in.
+    ///
+    /// - Parameters:
+    ///   - findings: Findings from a pass after the main one.
+    ///   - files: The target files, keyed by repo-relative path; a finding elsewhere is kept.
+    /// - Returns: The findings the baseline doesn't accept.
+    private func unbaselined(_ findings: [Finding], _ files: [String: SourceFile]) -> [Finding] {
+        findings.filter { finding in
+            files[repoPath(of: finding.filePath)].map { !isBaselined(finding, in: $0) } ?? true
         }
     }
 

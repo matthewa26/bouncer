@@ -11,6 +11,19 @@ enum ProcessRunner {
     ///   - currentDirectory: The working directory to run in.
     /// - Returns: The command's standard output, or `nil` if it isn't on `PATH` or exited non-zero.
     static func run(_ executable: String, _ arguments: [String], currentDirectory: URL) -> String? {
+        output(executable, arguments, currentDirectory: currentDirectory)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Runs a command and returns its standard output exactly as written, such as a file's contents.
+    ///
+    /// - Parameters:
+    ///   - executable: The tool's name, looked up on `PATH`, such as `git`.
+    ///   - arguments: The command-line arguments to pass.
+    ///   - currentDirectory: The working directory to run in.
+    /// - Returns: The untrimmed output, or `nil` if the tool isn't on `PATH`, exited non-zero, or wrote
+    ///   something other than UTF-8.
+    static func output(_ executable: String, _ arguments: [String], currentDirectory: URL) -> String? {
         guard let path = ExecutableLocator.path(of: executable) else { return nil }
         let pipe = Pipe()
         let process = makeProcess(path, arguments, currentDirectory: currentDirectory, output: pipe)
@@ -18,7 +31,7 @@ enum ProcessRunner {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return nil }
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(data: data, encoding: .utf8)
     }
 
     /// Builds a configured, unstarted process.

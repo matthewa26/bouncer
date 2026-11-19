@@ -19,13 +19,22 @@ public protocol ProjectRule: Sendable {
 public struct ProjectRules: ProjectAnalyzer {
     private let rules: [ProjectRule]
     private let duplicates = DuplicateCodeRule()
+    private let history: HistorySource?
+    private let historyRules: [HistoryRule]
 
     /// Creates the analyzer with the built-in project rules.
-    public init() {
+    ///
+    /// - Parameters:
+    ///   - history: Reads commit history for `hotspot`, `change-coupling`, and `single-author-file`, or `nil`
+    ///     to skip them.
+    ///   - measurer: Measures functions for `hotspot`, or `nil` to skip it.
+    public init(history: HistorySource? = nil, measurer: FunctionMeasuring? = nil) {
         rules = [
             ImportCycleRule(), LayerViolationRule(), UnusedExportRule(), HighFanOutRule(), HubModuleRule(),
             UnstableDependencyRule(), MissingTestFileRule(), UnusedPublicSymbolRule(), duplicates
         ]
+        self.history = history
+        historyRules = (measurer.map { [HotspotRule(measurer: $0)] } ?? []) + [ChangeCouplingRule(), SingleAuthorRule()]
     }
 
     /// Fingerprints a file for `duplicate-code`.
@@ -51,6 +60,23 @@ public struct ProjectRules: ProjectAnalyzer {
         let index = ProjectIndex(facts: facts, resolvers: resolvers)
         return rules.filter { context.settings(for: $0.id).enabled }
             .flatMap { $0.evaluate(index, targets: targets, context: context) }
+            + historyFindings(index, targets: targets, context: context)
+    }
+
+    /// Reads history once, as far back as the enabled history rule with the longest window needs, and runs
+    /// each enabled history rule over it.
+    ///
+    /// - Parameters:
+    ///   - index: The project's dependency graph.
+    ///   - targets: The repo-relative paths being checked.
+    ///   - context: Repo-wide state, including every rule's resolved settings.
+    /// - Returns: The history rules' findings, or none without history.
+    private func historyFindings(_ index: ProjectIndex, targets: Set<String>, context: AnalysisContext) -> [Finding] {
+        let enabled = historyRules.filter { $0.isEnabled(in: context) }
+        guard let history, let days = enabled.map({ $0.days(in: context) }).max(),
+              let commits = history.commits(in: context.repoRoot, days: days), !commits.isEmpty else { return [] }
+        let log = ChangeLog(commits: commits)
+        return enabled.flatMap { $0.evaluate(log, index: index, targets: targets, context: context) }
     }
 }
 

@@ -60,14 +60,14 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Deep nesting by indentation (`deep-nesting`) | F | |
 | ✅ | Cognitive complexity, SonarSource-style (`cognitive-complexity`) | F | Default 15, Kirby 8. Swift, TS, JS, Python, Go |
 | ✅ | Nesting by control-flow depth, not indentation (`nesting-depth`) | T | Default 4, Kirby 3. Swift, TS, JS, Python, Go |
-| ⬜ | NPath complexity | F | Number of acyclic execution paths |
-| ⬜ | Halstead volume / difficulty / effort | F | |
-| ⬜ | Maintainability Index | F | Combines Halstead, cyclomatic and LOC |
+| ✅ | NPath complexity (`npath-complexity`, opt-in) | F | Number of acyclic execution paths; default 200 |
+| ✅ | Halstead volume / difficulty / effort (`halstead-complexity`, opt-in) | F | Defaults 1000 / 30 / 30000 |
+| ✅ | Maintainability Index (`maintainability-index`) | F | Combines Halstead, cyclomatic and LOC; Visual Studio 0–100 scale, minimum 20 |
 | ✅ | Nested ternaries (`nested-ternary`) | F | Swift, TS, JS, Python |
-| ⬜ | Arrow code: deep `if` pyramids; suggest guard clauses | F | |
+| ✅ | Arrow code: deep `if` pyramids; suggest guard clauses (`arrow-code`) | F | Default depth 2 |
 | ✅ | `else` after `return`/`throw` (`else-after-return`) | F | |
-| ⬜ | Too many `break`/`continue` in a loop | F | |
-| ⬜ | Recursion without an obvious base case | T | |
+| ✅ | Too many `break`/`continue` in a loop (`too-many-loop-jumps`) | F | Default 3 |
+| ✅ | Recursion without an obvious base case (`recursion-without-base-case`) | T | Direct self-calls only |
 
 ## 3. Classic code smells (Fowler, *Refactoring*)
 
@@ -78,16 +78,16 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Long method | F | `long-function` |
 | ✅ | Long parameter list | F | `long-parameter-list` |
 | ⬜ | Primitive obsession | T | Many `String`/`Int` params; stringly-typed IDs, money, dates |
-| ⬜ | Data clumps | X | The same 3+ params or fields appearing together repeatedly |
+| ✅ | Data clumps (`data-clump`) | X | The same 3+ params or fields (name and type) in 4+ functions/types across files |
 
 ### Object-orientation abusers
 | ✓ | Smell | Scope | How to detect |
 |---|---|---|---|
 | ✅ | Switch statements on a type tag | F | `switch-on-type-smell` |
-| ⬜ | Repeated switches on the same discriminator | X | The same `switch x.kind` in several places |
+| ✅ | Repeated switches on the same discriminator (`repeated-switch`) | X | The same subject with shared cases in 3+ files |
 | ✅ | Type-checking chains (`type-check-chain`) | F | Replace with polymorphism |
 | ⬜ | Temporary field | T | A field set or used in only one method path |
-| ⬜ | Refused bequest | X/T | A subclass overrides methods to throw or no-op |
+| ✅ | Refused bequest (`refused-bequest`) | X/T | A subclass overrides methods to throw or no-op |
 | ⬜ | Alternative classes with different interfaces | X | |
 
 ### Change preventers
@@ -95,7 +95,7 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|---|
 | ⬜ | Divergent change | X + git | One file changes for many unrelated reasons (churn by commit topic) |
 | ⬜ | Shotgun surgery | X + git | One change touches many files (co-change analysis) |
-| ⬜ | Parallel inheritance hierarchies | X | |
+| ✅ | Parallel inheritance hierarchies (`parallel-inheritance`) | X | Subtypes pairing up by name stem |
 
 ### Dispensables
 | ✓ | Smell | Scope | How to detect |
@@ -105,8 +105,8 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) | F/X | Type-2 (renamed identifiers, changed literals) is in `duplicate-code`; Type-3 (small edits, inserted lines) isn't |
 | ✅ | Dead code: unused private functions, vars, params, imports | F/T | `unused-private-symbol`, `unused-import`, opt-in `unused-parameter`; per file, by name |
 | ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS, Python, Go |
-| ⬜ | Speculative generality: protocol/interface with one implementation, unused params, hooks | X | Matches your "no single-implementation interfaces" principle |
-| ⬜ | Lazy class: a type that does almost nothing | F | Very few members |
+| ✅ | Speculative generality: protocol/interface with one implementation (opt-in `single-implementation-interface`), unused params (`unused-parameter`); hooks aren't checked | X | Matches your "no single-implementation interfaces" principle |
+| ✅ | Lazy class: a type that does almost nothing (`lazy-class`, opt-in) | F | No fields and one branch-free method |
 | ✅ | Data class: only fields, no behavior (`data-class`); classes only, not structs | F | |
 | ✅ | Commented-out code | F | `commented-out-code` |
 | ✅ | Excessive or redundant comments (restating the code) | F | Opt-in `redundant-comment`; comment density isn't checked |
@@ -119,24 +119,24 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Feature envy | T | A method uses another type's members more than its own |
 | ⬜ | Inappropriate intimacy | X | Two types access each other's internals |
 | ✅ | Message chains / Law of Demeter (`long-message-chain`) | F | |
-| ⬜ | Middle man: a type that mostly just delegates | F | |
+| ✅ | Middle man: a type that mostly just delegates (`middle-man`) | F | ≥ 3 and > half of methods forward |
 | ✅ | Global mutable state (`global-mutable-state`) | F | |
 
 ## 4. Object-oriented design metrics (Chidamber–Kemerer and others)
 
 | ✓ | Metric | Scope | Typical limit |
 |---|---|---|---|
-| ⬜ | WMC: weighted methods per class (sum of complexity) | F | ≤ 20–50 |
+| ✅ | WMC: weighted methods per class (sum of complexity) (`weighted-methods`) | F | Default ≤ 50 |
 | ✅ | LCOM4: lack of cohesion of methods (`lack-of-cohesion`) | F | 1 is cohesive; more means the type splits into that many groups. Default ≤ 2, Kirby 1. Swift, TS, JS, Python |
-| ⬜ | LCOM1–3 and LCOM-HS variants | F | |
-| ⬜ | TCC/LCC: tight/loose class cohesion | F | |
+| ✅ | LCOM1–3 and LCOM-HS variants (`lack-of-cohesion`'s `variant`) | F | |
+| ✅ | TCC/LCC: tight/loose class cohesion (`class-cohesion`, opt-in) | F | Default TCC ≥ 0.33 |
 | ⬜ | CBO: coupling between objects (types referenced) | T | ≤ 5–10 |
 | ⬜ | RFC: response for a class | T | |
-| ⬜ | DIT: depth of inheritance tree | X | ≤ 3–5 |
-| ⬜ | NOC: number of children | X | |
+| ✅ | DIT: depth of inheritance tree (`deep-inheritance`) | X | Default 4, project classes only |
+| ✅ | NOC: number of children (opt-in `many-subclasses`) | X | Default ≤ 10 |
 | ✅ | Fan-in / fan-out per module (`hub-module`, `high-fan-out`) | X | |
 | ✅ | Instability I = Ce / (Ca + Ce), via the Stable Dependencies Principle (`unstable-dependency`) | X | |
-| ⬜ | Abstractness A and distance from the main sequence \|A + I − 1\| | X | |
+| ✅ | Abstractness A and distance from the main sequence \|A + I − 1\| (opt-in `main-sequence-distance`) | X | Default ≤ 0.7 |
 | ⬜ | ATFD (access to foreign data) for god-class detection | T | The Lanza–Marinescu god-class formula: WMC + ATFD + TCC |
 
 ## 5. SOLID and design principles
@@ -150,7 +150,7 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Dependency Inversion | Concrete types instantiated inside business logic; no injected protocol | T |
 | ⬜ | DRY | Clone detection (see section 3) | X |
 | ⬜ | YAGNI | Unused params, single-implementation abstractions, unused config | X |
-| ⬜ | Law of Demeter | Message chains | F |
+| ✅ | Law of Demeter | Message chains reaching past the first object (`law-of-demeter`, opt-in) | F |
 | ⬜ | Composition over inheritance | Deep DIT; subclass that only overrides one method | X |
 | ⬜ | Tell, don't ask | Getter followed by a decision on another object's state | T |
 | ⬜ | Command–query separation | Function both mutates and returns a value | T |
@@ -161,10 +161,10 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|
 | ✅ | Cyclic dependencies between files, modules, and targets (`import-cycle`) | X |
 | ✅ | Layering rules declared as ordered path globs (`layer-violation`) | X |
-| ⬜ | Forbidden imports per path (custom allow/deny list) | F |
+| ✅ | Forbidden imports per path (custom allow/deny list) (`forbidden-import`) | F |
 | ✅ | Hub modules (`hub-module`) | X |
-| ⬜ | Unused dependencies in the package manifest | X |
-| ⬜ | Public API surface growth (new public symbols in a diff) | X + git |
+| ✅ | Unused dependencies in the package manifest (`unused-dependency`: SwiftPM, package.json, go.mod; not Python) | X |
+| ✅ | Public API surface growth (new public symbols in a diff) (opt-in `public-api-growth`, in `check`) | X + git |
 
 ## 7. Naming and readability
 
@@ -177,11 +177,11 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Negated boolean names (`negated-boolean-name`); Swift, TS, JS | F |
 | ✅ | Hungarian notation (`hungarian-notation`); Swift, TS, JS | F |
 | ✅ | Type-in-name suffixes (`userList`, `nameString`) (`type-in-name`) | F |
-| ⬜ | Abbreviations not in an allowlist | F |
+| ✅ | Abbreviations not in an allowlist (`abbreviation`, opt-in) | F |
 | ✅ | Magic numbers (`magic-number`); Swift, TS, JS, Python, Go | F |
 | ✅ | Magic strings: literals repeated in a file (`duplicated-string-literal`); Swift, TS, JS | F |
 | ✅ | Boolean parameters (flag arguments) (`boolean-parameter`); Swift, TS, JS, Python, Go. Initializers are exempt | F |
-| ⬜ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) | X |
+| ✅ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) (opt-in `inconsistent-terminology`) | X |
 | ✅ | Inconsistent file name vs. primary type name (`file-name-mismatch`; Swift, TS, JS) | F |
 
 ## 8. Documentation
@@ -189,10 +189,10 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Check | Scope |
 |---|---|---|
 | ✅ | Missing doc comment, by visibility scope | F |
-| ⬜ | Doc doesn't list every parameter, return value, or throw | F |
-| ⬜ | Stale doc: parameter names don't match the signature | F |
-| ⬜ | Missing file/module header | F |
-| ⬜ | Missing README per package or target | X |
+| ✅ | Doc doesn't list every parameter, return value, or throw (`incomplete-documentation`) | F |
+| ✅ | Stale doc: parameter names don't match the signature (`stale-documentation`) | F |
+| ✅ | Missing file/module header (`missing-file-header`, opt-in) | F |
+| ✅ | Missing README per package or target (opt-in `missing-readme`) | X |
 
 ## 9. Error handling and robustness
 
@@ -202,15 +202,15 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Java broad `catch (Exception)` | F |
 | ✅ | Go `panic()` and discarded returns | F |
 | ✅ | Empty catch block (`empty-catch`); Swift, TS, JS, Python (an `except` that only `pass`es) | F |
-| ⬜ | Empty catch block in the remaining languages | F |
+| ✅ | Empty catch block in the remaining languages (`empty-catch`, text-based: Java, C++, PowerShell, C#/Kotlin/PHP/Dart) | F |
 | ✅ | Swift `try!`, force-unwrap `!`, `as!`, implicitly unwrapped optionals (`force-try`, `force-unwrap`, `force-cast`, `implicitly-unwrapped-optional`) | F |
 | ✅ | Swift `fatalError` (`swift-fatal-error`) | F |
-| ⬜ | Swift `precondition`, and limiting either to library (non-app) code | F |
+| ✅ | Swift `precondition` (`swift-precondition`, opt-in), and limiting either to library (non-app) code (`libraryOnly`) | F |
 | ✅ | Swift `try?` that silently discards errors (`swift-discarded-try`) | F |
-| ⬜ | Go `if err != nil { return err }` with no wrapping context | F |
+| ✅ | Go `if err != nil { return err }` with no wrapping context (`go-unwrapped-error`, opt-in) | F |
 | ⬜ | Returning `null`/`nil` where an empty collection would do | T |
-| ⬜ | Error message without context | F |
-| ⬜ | Resource leaks: file or handle opened with no `defer`/`with`/`using` | F/T |
+| ✅ | Error message without context (`generic-error-message`) | F |
+| ✅ | Resource leaks: file or handle opened with no `defer`/`with`/`using` (`resource-leak`) | F/T |
 
 ## 10. Concurrency
 
@@ -219,8 +219,8 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` (`swift-unchecked-sendable`) | F |
 | ✅ | `DispatchQueue.main.sync` and `semaphore.wait()` (`swift-main-sync`, `swift-semaphore-wait`) | F |
 | ⬜ | Mutable shared state without a lock or actor | T |
-| ⬜ | Fire-and-forget `Task {}` with no cancellation handling | F |
-| ⬜ | Go goroutine without context or a `WaitGroup` | F |
+| ✅ | Fire-and-forget `Task {}` with no cancellation handling (`fire-and-forget-task`, opt-in) | F |
+| ✅ | Go goroutine without context or a `WaitGroup` (`go-unmanaged-goroutine`) | F |
 | ⬜ | JS floating promise (missing `await`/`.catch`) | T |
 
 ## 11. Security
@@ -239,11 +239,11 @@ The **Scope** column says what analysis a check needs:
 | ✅ | `http://` in non-local code (`insecure-http-url`); every language | F |
 | ✅ | Hardcoded IP addresses (`hardcoded-ip`; IPv4 in strings) | F |
 | ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F |
-| ⬜ | Path traversal: user input joined into a file path | T |
+| ✅ | Path traversal: user input joined into a file path (`path-traversal`; same line or a 10-line assignment window) | T |
 | ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F |
 | ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F |
 | ✅ | Python `eval`/`exec` (`python-eval-exec`) | F |
-| ⬜ | Logging of secrets or PII | T |
+| ✅ | Logging of secrets or PII (`logged-secret`) | T |
 
 ## 12. Testing
 
@@ -255,8 +255,8 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Source file with no matching test file (`missing-test-file`, opt-in) | X |
 | ✅ | Test with no assertions (`test-without-assertions`) | F |
 | ✅ | Disabled, skipped, or focused tests (`skipped-test`); TS/JS, Swift, Python, Go, Java | F |
-| ⬜ | Sleeps or real network or clock calls in tests (flakiness) | F |
-| ⬜ | Test function too long or with too many assertions | F |
+| ✅ | Sleeps or real network or clock calls in tests (`test-sleep`, `test-network-call`; opt-in `test-real-clock`) | F |
+| ✅ | Test function too long or with too many assertions (`oversized-test`) | F |
 | ⬜ | Mutation score (would need an external tool) | X |
 
 ## 13. Formatting and hygiene
@@ -272,7 +272,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Unsorted or duplicate imports (`duplicate-import`; opt-in `unsorted-imports`, not Go) | F |
 | ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F |
 | ✅ | Shell `set -x` left on (`shell-debug-trace`) | F |
-| ⬜ | Debug leftovers in C, C++, and PowerShell (hard to tell from real output) | F |
+| ✅ | Debug leftovers in C, C++, and PowerShell (`c-debug-print`, `cpp-debug-print`, `powershell-debug-leftover`; explicit debug markers only) | F |
 
 ## 14. Process and churn (git-aware)
 

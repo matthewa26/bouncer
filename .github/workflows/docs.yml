@@ -1,9 +1,12 @@
 name: docs
 
-# Builds BouncerCore's DocC documentation (API reference plus the usage
-# articles under Sources/BouncerCore/BouncerCore.docc/Articles) and deploys
-# it to GitHub Pages. Runs on every push to main, and can be triggered by
-# hand from the Actions tab.
+# Builds the GitHub Pages site and deploys it: BouncerCore's DocC
+# documentation (API reference plus the usage articles under
+# Sources/BouncerCore/BouncerCore.docc/Articles), the installer at
+# /install.ps1, and the latest release's archives and SHA256SUMS under
+# /download/latest/, which the installer downloads from by default. A deploy
+# replaces the whole site, so this is the only workflow that deploys it. Runs
+# on every push to main, and release.yml runs it after publishing a release.
 
 on:
   push:
@@ -42,6 +45,18 @@ jobs:
           <link rel="canonical" href="documentation/bouncercore/">
           <a href="documentation/bouncercore/">Bouncer documentation</a>
           HTML
+      - name: Add the installer and the latest release's downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp install.ps1 ./docs/install.ps1
+          if gh release view --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download --repo "$GITHUB_REPOSITORY" --dir ./docs/download/latest \
+              --pattern 'bouncer-*' --pattern SHA256SUMS
+            (cd ./docs/download/latest && shasum -a 256 -c SHA256SUMS)
+          else
+            echo "No release yet; the site has no downloads."
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

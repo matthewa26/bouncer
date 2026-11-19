@@ -2,8 +2,8 @@ echo --% >/dev/null;: ' | out-null
 <#'
 # Bouncer installer: one file that runs under both POSIX sh and PowerShell.
 #
-#   macOS, Linux, WSL:   curl -fsSL https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | sh
-#   Windows PowerShell:  irm https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | iex
+#   macOS, Linux, WSL:   curl -fsSL https://matthewa26.github.io/bouncer/install.ps1 | sh
+#   Windows PowerShell:  irm https://matthewa26.github.io/bouncer/install.ps1 | iex
 #
 # How the polyglot works: sh runs `echo` into /dev/null, then the `:` no-op swallows the quoted
 # text up to `<#'`, runs the sh half below, and exits before reaching PowerShell syntax.
@@ -12,12 +12,13 @@ echo --% >/dev/null;: ' | out-null
 # comment's closing token (a hash followed by a greater-than sign) anywhere in the sh half.
 #
 # Environment variables (both halves):
-#   BOUNCER_VERSION       Version to install, such as 0.2.0. Default: the latest release.
+#   BOUNCER_VERSION       Version to install, such as 0.2.0, from its GitHub release. Default: the
+#                         latest release, from the documentation site's download/latest folder.
 #   BOUNCER_INSTALL_DIR   Where to put the binary. Default: ~/.local/bin, or
 #                         %LOCALAPPDATA%\Programs\bouncer on Windows.
 #   BOUNCER_REPO          GitHub owner/repo to download from. Default: matthewa26/bouncer.
-#   BOUNCER_DOWNLOAD_URL  Base URL holding the release assets, overriding the GitHub release
-#                         URL (for mirrors and for testing unreleased builds).
+#   BOUNCER_DOWNLOAD_URL  Base URL holding the release assets, overriding both of the above
+#                         (for mirrors and for testing unreleased builds).
 #   BOUNCER_NO_MODIFY_PATH  Windows only: set to 1 to skip adding the install dir to PATH.
 
 set -eu
@@ -70,7 +71,7 @@ if [ -n "${BOUNCER_DOWNLOAD_URL:-}" ]; then
 elif [ -n "${BOUNCER_VERSION:-}" ]; then
   base="https://github.com/$repo/releases/download/v${BOUNCER_VERSION#v}"
 else
-  base="https://github.com/$repo/releases/latest/download"
+  base="https://${repo%%/*}.github.io/${repo#*/}/download/latest"
 fi
 install_dir=${BOUNCER_INSTALL_DIR:-$HOME/.local/bin}
 asset=$(asset_name)
@@ -117,11 +118,13 @@ function Get-AssetName {
     return 'bouncer-windows-x86_64.zip'
 }
 
-# Resolves where to download from: an explicit mirror, a pinned release, or the latest release.
+# Resolves where to download from: an explicit mirror, a pinned release, or the latest release on
+# the documentation site.
 function Get-BaseUrl {
     $repo = if ($env:BOUNCER_REPO) { $env:BOUNCER_REPO } else { 'matthewa26/bouncer' }
     if ($env:BOUNCER_DOWNLOAD_URL) { return $env:BOUNCER_DOWNLOAD_URL }
-    if (-not $env:BOUNCER_VERSION) { return "https://github.com/$repo/releases/latest/download" }
+    $owner, $name = $repo.Split('/', 2)
+    if (-not $env:BOUNCER_VERSION) { return "https://$owner.github.io/$name/download/latest" }
     return "https://github.com/$repo/releases/download/v$($env:BOUNCER_VERSION.TrimStart('v'))"
 }
 

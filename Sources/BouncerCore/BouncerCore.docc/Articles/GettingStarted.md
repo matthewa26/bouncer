@@ -9,12 +9,12 @@ verifies it against the release's `SHA256SUMS`, and installs it for the current 
 
 ```sh
 # macOS, Linux, and WSL1/WSL2, on x86-64 or ARM64
-curl -fsSL https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | sh
+curl -fsSL https://matthewa26.github.io/bouncer/install.ps1 | sh
 ```
 
 ```powershell
 # Windows PowerShell or PowerShell 7
-irm https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | iex
+irm https://matthewa26.github.io/bouncer/install.ps1 | iex
 ```
 
 `install.ps1` is one polyglot file that runs under both `sh` and PowerShell. Set

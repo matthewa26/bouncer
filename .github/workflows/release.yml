@@ -99,10 +99,47 @@ jobs:
         with:
           files: dist/*
 
-  # Installs the release that was just published, the way a user would, on every supported
-  # platform. Old-glibc and musl containers prove the Linux binary is fully static.
-  smoke-test:
+  # Puts this release on the Pages site, which the installer downloads from by default. The
+  # site is deployed only by docs.yml, from main (Pages refuses deploys from a tag), so this
+  # starts that workflow and waits for it to finish.
+  site:
     needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Rebuild the site with this release
+        run: |
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run docs.yml --repo "$GITHUB_REPOSITORY" --ref main
+          for attempt in $(seq 30); do
+            run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow docs.yml --event workflow_dispatch \
+              --json databaseId,createdAt --jq "map(select(.createdAt >= \"$started\"))[0].databaseId // empty")
+            [ -n "$run" ] && break
+            sleep 5
+          done
+          [ -n "$run" ] || { echo "docs.yml didn't start"; exit 1; }
+          gh run watch "$run" --repo "$GITHUB_REPOSITORY" --exit-status
+      - name: Wait until the site serves this release
+        # Pages sits behind a CDN that can serve the previous files for a few minutes.
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --dir expected
+          site="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          for attempt in $(seq 40); do
+            if curl -fsSL "$site/download/latest/SHA256SUMS?attempt=$attempt" | cmp -s - expected/SHA256SUMS; then
+              echo "The site serves $GITHUB_REF_NAME."; exit 0
+            fi
+            sleep 15
+          done
+          echo "The site still doesn't serve $GITHUB_REF_NAME after 10 minutes."; exit 1
+
+  # Installs the release that was just published, the way a user would (from the Pages site), on
+  # every supported platform, and checks it reports this tag's version. Old-glibc and musl
+  # containers prove the Linux binary is fully static.
+  smoke-test:
+    needs: site
     strategy:
       fail-fast: false
       matrix:
@@ -118,9 +155,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     env:
-      BOUNCER_VERSION: ${{ github.ref_name }}
-      INSTALLER_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.ps1
+      INSTALLER_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/install.ps1
       BOUNCER_REPO: ${{ github.repository }}
+      EXPECTED_VERSION: ${{ github.ref_name }}
     steps:
       - name: Install curl in bare containers
         if: matrix.container
@@ -131,16 +168,21 @@ jobs:
         if: matrix.shell == 'sh'
         run: |
           curl -fsSL "$INSTALLER_URL" | sh
-          "$HOME/.local/bin/bouncer" --version
+          "$HOME/.local/bin/bouncer" --version | tee version.txt
+          grep -qF "${EXPECTED_VERSION#v}" version.txt
       - name: Install with PowerShell 7
         if: matrix.shell == 'pwsh'
         shell: pwsh
         run: |
           irm $env:INSTALLER_URL | iex
-          & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
+          $version = & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
+          $version
+          if ($version -notmatch [regex]::Escape($env:EXPECTED_VERSION.TrimStart('v'))) { exit 1 }
       - name: Install with PowerShell 5.1
         if: matrix.shell == 'powershell'
         shell: powershell
         run: |
           irm $env:INSTALLER_URL | iex
-          & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
+          $version = & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
+          $version
+          if ($version -notmatch [regex]::Escape($env:EXPECTED_VERSION.TrimStart('v'))) { exit 1 }

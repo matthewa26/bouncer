@@ -1,10 +1,11 @@
 #!/usr/bin/env sh
-# Regenerates Sources/BouncerCLI/GeneratedVersion.swift with the current tag and commit SHA.
-# Run this as part of cutting a release, before tagging, then commit the result.
+# Regenerates Sources/BouncerCLI/GeneratedVersion.swift with a version and commit SHA. The
+# release workflow runs it before building, with the tag's version and GITHUB_SHA, so release
+# binaries report exactly what they were built from; the checked-in copy stays a placeholder.
 set -eu
 
 VERSION="${1:?usage: generate-version.sh <version, e.g. 0.1.0>}"
-SHA="$(git rev-parse HEAD)"
+SHA="${GITHUB_SHA:-$(git rev-parse HEAD)}"
 OUT="$(dirname "$0")/../Sources/BouncerCLI/GeneratedVersion.swift"
 
 cat > "$OUT" <<SWIFT

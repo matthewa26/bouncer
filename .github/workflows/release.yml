@@ -24,6 +24,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
+      - name: Stamp the version
+        run: sh Scripts/generate-version.sh "${GITHUB_REF_NAME#v}"
       - run: swift build -c release --arch arm64 --arch x86_64
       - name: Package
         run: |
@@ -49,6 +51,8 @@ jobs:
           url="https://download.swift.org/swift-${SWIFT_VERSION}-release/static-sdk/${release}"
           swift sdk install "${url}/${release}_static-linux-0.1.0.artifactbundle.tar.gz" \
             --checksum "$STATIC_SDK_CHECKSUM"
+      - name: Stamp the version
+        run: sh Scripts/generate-version.sh "${GITHUB_REF_NAME#v}"
       - name: Build and package both architectures
         run: |
           mkdir -p dist
@@ -74,6 +78,9 @@ jobs:
         with:
           swift-version: swift-${{ env.SWIFT_VERSION }}-release
           swift-build: ${{ env.SWIFT_VERSION }}-RELEASE
+      - name: Stamp the version
+        shell: bash
+        run: sh Scripts/generate-version.sh "${GITHUB_REF_NAME#v}"
       - name: Build and package with the Swift runtime
         shell: pwsh
         run: ./Scripts/package-windows.ps1 -Output dist/bouncer-windows-x86_64.zip

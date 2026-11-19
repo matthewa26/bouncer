@@ -80,6 +80,11 @@ struct Review: AsyncParsableCommand {
 
     /// Builds the analysis runner for this invocation, from the same arguments as `runAnalysis`.
     ///
+    /// - Parameters:
+    ///   - rootDirectory: The directory being analyzed.
+    ///   - repoRoot: The context root used for baseline and rule reporting.
+    ///   - resolution: The resolved config layers.
+    ///   - hooks: The trust-gated hooks to run.
     /// - Returns: A configured analysis runner.
     private func makeRunner(
         rootDirectory: URL, repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?

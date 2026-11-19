@@ -104,6 +104,7 @@ public struct ProjectPhase: Sendable {
     ///   - context: Repo-wide state, for the repo root and the project rules' settings.
     ///   - access: Reads and parses the file.
     /// - Returns: Its facts, or `nil` for a binary file or a language without module facts.
+    /// - Throws: If the file can't be read or parsed.
     private func facts(for url: URL, context: AnalysisContext, access: FileAccess) throws -> FileFacts? {
         let path = RepoPath.relative(url, to: context.repoRoot)
         guard let file = try access.sources[path] ?? Self.readText(url, access: access) else { return nil }

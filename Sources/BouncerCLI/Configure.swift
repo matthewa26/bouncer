@@ -35,6 +35,7 @@ struct Configure: AsyncParsableCommand {
     /// Resolves which `.bouncer` file this invocation edits.
     ///
     /// - Returns: `~/.bouncer` if `--global`, otherwise the current repo's `.bouncer`.
+    /// - Throws: If the current directory can't be resolved.
     private func targetPath() throws -> URL {
         global ? BouncerPaths.globalConfig : BouncerPaths.repoConfig(repoRoot: try repoRootOrCurrentDirectory())
     }

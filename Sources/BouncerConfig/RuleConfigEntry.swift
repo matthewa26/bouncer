@@ -85,6 +85,7 @@ public enum RuleParamValue: Codable, Sendable, Equatable {
     /// Encodes this value as its underlying JSON scalar or string array.
     ///
     /// - Parameter encoder: The encoder to write to.
+    /// - Throws: If the encoder rejects the value.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {

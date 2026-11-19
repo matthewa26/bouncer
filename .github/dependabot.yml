@@ -1,0 +1,12 @@
+# Weekly update PRs for the actions the workflows use and the SwiftPM dependencies. Each one
+# runs CI like any other PR and needs the maintainer's review to merge.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: swift
+    directory: /
+    schedule:
+      interval: weekly

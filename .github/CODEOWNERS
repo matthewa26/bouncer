@@ -1,0 +1,6 @@
+# Every change needs the maintainer's review. Workflows and the installer matter most: the
+# workflows publish releases and the site, and users pipe install.ps1 straight into a shell.
+*                    @matthewa26
+/.github/            @matthewa26
+/install.ps1         @matthewa26
+/Scripts/            @matthewa26

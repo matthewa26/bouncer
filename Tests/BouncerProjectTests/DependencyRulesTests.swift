@@ -92,3 +92,47 @@ final class DependencyRulesTests: XCTestCase {
         XCTAssertTrue(TestNames.candidates(for: "Tests/AppTests/CartTests.swift").isEmpty)
     }
 }
+
+final class UnusedPublicSymbolRuleTests: XCTestCase {
+    private let root = URL(fileURLWithPath: "/nonexistent-repo")
+
+    private func swiftFacts(_ path: String, exports: [String] = [], references: [String] = []) -> FileFacts {
+        let module = ModuleFacts(
+            imports: [], exports: exports.enumerated().map { ExportFact(name: $0.element, line: $0.offset + 1) },
+            references: references
+        )
+        return FileFacts(path: path, contentHash: "h", module: module)
+    }
+
+    private func messages(_ files: [FileFacts], params: [String: RuleParameterValue]? = [:]) -> [String] {
+        let settings = params.map { ["unused-public-symbol": RuleSettings(enabled: true, severity: .warning, parameters: RuleParameters(values: $0))] } ?? [:]
+        let context = AnalysisContext(repoRoot: root, ruleSettings: settings)
+        return ProjectRules().findings(for: files, targets: [], context: context)
+            .filter { $0.ruleID == "unused-public-symbol" }.map(\.message)
+    }
+
+    private var files: [FileFacts] {
+        [
+            swiftFacts("Sources/Lib/Lib.swift", exports: ["usedElsewhere", "usedOnlyHere", "testedOnly", "body"], references: ["usedOnlyHere"]),
+            swiftFacts("Sources/App/App.swift", references: ["usedElsewhere"]),
+            swiftFacts("Tests/LibTests/LibTests.swift", references: ["testedOnly"])
+        ]
+    }
+
+    func testFlagsPublicSymbolsNoOtherTargetUses() {
+        XCTAssertEqual(messages(files), [
+            "Public \"usedOnlyHere\" isn't used outside target Lib; make it internal, or list Lib in publicTargets if it's API for other packages."
+        ])
+    }
+
+    func testIsOffUnlessConfiguredAndHonorsPublicTargetsAndIgnoreNames() {
+        XCTAssertTrue(messages(files, params: nil).isEmpty)
+        XCTAssertTrue(messages(files, params: ["publicTargets": .stringList(["Lib"])]).isEmpty)
+        XCTAssertTrue(messages(files, params: ["ignoreNames": .stringList(["usedOnlyHere"])]).isEmpty)
+    }
+
+    func testCountsAnImplementationInAnotherTargetAsUse() {
+        let withImplementation = files + [swiftFacts("Sources/Other/Impl.swift", exports: ["usedOnlyHere"], references: ["usedElsewhere", "testedOnly"])]
+        XCTAssertTrue(messages(withImplementation).isEmpty)
+    }
+}

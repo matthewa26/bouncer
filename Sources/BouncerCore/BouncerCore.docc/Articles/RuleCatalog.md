@@ -210,6 +210,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `hub-module` | A file, target, or package too much of the project depends on | warning | `maxDependents` (30) |
 | `unstable-dependency` | A stable module importing a less stable one (Stable Dependencies Principle) | warning | `minDifference` (30, a percentage) |
 | `missing-test-file` | A source file with no conventionally named test file; off unless configured | warning | none |
+| `unused-public-symbol` | A Swift `public`/`open` declaration no other target uses; off unless configured | warning | `publicTargets`, `ignoreNames` |
 
 `layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
 or any later one, never an earlier one, and files matching no layer are unconstrained. For
@@ -224,6 +225,16 @@ anything matching `entryPoints`. A namespace import or `export *` counts every e
 code everything depends on, 1 for code nothing depends on. It flags an import whose target is
 more unstable than its source by more than `minDifference` percentage points, since changes to
 volatile code then ripple into the stable code that depends on it.
+
+`unused-public-symbol` infers usage by name, since Swift imports name a module rather than
+symbols: a public declaration counts as used if any file in another target (test targets
+included) refers to it, or declares the same name, which is how a protocol requirement's
+implementation elsewhere shows up. Overrides, operators, `@objc` declarations, protocol
+requirements, and `@main` types are skipped, and so are `body`, `description`,
+`debugDescription`, `hash`, `encode`, and `id` plus anything in `ignoreNames`. List library
+targets whose public API is meant for other packages in `publicTargets`. Because it matches by
+name, two symbols sharing a name hide each other, and a value used without naming its type can
+look unused; treat its findings as candidates to make `internal`.
 
 `missing-test-file` looks for `foo.test.ts`/`foo.spec.ts`, `test_foo.py`/`foo_test.py`,
 `foo_test.go`, or `FooTests.swift`/`FooTest.swift` anywhere in the project. It's off by default;

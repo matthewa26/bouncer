@@ -23,7 +23,7 @@ public struct ProjectRules: ProjectAnalyzer {
     public init() {
         rules = [
             ImportCycleRule(), LayerViolationRule(), UnusedExportRule(), HighFanOutRule(), HubModuleRule(),
-            UnstableDependencyRule(), MissingTestFileRule()
+            UnstableDependencyRule(), MissingTestFileRule(), UnusedPublicSymbolRule()
         ]
     }
 

@@ -4,15 +4,19 @@ import Foundation
 public struct ModuleFacts: Codable, Sendable, Equatable {
     public let imports: [ImportFact]
     public let exports: [ExportFact]
+    /// Names the file refers to, for languages whose imports don't name symbols (Swift); sorted, distinct.
+    public let references: [String]
 
     /// Creates module facts.
     ///
     /// - Parameters:
     ///   - imports: Every import, `require`, or re-export in the file.
-    ///   - exports: Every name the file exports, where the language has explicit exports.
-    public init(imports: [ImportFact], exports: [ExportFact] = []) {
+    ///   - exports: Every name the file exports: TS/JS exports, or Swift `public`/`open` declarations.
+    ///   - references: Names the file refers to, where usage can't be read from imports.
+    public init(imports: [ImportFact], exports: [ExportFact] = [], references: [String] = []) {
         self.imports = imports
         self.exports = exports
+        self.references = references
     }
 }
 

@@ -89,6 +89,22 @@ handful of conventionally-noisy directories (`.git`, `node_modules`, `.build`, a
 its own; `exclude` is for anything else you want left alone, such as vendored code or generated
 files.
 
+### `project`
+
+```json
+{ "project": { "inCheck": false } }
+```
+
+Project rules look across files rather than within one, such as `import-cycle` (see
+<doc:RuleCatalog>). `bouncer review` always runs them, indexing the directory it reviews.
+`bouncer check` skips them by default to keep pre-commit hooks fast; set `inCheck` to `true` to
+have `check` index the whole repo (honoring `exclude`) and report project findings in the staged
+files, such as a new import cycle that passes through one.
+
+Each file's imports and exports are cached in `.bouncer-cache/facts.json` at the repo root,
+keyed by the file's content, so unchanged files aren't re-parsed. Add `.bouncer-cache/` to your
+`.gitignore`; deleting it is always safe.
+
 ### `profile`
 
 Applies a bundled preset as the base layer beneath everything else in this file. `"kirby"` is

@@ -196,6 +196,22 @@ These are all declarative pattern rules, the same mechanism `customRules` in you
 `.bouncer` file uses; see <doc:Configuration>. Adding one for a language that doesn't have it
 yet is a data change, not new code.
 
+## Project rules
+
+These look across files, using each file's imports and exports. `bouncer review` runs them;
+`bouncer check` runs them only with `project.inCheck` set (see <doc:Configuration>).
+
+| Rule ID | Checks | Default severity | Parameters |
+|---|---|---|---|
+| `import-cycle` | A cycle of imports, reported once at an import inside it with the full path | warning | none |
+
+Imports are resolved per language. TypeScript and JavaScript resolve relative specifiers (trying
+each TS/JS extension, `index` files, and `.js` written for a `.ts` file) and the root
+`tsconfig.json`'s `baseUrl` and `paths` aliases; package imports are external. Swift resolves
+`import X` to the SwiftPM target in `Sources/X` or `Tests/X`. Python resolves dotted and relative
+imports to `.py` files or packages at the root or under `src/`. Go resolves imports under the
+`go.mod` module path to package directories.
+
 ## Coverage
 
 A below-threshold coverage result becomes a finding with rule ID `coverage-threshold`, so it

@@ -14,6 +14,7 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
     public var updateCheck: UpdateCheckConfig?
     public var profile: String?
     public var exclude: [String]?
+    public var project: ProjectConfig?
 
     /// An empty config, equivalent to "nothing configured at this layer."
     public static let empty = BouncerConfig()
@@ -29,10 +30,11 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
     ///   - updateCheck: Update-check configuration.
     ///   - profile: A bundled preset to apply as a base layer, such as `"kirby"`.
     ///   - exclude: Glob patterns to exclude from analysis.
+    ///   - project: Settings for the project pass.
     public init(
         output: OutputConfig? = nil, coverage: CoverageConfig? = nil, rules: [String: RuleConfigEntry]? = nil,
         customRules: [CustomRuleConfigEntry]? = nil, hooks: HooksConfig? = nil, updateCheck: UpdateCheckConfig? = nil,
-        profile: String? = nil, exclude: [String]? = nil
+        profile: String? = nil, exclude: [String]? = nil, project: ProjectConfig? = nil
     ) {
         self.output = output
         self.coverage = coverage
@@ -42,6 +44,7 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
         self.updateCheck = updateCheck
         self.profile = profile
         self.exclude = exclude
+        self.project = project
     }
 
     /// Merges another config's fields over this one's.
@@ -57,7 +60,8 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
         return BouncerConfig(
             output: sections.output, coverage: sections.coverage, rules: mergedRules(with: other.rules),
             customRules: other.customRules ?? customRules, hooks: sections.hooks, updateCheck: sections.updateCheck,
-            profile: other.profile ?? profile, exclude: other.exclude ?? exclude
+            profile: other.profile ?? profile, exclude: other.exclude ?? exclude,
+            project: mergedOptional(project, other.project) { $0.merging($1) }
         )
     }
 

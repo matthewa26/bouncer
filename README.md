@@ -74,7 +74,7 @@ Settings live in a JSON `.bouncer` file: `~/.bouncer` for global defaults, `<rep
 }
 ```
 
-Every built-in rule can be enabled, disabled, re-severitied, and parameterized this way. `--profile kirby` applies a strict, opinionated preset as the base layer beneath your own config (see below).
+Every built-in rule can be enabled, disabled, re-severitied, and parameterized this way. Project rules, which look across files (such as `import-cycle`), cache each file's imports in `.bouncer-cache/` at the repo root; add it to your `.gitignore`. `--profile kirby` applies a strict, opinionated preset as the base layer beneath your own config (see below).
 
 ### Kirby mode
 

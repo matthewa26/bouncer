@@ -96,3 +96,38 @@ final class ConventionRulesTests: XCTestCase {
         XCTAssertEqual(found.filter { $0.ruleID == "test-without-assertions" }.map(\.line), [13])
     }
 }
+
+final class JavaScriptModuleFactsTests: XCTestCase {
+    private func facts(_ contents: String) throws -> ModuleFacts? {
+        let file = SourceFile(path: URL(fileURLWithPath: "/repo/a.ts"), language: .typescript, contents: contents)
+        return try TreeSitterAnalyzer(spec: .typescript).moduleFacts(file: file)
+    }
+
+    func testReadsImportsWithTheirNames() throws {
+        let contents = """
+            import React, { useState as useS, useEffect } from "react";
+            import * as path from "node:path";
+            import "./side-effect";
+            export { helper } from "./helper";
+            export * from "./all";
+            const fs = require("fs");
+            const lazy = await import("./lazy");
+            """
+        let imports = try XCTUnwrap(facts(contents)).imports
+        XCTAssertEqual(imports.map(\.specifier), ["react", "node:path", "./side-effect", "./helper", "./all", "fs", "./lazy"])
+        XCTAssertEqual(imports.map(\.names), [["default", "useState", "useEffect"], ["*"], [], ["helper"], ["*"], ["*"], ["*"]])
+    }
+
+    func testReadsEveryKindOfExport() throws {
+        let contents = """
+            export function load() {}
+            export const a = 1, b = 2;
+            export class Store {}
+            export interface Shape {}
+            export default function main() {}
+            const c = 3;
+            export { c as renamed };
+            """
+        XCTAssertEqual(try XCTUnwrap(facts(contents)).exports.map(\.name), ["load", "a", "b", "Store", "Shape", "default", "renamed"])
+    }
+}

@@ -90,7 +90,7 @@ struct Review: AsyncParsableCommand {
             repoRoot: repoRoot, fileProvider: fileProvider, mergedConfig: resolution.merged, hooks: hooks,
             coverageConfig: resolvedCoverageConfig(resolution.merged.coverage), format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
-            severityThreshold: severityThreshold, useBaseline: true
+            severityThreshold: severityThreshold, useBaseline: true, projectIndex: fileProvider
         )
     }
 

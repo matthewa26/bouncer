@@ -33,6 +33,7 @@ public struct AnalysisEngine: Sendable {
     private let context: AnalysisContext
     private let baseline: Baseline
     private let coverage: CoverageConfiguration?
+    private let project: ProjectPhase?
 
     /// Creates an analysis engine from its fully-resolved dependencies.
     ///
@@ -44,6 +45,7 @@ public struct AnalysisEngine: Sendable {
     ///   - context: Repo-wide state, including every rule's resolved settings.
     ///   - baseline: Previously accepted findings to exclude from the result.
     ///   - coverage: Coverage checking configuration, or `nil` to skip it.
+    ///   - project: The project pass (import cycles, unused exports, …), or `nil` to skip it.
     public init(
         fileProvider: TargetFileProvider,
         contentsProvider: FileContentsProvider,
@@ -51,7 +53,8 @@ public struct AnalysisEngine: Sendable {
         fallbackAnalyzer: LanguageAnalyzer,
         context: AnalysisContext,
         baseline: Baseline = .empty,
-        coverage: CoverageConfiguration? = nil
+        coverage: CoverageConfiguration? = nil,
+        project: ProjectPhase? = nil
     ) {
         self.fileProvider = fileProvider
         self.contentsProvider = contentsProvider
@@ -60,29 +63,52 @@ public struct AnalysisEngine: Sendable {
         self.context = context
         self.baseline = baseline
         self.coverage = coverage
+        self.project = project
     }
 
-    /// Analyzes every target file and checks coverage, if configured.
+    /// Analyzes every target file, runs the project pass, and checks coverage, if configured.
     ///
     /// - Returns: The combined findings and coverage report.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func run() throws -> AnalysisResult {
-        let urls = try fileProvider.targetFiles()
-        let findings = try urls.flatMap { try analyzeAndFilter(url: $0) }
+        let files = try fileProvider.targetFiles().map(loadSourceFile)
+        let findings = try files.flatMap(analyzeAndFilter) + projectFindings(for: files)
         let coverageReport = try loadCoverageReport()
         return AnalysisResult(findings: findings + coverageFindings(from: coverageReport), coverage: coverageReport)
     }
 
     /// Analyzes one file and removes any finding already present in the baseline.
     ///
-    /// - Parameter url: The file to analyze.
+    /// - Parameter file: The file to analyze.
     /// - Returns: The file's findings, excluding baselined ones.
-    /// - Throws: If the file can't be read or its analyzer fails.
-    private func analyzeAndFilter(url: URL) throws -> [Finding] {
-        let file = try loadSourceFile(url: url)
-        let analyzer = knownAnalyzers[file.language] ?? fallbackAnalyzer
-        let findings = try analyzer.analyze(file: file, context: context)
-        return findings.filter { !isBaselined($0, in: file) }
+    /// - Throws: If its analyzer fails.
+    private func analyzeAndFilter(_ file: SourceFile) throws -> [Finding] {
+        try analyzer(for: file).analyze(file: file, context: context).filter { !isBaselined($0, in: file) }
+    }
+
+    /// Runs the project pass, keeping non-baselined findings in the target files.
+    ///
+    /// - Parameter files: The target files.
+    /// - Returns: The project findings, or none without a project pass.
+    /// - Throws: If indexing fails.
+    private func projectFindings(for files: [SourceFile]) throws -> [Finding] {
+        guard let project else { return [] }
+        let byPath = Dictionary(
+            files.map { (RepoPath.relative($0.path, to: context.repoRoot), $0) }
+        ) { first, _ in first }
+        let access = ProjectPhase.FileAccess(read: loadSourceFile) { try analyzer(for: $0).moduleFacts(file: $0) }
+        return try project.findings(targets: Set(byPath.keys), context: context, access: access).filter { finding in
+            let file = byPath[RepoPath.relative(finding.filePath, to: context.repoRoot)]
+            return file.map { !isBaselined(finding, in: $0) } ?? true
+        }
+    }
+
+    /// Picks the analyzer for a file's language.
+    ///
+    /// - Parameter file: The file.
+    /// - Returns: Its language's analyzer, or the fallback.
+    private func analyzer(for file: SourceFile) -> LanguageAnalyzer {
+        knownAnalyzers[file.language] ?? fallbackAnalyzer
     }
 
     /// Reads a file from disk and detects its language from its extension.
@@ -90,7 +116,7 @@ public struct AnalysisEngine: Sendable {
     /// - Parameter url: The file's location.
     /// - Returns: The loaded source file.
     /// - Throws: If the file can't be read.
-    private func loadSourceFile(url: URL) throws -> SourceFile {
+    private func loadSourceFile(_ url: URL) throws -> SourceFile {
         let contents = try contentsProvider.contents(of: url)
         let language = Language.from(fileExtension: url.pathExtension)
         return SourceFile(path: url, language: language, contents: contents)

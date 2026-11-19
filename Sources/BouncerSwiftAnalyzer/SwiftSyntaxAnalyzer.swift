@@ -27,6 +27,22 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
             + DeclarationFindings.all(summarize(file), file: file, context: context, naming: Self.naming)
     }
 
+    /// Reads a Swift file's imports, by module name, for the project pass.
+    ///
+    /// - Parameter file: The file to read.
+    /// - Returns: Its imports; Swift exports aren't tracked yet.
+    public func moduleFacts(file: SourceFile) throws -> ModuleFacts? {
+        let tree = Parser.parse(source: file.contents)
+        let converter = SourceLocationConverter(fileName: file.path.path, tree: tree)
+        let declarations = tree.statements.compactMap { $0.item.as(ImportDeclSyntax.self) }
+        let imports = declarations.compactMap { node -> ImportFact? in
+            guard let module = node.path.first?.name.text else { return nil }
+            let line = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
+            return ImportFact(specifier: module, line: line)
+        }
+        return ModuleFacts(imports: imports)
+    }
+
     /// Parses a file and collects everything the shared AST rules need from it.
     ///
     /// - Parameter file: The Swift file.

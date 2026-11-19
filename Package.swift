@@ -62,6 +62,7 @@ let package = Package(
             ]
         ),
         .target(name: "BouncerCoverage", dependencies: ["BouncerCore"]),
+        .target(name: "BouncerProject", dependencies: ["BouncerCore"]),
         .target(name: "BouncerReporting", dependencies: ["BouncerCore"]),
         .target(name: "BouncerGit", dependencies: ["BouncerCore"]),
         .target(name: "BouncerConfig", dependencies: ["BouncerCore", "BouncerRules"]),
@@ -81,6 +82,7 @@ let package = Package(
                 "BouncerConfig",
                 "BouncerUpdateCheck",
                 "BouncerHooks",
+                "BouncerProject",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ),
@@ -94,6 +96,7 @@ let package = Package(
         .testTarget(name: "BouncerReportingTests", dependencies: ["BouncerReporting"]),
         .testTarget(name: "BouncerGitTests", dependencies: ["BouncerGit"]),
         .testTarget(name: "BouncerHooksTests", dependencies: ["BouncerHooks"]),
+        .testTarget(name: "BouncerProjectTests", dependencies: ["BouncerProject"]),
         .testTarget(name: "BouncerUpdateCheckTests", dependencies: ["BouncerUpdateCheck"])
     ]
 )

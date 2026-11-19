@@ -159,7 +159,7 @@ The **Scope** column says what analysis a check needs:
 
 | ✓ | Check | Scope |
 |---|---|---|
-| ⬜ | Cyclic dependencies between modules/targets | X |
+| ✅ | Cyclic dependencies between files, modules, and targets (`import-cycle`) | X |
 | ⬜ | Layering rules (e.g. Core must not import CLI) | X. Could be a config-declared allowlist |
 | ⬜ | Forbidden imports per path (custom allow/deny list) | F |
 | ⬜ | Hub modules: a module everything depends on | X |

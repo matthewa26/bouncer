@@ -14,6 +14,8 @@ struct AnalysisRunner {
     let verbosity: OutputVerbosity
     let severityThreshold: Severity
     let useBaseline: Bool
+    /// The files the project pass indexes, or `nil` to skip project rules.
+    var projectIndex: TargetFileProvider? = nil
 
     /// Runs pre-check hooks, analysis, and post-check hooks, and renders the result.
     ///
@@ -34,12 +36,12 @@ struct AnalysisRunner {
     private func makeEngine() -> AnalysisEngine {
         AnalysisEngine(
             fileProvider: fileProvider,
-            contentsProvider: FileSystemContentsProvider(),
-            knownAnalyzers: AnalyzerFactory.makeKnownAnalyzers(),
+            contentsProvider: FileSystemContentsProvider(), knownAnalyzers: AnalyzerFactory.makeKnownAnalyzers(),
             fallbackAnalyzer: AnalyzerFactory.makeFallbackAnalyzer(),
             context: AnalysisContext(repoRoot: repoRoot, ruleSettings: mergedConfig.resolvedRuleSettings()),
             baseline: loadBaseline(),
-            coverage: CoverageResolver.makeConfiguration(coverage: coverageConfig, repoRoot: repoRoot)
+            coverage: CoverageResolver.makeConfiguration(coverage: coverageConfig, repoRoot: repoRoot),
+            project: projectIndex.map { ProjectPassFactory.make(index: $0, repoRoot: repoRoot) }
         )
     }
 

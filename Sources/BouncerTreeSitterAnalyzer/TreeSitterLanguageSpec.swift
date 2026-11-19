@@ -62,6 +62,8 @@ public struct TreeSitterLanguageSpec: Sendable {
     var nameSourceParents: [String: String] = [:]
     /// The node types behind the function metrics and marker rules, or `nil` to skip them.
     var quality: TreeSitterQualitySpec?
+    /// Reads imports and exports for the project pass, or `nil` for none.
+    var moduleFacts: ModuleFactsExtractor?
 
     /// Picks the grammar for a file, honoring any per-extension override.
     ///
@@ -91,7 +93,8 @@ extension TreeSitterLanguageSpec {
         typeNamePattern: "^[A-Z][A-Za-z0-9_]*$",
         documentationStyle: .docstring,
         visibilityConvention: .leadingUnderscore,
-        quality: .python
+        quality: .python,
+        moduleFacts: PythonModuleFacts()
     )
 
     /// The Go grammar's node types and conventions.
@@ -109,7 +112,8 @@ extension TreeSitterLanguageSpec {
         typeNamePattern: nil,
         documentationStyle: .precedingComment,
         visibilityConvention: .leadingCase,
-        quality: .go
+        quality: .go,
+        moduleFacts: GoModuleFacts()
     )
 
     /// The JavaScript grammar's node types and conventions; the grammar parses JSX natively.
@@ -122,7 +126,8 @@ extension TreeSitterLanguageSpec {
         typeNamePattern: "^[A-Z][A-Za-z0-9]*$", documentationStyle: .jsdoc, visibilityConvention: .exportKeyword,
         importCall: ImportCall(nodeType: "call_expression", functionNames: ["require"]),
         declarationWrapperNodeTypes: javascriptWrapperNodeTypes, nameSourceParents: javascriptNameSourceParents,
-        quality: .javascript
+        quality: .javascript,
+        moduleFacts: JavaScriptModuleFacts()
     )
 
     /// The TypeScript grammar's node types and conventions, with TSX for `.tsx` files.

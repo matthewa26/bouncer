@@ -32,18 +32,40 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
         return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
     }
 
+    /// Parses a file and reads its imports and exports, for the project pass.
+    ///
+    /// - Parameter file: The file to read.
+    /// - Returns: Its module facts, or `nil` for a language without an extractor.
+    /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
+    public func moduleFacts(file: SourceFile) throws -> ModuleFacts? {
+        guard let extractor = spec.moduleFacts else { return nil }
+        let root = try parse(file)
+        return extractor.facts(root: root) { node in
+            Range(node.range, in: file.contents).map { String(file.contents[$0]) }
+        }
+    }
+
+    /// Parses a file with its language's grammar.
+    ///
+    /// - Parameter file: The file to parse.
+    /// - Returns: The parse tree's root.
+    /// - Throws: `TreeSitterAnalyzerError.parseFailed` if the parser produces no tree.
+    private func parse(_ file: SourceFile) throws -> Node {
+        let parser = Parser()
+        try parser.setLanguage(spec.grammar(forExtension: file.path.pathExtension))
+        guard let tree = parser.parse(file.contents), let root = tree.rootNode else {
+            throw TreeSitterAnalyzerError.parseFailed
+        }
+        return root
+    }
+
     /// Parses the file and collects its declaration summary.
     ///
     /// - Parameter file: The file to parse.
     /// - Returns: The collected summary.
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
     private func buildSummary(for file: SourceFile) throws -> DeclarationSummary {
-        let parser = Parser()
-        try parser.setLanguage(spec.grammar(forExtension: file.path.pathExtension))
-        guard let tree = parser.parse(file.contents), let root = tree.rootNode else {
-            throw TreeSitterAnalyzerError.parseFailed
-        }
-        return TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root)
+        TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: try parse(file))
     }
 
     /// Runs the language-agnostic heuristic rules shared with every other language.

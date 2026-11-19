@@ -11,13 +11,13 @@ enum FullAnalysisEngineFactory {
     ///   - resolution: The resolved config layers.
     /// - Returns: A configured engine.
     static func make(rootDirectory: URL, repoRoot: URL, resolution: ConfigResolution) -> AnalysisEngine {
-        let excludeGlobs = resolution.merged.exclude ?? []
-        let fileProvider = RecursiveFileWalker(rootDirectory: rootDirectory, excludeGlobs: excludeGlobs)
+        let walker = RecursiveFileWalker(rootDirectory: rootDirectory, excludeGlobs: resolution.merged.exclude ?? [])
         let context = AnalysisContext(repoRoot: repoRoot, ruleSettings: resolution.merged.resolvedRuleSettings())
         return AnalysisEngine(
-            fileProvider: fileProvider, contentsProvider: FileSystemContentsProvider(),
+            fileProvider: walker, contentsProvider: FileSystemContentsProvider(),
             knownAnalyzers: AnalyzerFactory.makeKnownAnalyzers(),
-            fallbackAnalyzer: AnalyzerFactory.makeFallbackAnalyzer(), context: context
+            fallbackAnalyzer: AnalyzerFactory.makeFallbackAnalyzer(), context: context,
+            project: ProjectPassFactory.make(index: walker, repoRoot: repoRoot)
         )
     }
 }

@@ -36,4 +36,11 @@ final class KirbyProfileTests: XCTestCase {
     func testUnknownProfileNameResolvesToEmpty() {
         XCTAssertEqual(BundledProfiles.profile(named: "not-a-real-profile"), BouncerConfig.empty)
     }
+
+    func testProjectInCheckMergesAndDefaultsOff() {
+        XCTAssertNil(BouncerConfig.empty.project?.inCheck)
+        let merged = BouncerConfig(project: ProjectConfig(inCheck: false)).merging(BouncerConfig(project: ProjectConfig(inCheck: true)))
+        XCTAssertEqual(merged.project?.inCheck, true)
+        XCTAssertEqual(BouncerConfig(project: ProjectConfig(inCheck: true)).merging(.empty).project?.inCheck, true)
+    }
 }

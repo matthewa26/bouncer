@@ -86,8 +86,10 @@ a real trust boundary and Bouncer gates it accordingly.
 
 Glob patterns, relative to the repo root, excluded from every check. Bouncer already skips a
 handful of conventionally-noisy directories (`.git`, `node_modules`, `.build`, and similar) on
-its own; `exclude` is for anything else you want left alone, such as vendored code or generated
-files.
+its own, and license and notice files anywhere in the tree: `LICENSE`, `LICENCE`, `COPYING`,
+`NOTICE`, and `UNLICENSE`, in any case, alone or with an extension or suffix (`LICENSE.md`,
+`COPYING.txt`, `LICENSE-MIT`), since they're legal text rather than code. `exclude` is for
+anything else you want left alone, such as vendored code or generated files.
 
 ### `project`
 

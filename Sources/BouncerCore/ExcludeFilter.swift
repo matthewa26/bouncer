@@ -1,10 +1,12 @@
 import Foundation
 
-/// Decides whether a file matches a configured `exclude` glob, relative to a root directory.
+/// Decides whether a file is left out of analysis: a license or notice file, which is legal text rather than
+/// code, or a path matching a configured `exclude` glob, relative to a root directory.
 ///
 /// Shared by every way Bouncer picks its target files, so `review`'s directory
 /// walk and `check`'s staged or explicit file lists honor `exclude` identically.
 public struct ExcludeFilter: Sendable {
+    private static let legalFileNames: Set<String> = ["LICENSE", "LICENCE", "COPYING", "NOTICE", "UNLICENSE"]
     private let rootPath: String
     private let globs: [String]
 
@@ -18,14 +20,29 @@ public struct ExcludeFilter: Sendable {
         self.globs = globs
     }
 
-    /// Checks whether a path matches any exclude glob.
+    /// Checks whether a path is a license or notice file, or matches any exclude glob.
     ///
     /// - Parameter url: The path to check.
     /// - Returns: Whether the path should be excluded.
     public func excludes(_ url: URL) -> Bool {
+        if Self.isLegalFile(url) { return true }
         guard !globs.isEmpty else { return false }
         let relative = relativePath(of: url)
         return globs.contains { GlobMatcher.matches(path: relative, pattern: $0) }
+    }
+
+    /// Recognizes license and notice files by name: `LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, or `UNLICENSE`,
+    /// in any case, alone or followed by an extension or suffix (`LICENSE.md`, `COPYING.txt`, `LICENSE-MIT`).
+    /// A source file that merely starts with one, such as `license.ts` or `LicenseView.swift`, isn't one.
+    ///
+    /// - Parameter url: The path to check.
+    /// - Returns: Whether the file is a license or notice file.
+    static func isLegalFile(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        let stem = String(name.prefix { $0 != "." && $0 != "-" && $0 != "_" }).uppercased()
+        guard legalFileNames.contains(stem) else { return false }
+        let rest = name.dropFirst(stem.count)
+        return rest.isEmpty || !["swift", "ts", "tsx", "js", "jsx", "py", "go"].contains(url.pathExtension.lowercased())
     }
 
     /// Expresses a path relative to the root directory.

@@ -54,12 +54,7 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Returns: The combined findings from the shared rules.
     private func genericFindings(file: SourceFile, context: AnalysisContext) -> [Finding] {
         let profile = LanguageProfiles.profile(for: spec.coreLanguage)
-        let rules: [Rule] = [
-            FileLengthRule(profile: profile), LongLineRule(), TodoDensityRule(),
-            DuplicateBlockRule(), TrailingWhitespaceRule(), SecretPatternRule(), DeepNestingRule()
-        ]
-        let customRules = CustomRuleFactory.makeRules(from: profile.extraPatternRules)
-        return (rules + customRules).flatMap { $0.evaluate(file: file, context: context) }
+        return TextRules.make(profile: profile).flatMap { $0.evaluate(file: file, context: context) }
     }
 
     /// Runs every shared AST-based rule against a collected declaration summary.

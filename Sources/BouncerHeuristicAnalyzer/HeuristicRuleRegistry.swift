@@ -1,7 +1,8 @@
 import BouncerCore
 import BouncerRules
 
-/// Builds the 13 shared heuristic rules, plus any language-specific extras, for one language.
+/// Builds the heuristic rules for one language: the shared text-level rules, plus heuristic
+/// approximations of the rules parser-backed analyzers compute from a syntax tree.
 public struct HeuristicRuleRegistry: RuleRegistry {
     /// Creates the registry. It has no state of its own; everything comes from the language profile.
     public init() {}
@@ -15,37 +16,18 @@ public struct HeuristicRuleRegistry: RuleRegistry {
     /// - Returns: The rules to run, in a fixed order.
     public func rules(for language: Language, ruleSettings: [String: RuleSettings]) -> [Rule] {
         let profile = LanguageProfiles.profile(for: language)
-        return sharedRules(profile: profile) + CustomRuleFactory.makeRules(from: profile.extraPatternRules)
+        return TextRules.make(profile: profile) + structureRules(profile: profile)
     }
 
-    /// Builds the 13 rules shared across every heuristically-analyzed language.
+    /// Builds the indentation- and regex-based stand-ins for the syntax-tree rules.
     ///
     /// - Parameter profile: The language's profile.
-    /// - Returns: The 13 shared rules, each bound to `profile`.
-    private func sharedRules(profile: LanguageProfile) -> [Rule] {
-        smellRules(profile: profile) + qualityRules(profile: profile)
-    }
-
-    /// Builds the 8 general code-smell rules every heuristically-analyzed language shares.
-    ///
-    /// - Parameter profile: The language's profile.
-    /// - Returns: The 8 smell rules, each bound to `profile`.
-    private func smellRules(profile: LanguageProfile) -> [Rule] {
+    /// - Returns: The heuristic structure rules, each bound to `profile`.
+    private func structureRules(profile: LanguageProfile) -> [Rule] {
         [
-            FileLengthRule(profile: profile), LongFunctionRule(profile: profile), DeepNestingRule(), LongLineRule(),
-            TodoDensityRule(), DuplicateBlockRule(), TrailingWhitespaceRule(), SecretPatternRule()
-        ]
-    }
-
-    /// Builds the 5 CSE-3902-derived code-quality rules every language shares.
-    ///
-    /// - Parameter profile: The language's profile.
-    /// - Returns: The 5 quality rules, each bound to `profile`.
-    private func qualityRules(profile: LanguageProfile) -> [Rule] {
-        [
-            CyclomaticComplexityRule(profile: profile), NamingConventionRule(profile: profile),
-            HighCouplingRule(profile: profile), SwitchOnTypeSmellRule(profile: profile),
-            MissingDocumentationRule(profile: profile)
+            LongFunctionRule(profile: profile), CyclomaticComplexityRule(profile: profile),
+            NamingConventionRule(profile: profile), HighCouplingRule(profile: profile),
+            SwitchOnTypeSmellRule(profile: profile), MissingDocumentationRule(profile: profile)
         ]
     }
 }

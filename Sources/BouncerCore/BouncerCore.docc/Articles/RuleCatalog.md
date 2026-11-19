@@ -16,7 +16,7 @@ regardless of what's configured.
 
 ## Code smells
 
-These eight run on every language.
+These run on every language.
 
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
@@ -28,6 +28,14 @@ These eight run on every language.
 | `duplicate-block` | A repeated block of lines within the same file | warning | `windowSize` (6) |
 | `trailing-whitespace` | A line ending in a space or tab | warning | none |
 | `secret-looking-pattern` | A line matching a small set of credential-shaped patterns | warning | none |
+| `missing-final-newline` | A non-empty file that doesn't end with a newline | warning | none |
+| `crlf-line-endings` | A file using Windows (CRLF) line endings, reported once per file | warning | none |
+| `mixed-indentation` | A file indenting some lines with tabs and others with spaces | warning | none |
+| `consecutive-blank-lines` | A run of blank lines longer than the limit | warning | `maxBlankLines` (2) |
+| `weak-crypto` | MD5, SHA-1, DES, or ECB mode | warning | none |
+| `disabled-tls-verification` | `rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `verify=False`, `InsecureSkipVerify: true`, `curl -k` | warning | none |
+| `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example` hosts, and XML namespaces | warning | none |
+| `sql-string-building` | SQL built by concatenation or interpolation (`"SELECT … " + x`, `${x}`, `\(x)`, f-strings) | warning | none |
 
 `secret-looking-pattern` is a narrow check for obvious mistakes, not a secrets-scanner
 replacement; use a dedicated tool such as gitleaks or trufflehog for real secret-scanning
@@ -124,9 +132,14 @@ mistake in that language, layered on top of the shared rules above:
 |---|---|---|
 | bash/zsh | `shell-unquoted-variable` | An unquoted `$variable` expansion |
 | bash/zsh | `shell-eval-usage` | `eval` usage |
+| bash/zsh | `shell-debug-trace` | `set -x` tracing left on |
 | Python | `python-bare-except` | A bare `except:` clause |
 | Python | `python-mutable-default-arg` | A mutable (`[]`/`{}`) default argument |
 | Python | `python-debug-print` | A `print(...)` statement |
+| Python | `python-eval-exec` | `eval(...)`/`exec(...)` |
+| Python | `python-unsafe-deserialization` | `pickle`/`marshal` loads, or `yaml.load` without `SafeLoader` |
+| Python | `python-shell-injection` | `subprocess` with `shell=True`, or `os.system` |
+| Python | `skipped-test` | `@skip`/`@unittest.skip`/`pytest.mark.skip` |
 | TypeScript/JavaScript | `js-console-log` | `console.log`/`debugger` left in |
 | TypeScript/JavaScript | `js-loose-equality` | `==`/`!=` instead of `===`/`!==` |
 | TypeScript/JavaScript | `ts-ignore-without-reason` | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no explanation |
@@ -134,10 +147,15 @@ mistake in that language, layered on top of the shared rules above:
 | TypeScript/JavaScript | `js-var` | `var` instead of `let`/`const` |
 | TypeScript/JavaScript | `js-eval` | `eval(...)` or `new Function(...)` |
 | TypeScript/JavaScript | `js-raw-html` | `innerHTML`/`outerHTML` assignment, `insertAdjacentHTML`, `dangerouslySetInnerHTML` |
+| TypeScript/JavaScript | `js-shell-injection` | `exec`/`execSync` with a template string containing `${…}` |
+| TypeScript/JavaScript | `skipped-test` | `it/test/describe.skip` or `.only`, `xit`/`xdescribe`, `fit`/`fdescribe` |
 | Swift | `swift-fatal-error` | `fatalError(...)` |
 | Swift | `swift-unchecked-sendable` | `@unchecked Sendable` or `nonisolated(unsafe)` |
 | Swift | `swift-debug-print` | A `print`/`debugPrint`/`dump`/`NSLog` statement |
 | Swift | `swift-discarded-try` | A `try?` whose result is thrown away |
+| Swift | `swift-main-sync` | `DispatchQueue.main.sync`, which deadlocks on the main thread |
+| Swift | `swift-semaphore-wait` | Blocking `semaphore.wait()` |
+| Swift | `skipped-test` | `XCTSkip` or a `.disabled(...)` trait |
 | C | `c-gets-usage` | `gets(...)`, which can't bound its input |
 | C | `c-unsafe-string-function` | `strcpy`/`strcat`/`sprintf` |
 | PowerShell | `powershell-invoke-expression` | `Invoke-Expression`/`iex` usage |
@@ -147,9 +165,12 @@ mistake in that language, layered on top of the shared rules above:
 | Java | `java-generic-exception-catch` | Catching `Exception`/`Throwable` broadly |
 | Java | `java-print-stack-trace` | `.printStackTrace()` instead of a logger |
 | Java | `java-system-out` | `System.out`/`System.err` printing |
+| Java | `skipped-test` | `@Disabled`/`@Ignore` |
 | Go | `go-discarded-return-value` | A return value discarded with `_ =` |
 | Go | `go-panic-usage` | `panic()` usage |
 | Go | `go-debug-print` | A `fmt.Print`/`Println`/`Printf` statement |
+| Go | `go-shell-injection` | `exec.Command("sh", "-c", …)` |
+| Go | `skipped-test` | `t.Skip`/`t.Skipf`/`t.SkipNow` |
 | SQL | `sql-select-star` | `SELECT *` instead of named columns |
 | SQL | `sql-missing-where` | `UPDATE`/`DELETE` with no `WHERE` clause |
 

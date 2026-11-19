@@ -41,11 +41,6 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     ///   - context: Repo-wide state, including every rule's resolved settings.
     /// - Returns: The combined findings from the shared rules.
     private func genericFindings(file: SourceFile, context: AnalysisContext) -> [Finding] {
-        let rules: [Rule] = [
-            FileLengthRule(profile: Self.profile), LongLineRule(), TodoDensityRule(),
-            DuplicateBlockRule(), TrailingWhitespaceRule(), SecretPatternRule(), DeepNestingRule()
-        ]
-        let customRules = CustomRuleFactory.makeRules(from: Self.profile.extraPatternRules)
-        return (rules + customRules).flatMap { $0.evaluate(file: file, context: context) }
+        TextRules.make(profile: Self.profile).flatMap { $0.evaluate(file: file, context: context) }
     }
 }

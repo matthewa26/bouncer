@@ -28,6 +28,7 @@ public struct SourceFile: Sendable {
         self.path = path
         self.language = language
         self.contents = contents
-        self.lines = contents.split(separator: "\n", omittingEmptySubsequences: false)
+        // Swift treats "\r\n" as one Character, so splitting on "\n" alone would leave a CRLF file as one line.
+        self.lines = contents.split(omittingEmptySubsequences: false) { $0 == "\n" || $0 == "\r\n" }
     }
 }

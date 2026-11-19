@@ -18,3 +18,10 @@ final class ExecutableLocatorTests: XCTestCase {
         XCTAssertNil(ExecutableLocator.path(of: "sh", environment: ["PATH": "/nonexistent"]))
     }
 }
+
+final class SourceFileTests: XCTestCase {
+    func testSplitsCrlfFilesIntoLines() {
+        let file = SourceFile(path: URL(fileURLWithPath: "/a.ts"), language: .typescript, contents: "a\r\nb\r\nc")
+        XCTAssertEqual(file.lines, ["a", "b", "c"])
+    }
+}

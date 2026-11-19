@@ -50,6 +50,23 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "python-debug-print", pattern: #"^\s*print\("#,
                 message: "Remove debug output, or use the logging module."
+            ),
+            PatternRuleSpec(
+                id: "python-eval-exec", pattern: #"\b(eval|exec)\s*\("#,
+                message: "eval/exec runs arbitrary code."
+            ),
+            PatternRuleSpec(
+                id: "python-unsafe-deserialization",
+                pattern: #"\b(pickle|marshal)\.loads?\(|\byaml\.load\((?![^)]*SafeLoader)"#,
+                message: "Deserializing untrusted data can run arbitrary code; use json or yaml.safe_load."
+            ),
+            PatternRuleSpec(
+                id: "python-shell-injection", pattern: #"\bsubprocess\.\w+\([^)]*shell\s*=\s*True|\bos\.system\("#,
+                message: "Running a shell command string risks injection; pass an argument list without shell=True."
+            ),
+            PatternRuleSpec(
+                id: "skipped-test", pattern: #"@(unittest\.)?skip|pytest\.mark\.skip"#,
+                message: "Skipped test; fix it or delete it."
             )
         ]
     )
@@ -74,6 +91,10 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "shell-eval-usage", pattern: #"\beval\b"#,
                 message: "eval executes a constructed string as code; avoid it where possible."
+            ),
+            PatternRuleSpec(
+                id: "shell-debug-trace", pattern: #"^\s*set\s+-[a-wyz]*x"#,
+                message: "set -x debug tracing left on."
             )
         ]
     )
@@ -147,6 +168,15 @@ public enum LanguageProfiles {
                 id: "js-raw-html",
                 pattern: #"\.(inner|outer)HTML\s*=|\bdangerouslySetInnerHTML\b|insertAdjacentHTML\s*\("#,
                 message: "Raw HTML injection risks XSS; set textContent or sanitize first."
+            ),
+            PatternRuleSpec(
+                id: "js-shell-injection", pattern: #"\bexec(Sync)?\s*\(\s*`[^`]*\$\{"#,
+                message: "Shell command built from a template string risks injection; use execFile with arguments."
+            ),
+            PatternRuleSpec(
+                id: "skipped-test",
+                pattern: #"\b(it|test|describe)\.(skip|only)\(|\bx(it|describe)\(|\bf(it|describe)\("#,
+                message: "Skipped or focused test; .only/.skip shouldn't be committed."
             )
         ]
     )
@@ -169,6 +199,18 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "swift-discarded-try", pattern: #"^\s*(_\s*=\s*)?try\?\s"#,
                 message: "try? discards the error here; handle or log it."
+            ),
+            PatternRuleSpec(
+                id: "swift-main-sync", pattern: #"\bDispatchQueue\.main\.sync\b"#,
+                message: "DispatchQueue.main.sync deadlocks when called from the main thread."
+            ),
+            PatternRuleSpec(
+                id: "swift-semaphore-wait", pattern: #"\b\w*[Ss]emaphore\w*\.wait\("#,
+                message: "Blocking on a semaphore can deadlock async code; use async/await."
+            ),
+            PatternRuleSpec(
+                id: "skipped-test", pattern: #"\bXCTSkip|\.disabled\("#,
+                message: "Skipped test; fix it or delete it."
             )
         ]
     )
@@ -238,6 +280,10 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "java-print-stack-trace", pattern: #"\.printStackTrace\(\)"#,
                 message: "printStackTrace() writes to stderr silently; use a logger instead."
+            ),
+            PatternRuleSpec(
+                id: "skipped-test", pattern: #"@(Disabled|Ignore)\b"#,
+                message: "Skipped test; fix it or delete it."
             )
         ]
     )
@@ -266,6 +312,14 @@ public enum LanguageProfiles {
             PatternRuleSpec(
                 id: "go-panic-usage", pattern: #"\bpanic\("#,
                 message: "panic() crashes the program; prefer returning an error unless this is truly unrecoverable."
+            ),
+            PatternRuleSpec(
+                id: "go-shell-injection", pattern: #"\bexec\.Command(Context)?\([^)]*\"(sh|bash)\"\s*,\s*\"-c\""#,
+                message: "Running a shell command string risks injection; call the program directly."
+            ),
+            PatternRuleSpec(
+                id: "skipped-test", pattern: #"\bt\.Skip(f|Now)?\("#,
+                message: "Skipped test; fix it or delete it."
             )
         ]
     )

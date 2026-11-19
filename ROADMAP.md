@@ -216,7 +216,7 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Check | Scope |
 |---|---|---|
 | ✅ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` (`swift-unchecked-sendable`) | F |
-| ⬜ | `DispatchQueue.main.sync` and `semaphore.wait()` on async paths | F |
+| ✅ | `DispatchQueue.main.sync` and `semaphore.wait()` (`swift-main-sync`, `swift-semaphore-wait`) | F |
 | ⬜ | Mutable shared state without a lock or actor | T |
 | ⬜ | Fire-and-forget `Task {}` with no cancellation handling | F |
 | ⬜ | Go goroutine without context or a `WaitGroup` | F |
@@ -230,15 +230,18 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Shell `eval`; PowerShell `iex`; plaintext password conversion | F |
 | ✅ | C `gets`, `strcpy`/`strcat`/`sprintf` | F |
 | ✅ | SQL `UPDATE`/`DELETE` without `WHERE` | F |
-| ⬜ | SQL built by string concatenation or interpolation (injection) | F |
-| ⬜ | Shell command built from variables (`Process`, `subprocess(shell=True)`, `exec`) | F |
-| ⬜ | Weak crypto (MD5, SHA1, DES, ECB, `Math.random` for tokens) | F |
-| ⬜ | Hardcoded URLs or IPs; `http://` in non-local code | F |
-| ⬜ | Disabled TLS verification | F |
+| ✅ | SQL built by string concatenation or interpolation (`sql-string-building`); every language | F |
+| ✅ | Shell command built from variables (`python-shell-injection`, `js-shell-injection`, `go-shell-injection`) | F |
+| ⬜ | Swift `Process` launched through a shell with interpolated input | T |
+| ✅ | Weak crypto: MD5, SHA-1, DES, ECB (`weak-crypto`); every language | F |
+| ⬜ | `Math.random` used for tokens or IDs | T |
+| ✅ | `http://` in non-local code (`insecure-http-url`); every language | F |
+| ⬜ | Hardcoded IP addresses | F |
+| ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F |
 | ⬜ | Path traversal: user input joined into a file path | T |
-| ⬜ | Unsafe deserialization (`pickle.loads`, `yaml.load`) | F |
+| ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F |
 | ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F |
-| ⬜ | Python `eval`/`exec` | F |
+| ✅ | Python `eval`/`exec` (`python-eval-exec`) | F |
 | ⬜ | Logging of secrets or PII | T |
 
 ## 12. Testing
@@ -250,7 +253,7 @@ The **Scope** column says what analysis a check needs:
 | ⬜ | Coverage on changed lines only (diff coverage) | X + git |
 | ⬜ | Source file with no matching test file | X |
 | ⬜ | Test with no assertions | F |
-| ⬜ | Disabled or skipped tests | F |
+| ✅ | Disabled, skipped, or focused tests (`skipped-test`); TS/JS, Swift, Python, Go, Java | F |
 | ⬜ | Sleeps or real network or clock calls in tests (flakiness) | F |
 | ⬜ | Test function too long or with too many assertions | F |
 | ⬜ | Mutation score (would need an external tool) | X |
@@ -260,13 +263,15 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Check | Scope |
 |---|---|---|
 | ✅ | Trailing whitespace | F |
-| ⬜ | Missing newline at end of file | F |
-| ⬜ | Mixed tabs and spaces / inconsistent indent width | F |
-| ⬜ | CRLF line endings | F |
-| ⬜ | Multiple consecutive blank lines | F |
+| ✅ | Missing newline at end of file (`missing-final-newline`) | F |
+| ✅ | Mixed tabs and spaces (`mixed-indentation`) | F |
+| ⬜ | Inconsistent indent width | F |
+| ✅ | CRLF line endings (`crlf-line-endings`) | F |
+| ✅ | Multiple consecutive blank lines (`consecutive-blank-lines`) | F |
 | ⬜ | Unsorted or duplicate imports | F |
 | ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F |
-| ⬜ | Debug leftovers in C, C++, shell, and PowerShell | F |
+| ✅ | Shell `set -x` left on (`shell-debug-trace`) | F |
+| ⬜ | Debug leftovers in C, C++, and PowerShell (hard to tell from real output) | F |
 
 ## 14. Process and churn (git-aware)
 

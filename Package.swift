@@ -11,7 +11,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
-        .package(url: "https://github.com/apple/swift-syntax", from: "509.0.0"),
+        .package(url: "https://github.com/apple/swift-syntax", from: "604.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
         .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.25.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-go", from: "0.25.0")

@@ -34,7 +34,7 @@ jobs:
           "$bin" --version
           mkdir -p dist
           tar -czf dist/bouncer-macos-universal.tar.gz -C "$(dirname "$bin")" bouncer
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bouncer-macos-universal
           path: dist/*
@@ -65,7 +65,7 @@ jobs:
             tar -czf "dist/bouncer-linux-${pair##*:}.tar.gz" -C "$bin" bouncer
           done
           "$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)/bouncer" --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bouncer-linux
           path: dist/*
@@ -84,7 +84,7 @@ jobs:
       - name: Build and package with the Swift runtime
         shell: pwsh
         run: ./Scripts/package-windows.ps1 -Output dist/bouncer-windows-x86_64.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bouncer-windows-x86_64
           path: dist/*

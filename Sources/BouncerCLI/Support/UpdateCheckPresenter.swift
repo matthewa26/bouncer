@@ -35,7 +35,7 @@ enum UpdateCheckPresenter {
             lookup: URLSessionGitHubReleaseLookup(),
             cachePath: BouncerPaths.updateCheckCache,
             currentSHA: GeneratedVersion.commitSHA,
-            repo: config?.repo ?? "matthewayers/bouncer",
+            repo: config?.repo ?? "matthewa26/bouncer",
             intervalHours: config?.intervalHours ?? 24
         )
     }

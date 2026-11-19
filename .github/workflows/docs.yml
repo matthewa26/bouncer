@@ -31,6 +31,17 @@ jobs:
             --output-path ./docs \
             --transform-for-static-hosting \
             --hosting-base-path bouncer
+      - name: Redirect the site root to the module's landing page
+        # DocC has no page at the root, so its app would show "page not found" there.
+        run: |
+          cat > ./docs/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Bouncer documentation</title>
+          <meta http-equiv="refresh" content="0; url=documentation/bouncercore/">
+          <link rel="canonical" href="documentation/bouncercore/">
+          <a href="documentation/bouncercore/">Bouncer documentation</a>
+          HTML
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

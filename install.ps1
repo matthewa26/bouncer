@@ -2,8 +2,8 @@ echo --% >/dev/null;: ' | out-null
 <#'
 # Bouncer installer: one file that runs under both POSIX sh and PowerShell.
 #
-#   macOS, Linux, WSL:   curl -fsSL https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | sh
-#   Windows PowerShell:  irm https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | iex
+#   macOS, Linux, WSL:   curl -fsSL https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | sh
+#   Windows PowerShell:  irm https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | iex
 #
 # How the polyglot works: sh runs `echo` into /dev/null, then the `:` no-op swallows the quoted
 # text up to `<#'`, runs the sh half below, and exits before reaching PowerShell syntax.
@@ -15,7 +15,7 @@ echo --% >/dev/null;: ' | out-null
 #   BOUNCER_VERSION       Version to install, such as 0.2.0. Default: the latest release.
 #   BOUNCER_INSTALL_DIR   Where to put the binary. Default: ~/.local/bin, or
 #                         %LOCALAPPDATA%\Programs\bouncer on Windows.
-#   BOUNCER_REPO          GitHub owner/repo to download from. Default: matthewayers/bouncer.
+#   BOUNCER_REPO          GitHub owner/repo to download from. Default: matthewa26/bouncer.
 #   BOUNCER_DOWNLOAD_URL  Base URL holding the release assets, overriding the GitHub release
 #                         URL (for mirrors and for testing unreleased builds).
 #   BOUNCER_NO_MODIFY_PATH  Windows only: set to 1 to skip adding the install dir to PATH.
@@ -64,7 +64,7 @@ sha256_of() {
   fi
 }
 
-repo=${BOUNCER_REPO:-matthewayers/bouncer}
+repo=${BOUNCER_REPO:-matthewa26/bouncer}
 if [ -n "${BOUNCER_DOWNLOAD_URL:-}" ]; then
   base=$BOUNCER_DOWNLOAD_URL
 elif [ -n "${BOUNCER_VERSION:-}" ]; then
@@ -119,7 +119,7 @@ function Get-AssetName {
 
 # Resolves where to download from: an explicit mirror, a pinned release, or the latest release.
 function Get-BaseUrl {
-    $repo = if ($env:BOUNCER_REPO) { $env:BOUNCER_REPO } else { 'matthewayers/bouncer' }
+    $repo = if ($env:BOUNCER_REPO) { $env:BOUNCER_REPO } else { 'matthewa26/bouncer' }
     if ($env:BOUNCER_DOWNLOAD_URL) { return $env:BOUNCER_DOWNLOAD_URL }
     if (-not $env:BOUNCER_VERSION) { return "https://github.com/$repo/releases/latest/download" }
     return "https://github.com/$repo/releases/download/v$($env:BOUNCER_VERSION.TrimStart('v'))"

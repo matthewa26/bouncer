@@ -2,7 +2,7 @@
 
 Bouncer is a configurable coding-standards and code-smell checker. It analyzes TypeScript (including TSX), JavaScript (including JSX), Swift, Python, and Go with real parse trees, and everything else (zsh, bash, PowerShell, C++, Java, SQL, C, and best-effort anything else) heuristically, all through the same dependency-injected rule engine. It runs as a Husky pre-commit hook, as an ad-hoc audit of any codebase, and as a self-check a coding agent can run after every edit.
 
-Full documentation, including the config reference and rule catalog, is at [matthewayers.github.io/bouncer](https://matthewayers.github.io/bouncer/).
+Full documentation, including the config reference and rule catalog, is at [matthewa26.github.io/bouncer](https://matthewa26.github.io/bouncer/documentation/bouncercore/).
 
 ## Install
 
@@ -10,12 +10,12 @@ One installer for every platform. It picks the right build for your OS and CPU, 
 
 ```sh
 # macOS, Linux, and WSL (x86-64 or ARM64): installs to ~/.local/bin
-curl -fsSL https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | sh
+curl -fsSL https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | sh
 ```
 
 ```powershell
 # Windows PowerShell or PowerShell 7: installs to %LOCALAPPDATA%\Programs\bouncer and adds it to your user PATH
-irm https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | iex
 ```
 
 `install.ps1` is a single polyglot file that runs under both `sh` and PowerShell. Set `BOUNCER_VERSION` to pin a release, `BOUNCER_INSTALL_DIR` to change where it goes, or `BOUNCER_NO_MODIFY_PATH=1` to leave your Windows PATH alone.
@@ -26,7 +26,7 @@ Other ways to install:
 
 - **Build from source**: `swift build -c release` (needs a Swift 6 toolchain).
 - **Prebuilt archive**: download the archive for your platform from the latest GitHub release and check it against `SHA256SUMS`.
-- **Homebrew**: `brew tap matthewayers/tap && brew install bouncer`. Works natively on macOS and Linux. On Windows, Homebrew only runs inside **WSL2** (a real Linux kernel) - it does not work under WSL1 or natively on Windows. For native Windows without WSL, use the installer above.
+- **Homebrew**: `brew tap matthewa26/tap && brew install bouncer`. Works natively on macOS and Linux. On Windows, Homebrew only runs inside **WSL2** (a real Linux kernel) - it does not work under WSL1 or natively on Windows. For native Windows without WSL, use the installer above.
 
 ## Usage
 

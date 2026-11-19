@@ -9,12 +9,12 @@ verifies it against the release's `SHA256SUMS`, and installs it for the current 
 
 ```sh
 # macOS, Linux, and WSL1/WSL2, on x86-64 or ARM64
-curl -fsSL https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | sh
+curl -fsSL https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | sh
 ```
 
 ```powershell
 # Windows PowerShell or PowerShell 7
-irm https://raw.githubusercontent.com/matthewayers/bouncer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/matthewa26/bouncer/main/install.ps1 | iex
 ```
 
 `install.ps1` is one polyglot file that runs under both `sh` and PowerShell. Set
@@ -24,7 +24,7 @@ Windows x86-64 zip with the Swift runtime included (ARM64 Windows runs it under 
 
 Other ways:
 
-- **Homebrew**: `brew tap matthewayers/tap && brew install bouncer`. Works natively on macOS
+- **Homebrew**: `brew tap matthewa26/tap && brew install bouncer`. Works natively on macOS
   and Linux. On Windows, Homebrew only runs inside WSL2, since WSL2 runs a real Linux kernel.
   WSL1 is not supported.
 - **Prebuilt archive**: download the archive for your platform from the latest GitHub release.

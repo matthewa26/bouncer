@@ -249,6 +249,8 @@ public struct DeclarationSummary: Sendable {
     public let markers: [CollectedMarker]
     public let declaredNames: [CollectedName]
     public let stringLiterals: [CollectedString]
+    /// Declarations nothing in the file uses, for the dead-code rules.
+    public let unusedDeclarations: [UnusedDeclaration]
 
     /// Creates a declaration summary.
     ///
@@ -260,9 +262,11 @@ public struct DeclarationSummary: Sendable {
     ///   - markers: Every single-location smell found, in source order.
     ///   - declaredNames: Every variable and parameter declared, for the naming rules.
     ///   - stringLiterals: Every plain string literal, for the duplicated-string rule.
+    ///   - unusedDeclarations: Every private symbol, import, and parameter nothing in the file uses.
     public init(
         functions: [CollectedFunction], types: [CollectedType], switches: [CollectedSwitch], importCount: Int,
-        markers: [CollectedMarker] = [], declaredNames: [CollectedName] = [], stringLiterals: [CollectedString] = []
+        markers: [CollectedMarker] = [], declaredNames: [CollectedName] = [], stringLiterals: [CollectedString] = [],
+        unusedDeclarations: [UnusedDeclaration] = []
     ) {
         self.functions = functions
         self.types = types
@@ -271,6 +275,7 @@ public struct DeclarationSummary: Sendable {
         self.markers = markers
         self.declaredNames = declaredNames
         self.stringLiterals = stringLiterals
+        self.unusedDeclarations = unusedDeclarations
     }
 }
 

@@ -44,6 +44,7 @@ public enum DeclarationFindings {
             + lackOfCohesion(summary, file: file, context: context)
             + typeShapeFindings(summary, file: file, context: context)
             + nameFindings(summary, file: file, context: context)
+            + deadCodeFindings(summary, file: file, context: context)
     }
 
     public static let lackOfCohesionRuleID = "lack-of-cohesion"

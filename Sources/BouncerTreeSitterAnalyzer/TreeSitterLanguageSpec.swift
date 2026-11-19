@@ -64,6 +64,8 @@ public struct TreeSitterLanguageSpec: Sendable {
     var quality: TreeSitterQualitySpec?
     /// Reads imports and exports for the project pass, or `nil` for none.
     var moduleFacts: ModuleFactsExtractor?
+    /// Finds unused private symbols, imports, and parameters, or `nil` for none, as for Go.
+    var deadCode: DeadCodeExtractor?
 
     /// Picks the grammar for a file, honoring any per-extension override.
     ///
@@ -94,7 +96,8 @@ extension TreeSitterLanguageSpec {
         documentationStyle: .docstring,
         visibilityConvention: .leadingUnderscore,
         quality: .python,
-        moduleFacts: PythonModuleFacts()
+        moduleFacts: PythonModuleFacts(),
+        deadCode: PythonDeadCode()
     )
 
     /// The Go grammar's node types and conventions.
@@ -127,7 +130,8 @@ extension TreeSitterLanguageSpec {
         importCall: ImportCall(nodeType: "call_expression", functionNames: ["require"]),
         declarationWrapperNodeTypes: javascriptWrapperNodeTypes, nameSourceParents: javascriptNameSourceParents,
         quality: .javascript,
-        moduleFacts: JavaScriptModuleFacts()
+        moduleFacts: JavaScriptModuleFacts(),
+        deadCode: JavaScriptDeadCode()
     )
 
     /// The TypeScript grammar's node types and conventions, with TSX for `.tsx` files.

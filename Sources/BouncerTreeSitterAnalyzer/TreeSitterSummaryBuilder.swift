@@ -38,13 +38,15 @@ final class TreeSitterSummaryBuilder {
 
     /// Walks the tree from its root and assembles the collected summary.
     ///
-    /// - Parameter root: The parse tree's root node.
+    /// - Parameters:
+    ///   - root: The parse tree's root node.
+    ///   - unused: The file's unused declarations, from the language's `DeadCodeExtractor`.
     /// - Returns: Everything gathered during the walk.
-    func build(root: Node) -> DeclarationSummary {
+    func build(root: Node, unused: [UnusedDeclaration] = []) -> DeclarationSummary {
         walk(root)
         return DeclarationSummary(
             functions: functions, types: types, switches: switches, importCount: importCount, markers: markers,
-            declaredNames: names, stringLiterals: strings
+            declaredNames: names, stringLiterals: strings, unusedDeclarations: unused
         )
     }
 

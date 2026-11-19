@@ -23,11 +23,14 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameters:
     ///   - markers: The file's single-location smells, from `SwiftMarkerCollector`.
     ///   - names: The file's declared names and string literals, from `SwiftNameCollector`.
+    ///   - unused: The file's unused declarations, from `SwiftDeadCodeCollector`.
     /// - Returns: Everything gathered during the walk.
-    func summary(markers: [CollectedMarker], names: SwiftNameCollector) -> DeclarationSummary {
+    func summary(
+        markers: [CollectedMarker], names: SwiftNameCollector, unused: [UnusedDeclaration]
+    ) -> DeclarationSummary {
         DeclarationSummary(
             functions: functions, types: types, switches: switches, importCount: importCount, markers: markers,
-            declaredNames: names.names, stringLiterals: names.strings
+            declaredNames: names.names, stringLiterals: names.strings, unusedDeclarations: unused
         )
     }
 

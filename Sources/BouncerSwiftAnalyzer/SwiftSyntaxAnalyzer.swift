@@ -67,7 +67,19 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
         markers.walk(parsed.tree)
         let names = SwiftNameCollector(converter: parsed.converter)
         names.walk(parsed.tree)
-        return builder.summary(markers: markers.markers, names: names)
+        return builder.summary(markers: markers.markers, names: names, unused: Self.unusedDeclarations(in: parsed))
+    }
+
+    /// Finds the private symbols and parameters nothing in an already-parsed file uses.
+    ///
+    /// - Parameter parsed: The parsed file.
+    /// - Returns: Its unused declarations, for the dead-code rules.
+    private static func unusedDeclarations(in parsed: Parsed) -> [UnusedDeclaration] {
+        let collector = SwiftDeadCodeCollector(converter: parsed.converter)
+        collector.walk(parsed.tree)
+        let uses = SwiftUseCollector()
+        uses.walk(parsed.tree)
+        return collector.unused(uses: uses.positions)
     }
 
     /// Runs the language-agnostic heuristic rules shared with every other language.

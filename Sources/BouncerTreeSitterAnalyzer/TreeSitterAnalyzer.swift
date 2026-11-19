@@ -61,7 +61,8 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     ///   - context: Repo-wide state, including every rule's resolved settings.
     /// - Returns: The combined findings.
     private func findings(root: Node, file: SourceFile, context: AnalysisContext) -> [Finding] {
-        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root)
+        let unused = spec.deadCode?.unusedDeclarations(in: DeadCodeTree(root: root, file: file)) ?? []
+        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root, unused: unused)
         return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
     }
 

@@ -117,9 +117,9 @@ struct RatchetLimits {
     ///   - ruleID: The ratchet rule's ID.
     init(context: AnalysisContext, ruleID: String) {
         let own = context.settings(for: ruleID).parameters
-        let complexity = context.settings(for: AnalyzerFunctionMeasurer.complexityRule).parameters
+        let complexity = context.settings(for: "cyclomatic-complexity").parameters
             .int("max", default: 10)
-        let lines = context.settings(for: AnalyzerFunctionMeasurer.lengthRule).parameters
+        let lines = context.settings(for: "long-function").parameters
             .int("maxLines", default: 40)
         self.complexity = own.int("maxComplexity", default: complexity)
         self.lines = own.int("maxLines", default: lines)

@@ -56,6 +56,19 @@ public struct CyclomaticComplexityRule: Rule {
         return Finding(ruleID: id, severity: severity, filePath: file.path, line: block.startLine + 1, message: message)
     }
 
+    /// Measures every function block the way this rule and `LongFunctionRule` do. Blocks have no names.
+    ///
+    /// - Parameter file: The file to measure.
+    /// - Returns: One measurement per block, or `nil` if the language has no function pattern.
+    public func measures(in file: SourceFile) -> [FunctionMeasure]? {
+        guard let pattern = profile.functionStartPattern, let regex = Self.branchPattern else { return nil }
+        return BlockSegmenter.blocks(in: file, startPattern: pattern).map { block in
+            let lines = LogicalLineCounter.count(in: file, range: block.startLine...block.endLine, profile: profile)
+            let complexity = 1 + branchCount(in: block, file: file, regex: regex)
+            return FunctionMeasure(name: nil, line: block.startLine + 1, complexity: complexity, logicalLines: lines)
+        }
+    }
+
     /// Counts branch-keyword matches across a block's lines.
     ///
     /// - Parameters:

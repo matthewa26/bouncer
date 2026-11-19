@@ -32,6 +32,14 @@ public protocol LanguageAnalyzer: Sendable {
     /// - Returns: The file's findings and module facts.
     /// - Throws: If the file can't be parsed.
     func analyzeWithFacts(file: SourceFile, context: AnalysisContext) throws -> FileAnalysis
+
+    /// Measures every function's cyclomatic complexity and logical lines, as `cyclomatic-complexity` and
+    /// `long-function` count them, for rules that compare functions across history.
+    ///
+    /// - Parameter file: The file to measure.
+    /// - Returns: Its functions, or `nil` if this analyzer doesn't measure functions.
+    /// - Throws: If the file can't be parsed.
+    func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]?
 }
 
 /// One file's findings and module facts.
@@ -56,6 +64,12 @@ extension LanguageAnalyzer {
     /// - Parameter file: The file to read.
     /// - Returns: `nil`.
     public func moduleFacts(file: SourceFile) throws -> ModuleFacts? { nil }
+
+    /// Analyzers that don't measure functions report none.
+    ///
+    /// - Parameter file: The file to measure.
+    /// - Returns: `nil`.
+    public func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? { nil }
 
     /// Analyzes and extracts facts with two separate calls; parser-backed analyzers override this to parse once.
     ///

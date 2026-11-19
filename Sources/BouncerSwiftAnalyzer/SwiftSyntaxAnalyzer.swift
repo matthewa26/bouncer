@@ -37,6 +37,14 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
         return FileAnalysis(findings: findings(parsed, context: context), facts: SwiftModuleFacts.facts(of: parsed))
     }
 
+    /// Measures every function from a single parse.
+    ///
+    /// - Parameter file: The Swift file to measure.
+    /// - Returns: One measurement per function.
+    public func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? {
+        DeclarationFindings.measures(summarize(Parsed(file)), file: file, profile: Self.profile)
+    }
+
     /// Runs every rule over an already-parsed file.
     ///
     /// - Parameters:

@@ -364,6 +364,25 @@ public enum DeclarationFindings {
         return finding(LongFunctionRule.ruleID, function.startLine, message, severity, file)
     }
 
+    /// Measures every collected function the way `long-function` and `cyclomatic-complexity` do.
+    ///
+    /// - Parameters:
+    ///   - summary: The file's declaration summary.
+    ///   - file: The file, for counting logical lines.
+    ///   - profile: The comment-syntax profile used to count logical lines.
+    /// - Returns: One measurement per function; unnamed functions have no name.
+    public static func measures(
+        _ summary: DeclarationSummary, file: SourceFile, profile: LanguageProfile
+    ) -> [FunctionMeasure] {
+        summary.functions.map { function in
+            let range = function.startLine...max(function.startLine, function.endLine)
+            let name = function.name == CollectedFunction.anonymousName ? nil : function.name
+            let lines = LogicalLineCounter.count(in: file, range: range, profile: profile)
+            let complexity = function.branchCount + 1
+            return FunctionMeasure(name: name, line: function.startLine, complexity: complexity, logicalLines: lines)
+        }
+    }
+
     /// Builds a finding for one function if its branch count exceeds `max`.
     ///
     /// - Parameters:

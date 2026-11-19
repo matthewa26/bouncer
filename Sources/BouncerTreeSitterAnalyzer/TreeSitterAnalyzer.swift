@@ -66,6 +66,17 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
         return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
     }
 
+    /// Measures every function from a single parse.
+    ///
+    /// - Parameter file: The file to measure.
+    /// - Returns: One measurement per function.
+    /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
+    public func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? {
+        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: try parse(file))
+        let profile = LanguageProfiles.profile(for: spec.coreLanguage)
+        return DeclarationFindings.measures(summary, file: file, profile: profile)
+    }
+
     /// Reads module facts from an already-parsed file.
     ///
     /// - Parameters:

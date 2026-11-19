@@ -264,21 +264,19 @@ final class ChangeRulesTests: XCTestCase {
 }
 
 final class FunctionMeasurerTests: XCTestCase {
-    private func finding(_ rule: String, _ line: Int, _ message: String) -> Finding {
-        Finding(ruleID: rule, severity: .info, filePath: URL(fileURLWithPath: "/a.swift"), line: line, message: message)
+    /// An analyzer that measures fixed functions, out of line order.
+    private struct MeasuringAnalyzer: LanguageAnalyzer {
+        let supportedLanguage = Language.swift
+        func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] { [] }
+        func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? {
+            [FunctionMeasure(name: "b", line: 9, complexity: 2), FunctionMeasure(name: "a", line: 2, complexity: 5)]
+        }
     }
 
-    func testReadsMeasurementsFromTheAnalyzersParserBackedAndHeuristicMessages() {
-        let measures = AnalyzerFunctionMeasurer.measures(from: [
-            finding("long-function", 3, "Function \"run\" has 12 logical lines, over the 0-line limit."),
-            finding("cyclomatic-complexity", 3, "Function \"run\" has complexity 7, over the 0 limit."),
-            finding("cyclomatic-complexity", 1, "Function has an estimated cyclomatic complexity of 4, over the 0 limit."),
-            finding("long-lines", 2, "Line is 130 characters, over the 120-character limit.")
-        ])
-        XCTAssertEqual(measures, [
-            FunctionMeasure(name: nil, line: 1, complexity: 4),
-            FunctionMeasure(name: "run", line: 3, complexity: 7, logicalLines: 12)
-        ])
+    func testAsksTheLanguagesAnalyzerAndSortsByLine() {
+        let file = SourceFile(path: URL(fileURLWithPath: "/a.swift"), language: .swift, contents: "")
+        let measured = AnalyzerFunctionMeasurer(analyzers: [.swift: MeasuringAnalyzer()]).functions(in: file)
+        XCTAssertEqual(measured?.map(\.name), ["a", "b"])
     }
 
     func testMeasuresOnlyLanguagesWithAnAnalyzer() {

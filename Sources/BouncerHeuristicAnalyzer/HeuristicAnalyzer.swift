@@ -1,4 +1,5 @@
 import BouncerCore
+import BouncerRules
 
 /// Analyzes a file using line-based heuristic rules rather than a real parser.
 ///
@@ -27,5 +28,13 @@ public struct HeuristicAnalyzer: LanguageAnalyzer {
     public func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] {
         let rules = registry.rules(for: file.language, ruleSettings: context.ruleSettings)
         return rules.flatMap { $0.evaluate(file: file, context: context) }
+    }
+
+    /// Measures the file's indentation-delimited function blocks.
+    ///
+    /// - Parameter file: The file to measure.
+    /// - Returns: One unnamed measurement per block, or `nil` if the language has no function pattern.
+    public func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? {
+        CyclomaticComplexityRule(profile: LanguageProfiles.profile(for: file.language)).measures(in: file)
     }
 }

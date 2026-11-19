@@ -10,6 +10,7 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
+      - run: swift --version
       - run: swift build
       - run: swift test
 

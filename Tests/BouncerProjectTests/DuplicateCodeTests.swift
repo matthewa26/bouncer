@@ -258,9 +258,9 @@ final class DuplicateCodeTests: XCTestCase {
         XCTAssertTrue(findings(files, params: ["maxGap": .int(0)]).allSatisfy { !$0.message.hasPrefix("Nearly") })
         let filler = (0..<6).map { "    let unrelated\($0) = labels.map { $0.count + \($0) }.reduce(0, +)" }
         let lines = block().components(separatedBy: "\n")
-        let distant = (lines[..<9] + filler + lines[9...]).joined(separator: "\n")
+        let distant = (Array(lines[..<9]) + filler + Array(lines[9...])).joined(separator: "\n")
         let far = findings([("a.swift", file("a", block())), ("b.swift", file("b", distant))])
-        XCTAssertTrue(far.allSatisfy { !$0.message.hasPrefix("Nearly") }, far.map(\.message).description)
+        XCTAssertTrue(far.allSatisfy { !$0.message.hasPrefix("Nearly") }, far.map { $0.message }.description)
     }
 
     func testExactAndRenamedCopiesKeepTheirMessage() {

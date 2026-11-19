@@ -19,13 +19,16 @@ public enum DeclarationFindings {
     public static func all(
         _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext, naming: NamingPatterns
     ) -> [Finding] {
-        markerFindings(summary, file: file, context: context)
-            + longFunction(summary, file: file, context: context)
-            + cyclomaticComplexity(summary, file: file, context: context)
-            + missingDocumentation(summary, file: file, context: context)
-            + namingConvention(summary, file: file, context: context, naming: naming)
-            + structureFindings(summary, file: file, context: context)
-            + designFindings(summary, file: file, context: context)
+        let groups: [[Finding]] = [
+            markerFindings(summary, file: file, context: context),
+            longFunction(summary, file: file, context: context),
+            cyclomaticComplexity(summary, file: file, context: context),
+            missingDocumentation(summary, file: file, context: context),
+            namingConvention(summary, file: file, context: context, naming: naming),
+            structureFindings(summary, file: file, context: context),
+            designFindings(summary, file: file, context: context)
+        ]
+        return groups.flatMap { $0 }
     }
 
     /// Runs the coupling, type-shape, and function-metric rules, in a fixed order.
@@ -38,15 +41,19 @@ public enum DeclarationFindings {
     static func structureFindings(
         _ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext
     ) -> [Finding] {
-        highCoupling(summary, file: file, context: context)
-            + switchOnTypeSmell(summary, file: file, context: context)
-            + godClass(summary, file: file, context: context)
-            + metricRules.flatMap { metricFindings($0, summary, file: file, context: context) }
-            + lackOfCohesion(summary, file: file, context: context)
-            + typeShapeFindings(summary, file: file, context: context)
-            + nameFindings(summary, file: file, context: context)
-            + deadCodeFindings(summary, file: file, context: context)
-            + shapeFindings(summary, file: file, context: context)
+        let metrics: [Finding] = metricRules.flatMap { metricFindings($0, summary, file: file, context: context) }
+        let groups: [[Finding]] = [
+            highCoupling(summary, file: file, context: context),
+            switchOnTypeSmell(summary, file: file, context: context),
+            godClass(summary, file: file, context: context),
+            metrics,
+            lackOfCohesion(summary, file: file, context: context),
+            typeShapeFindings(summary, file: file, context: context),
+            nameFindings(summary, file: file, context: context),
+            deadCodeFindings(summary, file: file, context: context),
+            shapeFindings(summary, file: file, context: context)
+        ]
+        return groups.flatMap { $0 }
     }
 
     public static let lackOfCohesionRuleID = "lack-of-cohesion"

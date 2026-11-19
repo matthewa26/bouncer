@@ -101,15 +101,15 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Smell | Scope | How to detect |
 |---|---|---|---|
 | ✅ | Duplicate code within a file (exact match) | F | `duplicate-block` |
-| ⬜ | Duplicate code across files | X | Token-based clone detection |
-| ⬜ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) | F/X | Normalize identifiers and literals before comparing |
-| ⬜ | Dead code: unused private functions, vars, params, imports | F/T | |
+| ✅ | Duplicate code across files | X | `duplicate-code`: token-based clone detection with winnowing |
+| ⬜ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) | F/X | Type-2 (renamed identifiers, changed literals) is in `duplicate-code`; Type-3 (small edits, inserted lines) isn't |
+| ✅ | Dead code: unused private functions, vars, params, imports | F/T | `unused-private-symbol`, `unused-import`, opt-in `unused-parameter`; per file, by name |
 | ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS, Python, Go |
 | ⬜ | Speculative generality: protocol/interface with one implementation, unused params, hooks | X | Matches your "no single-implementation interfaces" principle |
 | ⬜ | Lazy class: a type that does almost nothing | F | Very few members |
 | ✅ | Data class: only fields, no behavior (`data-class`); classes only, not structs | F | |
-| ⬜ | Commented-out code | F | Comment lines that parse as code |
-| ⬜ | Excessive or redundant comments (restating the code) | F | |
+| ✅ | Commented-out code | F | `commented-out-code` |
+| ✅ | Excessive or redundant comments (restating the code) | F | Opt-in `redundant-comment`; comment density isn't checked |
 | ✅ | TODO/FIXME/HACK density | F | `todo-density` |
 
 ### Couplers
@@ -288,7 +288,17 @@ The **Scope** column says what analysis a check needs:
 
 ## Notes on the current implementation
 
-- **Coverage gap:** class rules (`god-class`, `lack-of-cohesion`) don't apply to Go, which has no classes; Python's decorated methods (`@property`, `@staticmethod`) are left out of LCOM4. The heuristic languages get none of the AST rules; a new tree-sitter language gets them all by adding a `TreeSitterQualitySpec`, with no new rule code.
-- **Precision gap:** duplicate detection is exact-match and intra-file only, and coupling is an import count. Both are labelled as proxies in the docs.
-- **Architecture constraint:** every ⬜ marked **X** needs a repo-wide analysis pass, because the rule engine sees only one file at a time. Adding that pass is the main structural change before the cross-file smells (clones, data clumps, cycles, DIT, shotgun surgery) become possible.
-- **Easiest wins:** many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto and missing EOF newline. Shared AST rules live once in `DeclarationFindings`: a new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it. Per-type metrics sit on `CollectedType`, as LCOM4 does via `CohesionGraph`.
+- **Coverage gap:**
+  - Class rules (`god-class`, `lack-of-cohesion`) don't apply to Go, which has no classes. Python's decorated methods (`@property`, `@staticmethod`) are left out of LCOM4.
+  - The heuristic languages get none of the AST rules, the dead-code rules, or `duplicate-code`. A new tree-sitter language gets the shared AST rules by adding a `TreeSitterQualitySpec`, with no new rule code.
+  - The dead-code rules cover Swift, TS/JS, and Python. Go is left out because a package spans files.
+- **Precision gaps:**
+  - Dead-code rules and `unused-public-symbol` match by name, not by symbol, so a same-named identifier hides a dead declaration. Symbol-level Swift matching through the compiler's index store is deferred until there's demand.
+  - `duplicate-code` finds exact and renamed copies (Type-1/2), not copies with small edits (Type-3), and its region edges can start a line or two late.
+  - Coupling is an import count. These are labelled as proxies in the docs.
+- **Architecture:** the project pass (`ProjectRules` over cached `FileFacts` in `.bouncer-cache/facts.json`) is where cross-file rules go, such as cycles, layers, unused exports, and clones. It runs in `review` and `baseline update`, and in `check` only with `project.inCheck`. Each file is parsed once for both per-file rules and facts.
+- **Known issue:** a binary or non-UTF-8 file anywhere in the tree (a `.png` under `.docc`, a Latin-1 text file) aborts `review` with "The file couldn't be opened because it isn't in the correct format", and the command still exits 0.
+- **Easiest wins:**
+  - Many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto and a missing newline at the end of a file.
+  - Shared AST rules live once in `DeclarationFindings`. A new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it.
+  - Per-type metrics sit on `CollectedType`, as LCOM4 does via `CohesionGraph`.

@@ -26,6 +26,8 @@ These run on every language.
 | `long-lines` | A line's character count | warning | `maxLength` (120) |
 | `todo-density` | TODO/FIXME/HACK marker density across a file | warning | `maxPerHundredLines` (5) |
 | `duplicate-block` | A repeated block of lines within the same file | warning | `windowSize` (6) |
+| `commented-out-code` | A stretch of non-doc comment lines that reads as code, reported at its first line | warning | `minLines` (2) |
+| `redundant-comment` | A one-line comment that only restates the statement below it; off unless configured | warning | none |
 | `trailing-whitespace` | A line ending in a space or tab | warning | none |
 | `secret-looking-pattern` | A line matching a small set of credential-shaped patterns | warning | none |
 | `missing-final-newline` | A non-empty file that doesn't end with a newline | warning | none |
@@ -99,6 +101,9 @@ parameter. The heuristic languages don't get these rules.
 | `implicitly-unwrapped-optional` (Swift) | An implicitly unwrapped optional type, `T!` | warning | none |
 | `non-null-assertion` (TypeScript) | A non-null assertion, `x!` | warning | none |
 | `explicit-any` (TypeScript) | An explicit `any` type | warning | none |
+| `unused-private-symbol` | A file-private declaration nothing else in its file uses: Swift `private`/`fileprivate` functions, properties, and types; unexported top-level TS/JS functions, classes, and variables in modules; `_`-prefixed Python module-level functions and classes | warning | none |
+| `unused-import` (TS/JS, Python) | An import binding the file never uses | warning | none |
+| `unused-parameter` | A parameter its function never uses; TS/JS only flags parameters after the last used one; off unless configured | warning | none |
 
 `cognitive-complexity` follows SonarSource's scheme: each `if`, loop, `switch`, `catch`, and
 ternary adds one plus its nesting level; `else` and `else if` add one; each run of mixed
@@ -122,6 +127,19 @@ construct. `duplicated-string-literal` will also flag the repeated target names 
 `Package.swift`; raise `minOccurrences` or exclude the manifest if that's noise for you.
 
 `empty-catch` accepts a comment inside the braces as a deliberate "nothing to do here".
+
+The dead-code rules (`unused-private-symbol`, `unused-import`, `unused-parameter`) match by name
+within one file: a same-named use anywhere outside the declaration counts, and a declaration's use
+of itself (recursion) doesn't. They skip what something outside the code may call: in Swift,
+overrides, `@objc` and Interface Builder hooks, property wrappers, stored class properties, and
+every member of a type that declares a conformance or superclass in the file; in TS/JS, top-level
+names in scripts (files with no imports or exports) and `.d.ts` files; in Python, `__init__.py`
+imports, `from __future__`, star imports, `# noqa` imports, and names in `__all__`. JSX, type
+positions, re-exports, and Python string annotations count as uses. Go is left out: a package
+spans files, and the compiler already rejects unused imports. `unused-parameter` also skips
+`_`-prefixed names, stub bodies (empty, or only a `throw`/`fatalError`/`pass`/`raise`), methods of
+subclasses and conforming types, Python `self`/`cls`/`*args`/`**kwargs`, protocol dunders, pytest
+tests and fixtures, and TypeScript constructor parameter properties.
 
 ### `missing-documentation`'s `scope` parameter
 
@@ -211,6 +229,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `unstable-dependency` | A stable module importing a less stable one (Stable Dependencies Principle) | warning | `minDifference` (30, a percentage) |
 | `missing-test-file` | A source file with no conventionally named test file; off unless configured | warning | none |
 | `unused-public-symbol` | A Swift `public`/`open` declaration no other target uses; off unless configured | warning | `publicTargets`, `ignoreNames` |
+| `duplicate-code` | A block of code copied into another file, exactly or with renamed identifiers or changed literals | warning | `minTokens` (50), `minLines` (6), `ignoreLiterals` (true), `ignore` (none) |
 
 `layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
 or any later one, never an earlier one, and files matching no layer are unconstrained. For
@@ -242,9 +261,29 @@ unique symbol ID (USR) to its references and protocol conformances. The cost: th
 need a fresh build, so it couldn't run in `check`, and Bouncer would take on a dependency that
 tracks the Swift toolchain version. It can be built if there's demand.
 
+`commented-out-code` scores each comment line on code shapes (a trailing `;`, `{`, or `}`,
+assignments, calls, keywords) against prose shapes (mostly plain words, English function words,
+a sentence-ending period). A stretch needs `minLines` code-like lines, or one unambiguous line
+such as `// let total = compute(items)`. It skips doc comments, license headers, Python
+docstrings, examples (fenced, indented under prose, or after a line ending in `:` or `e.g.`),
+URLs, task markers, tool directives (`swiftlint:`, `eslint-disable`, `@ts-`, `noqa`, `go:`), and
+Go cgo preambles, and it doesn't run on unrecognized languages. `redundant-comment` flags a lone
+line comment of two or more content words that all appear in the next statement's identifiers,
+keywords, or the verbs its operators imply, such as `// increment counter` above `counter += 1`.
+
 `missing-test-file` looks for `foo.test.ts`/`foo.spec.ts`, `test_foo.py`/`foo_test.py`,
 `foo_test.go`, or `FooTests.swift`/`FooTest.swift` anywhere in the project. It's off by default;
 turn it on by listing it under `rules`.
+
+`duplicate-code` tokenizes each Swift, TypeScript/JavaScript, Python, and Go file without
+whitespace or comments, normalizing identifiers (by consistent renaming, so a copy with renamed
+variables still matches) and literals, and fingerprints it with k-gram winnowing; fingerprints
+are cached in `.bouncer-cache/facts.json`. Copies of at least `minTokens` tokens and `minLines`
+code lines are grouped into clone classes, and each copy is reported once, naming the first copy
+(by path, then line) and, for three or more, how many copies there are. Copies within one file
+are left to `duplicate-block`. Set `ignoreLiterals` to `false` to require literal values to
+match, and list generated or vendored paths in `ignore` (or `exclude`). Copies with small edits
+or inserted lines (Type-3 clones) show up only as their unchanged parts.
 
 Imports are resolved per language. TypeScript and JavaScript resolve relative specifiers (trying
 each TS/JS extension, `index` files, and `.js` written for a `.ts` file); `baseUrl` and `paths`

@@ -297,7 +297,6 @@ The **Scope** column says what analysis a check needs:
   - `duplicate-code` finds exact and renamed copies (Type-1/2), not copies with small edits (Type-3), and its region edges can start a line or two late.
   - Coupling is an import count. These are labelled as proxies in the docs.
 - **Architecture:** the project pass (`ProjectRules` over cached `FileFacts` in `.bouncer-cache/facts.json`) is where cross-file rules go, such as cycles, layers, unused exports, and clones. It runs in `review` and `baseline update`, and in `check` only with `project.inCheck`. Each file is parsed once for both per-file rules and facts.
-- **Known issue:** a binary or non-UTF-8 file anywhere in the tree (a `.png` under `.docc`, a Latin-1 text file) aborts `review` with "The file couldn't be opened because it isn't in the correct format", and the command still exits 0.
 - **Easiest wins:**
   - Many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as weak crypto and a missing newline at the end of a file.
   - Shared AST rules live once in `DeclarationFindings`. A new per-function metric is one `MetricRule` entry, and a new single-location smell is one `MarkerKind` case plus where each parser detects it.

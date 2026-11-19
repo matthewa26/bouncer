@@ -71,7 +71,7 @@ public struct AnalysisEngine: Sendable {
     /// - Returns: The combined findings and coverage report.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func run() throws -> AnalysisResult {
-        let files = try fileProvider.targetFiles().map(loadSourceFile)
+        let files = try fileProvider.targetFiles().compactMap(loadTextFile)
         let analyses = try files.map(analyze)
         let findings = zip(files, analyses).flatMap { file, analysis in
             analysis.findings.filter { !isBaselined($0, in: file) }
@@ -134,6 +134,15 @@ public struct AnalysisEngine: Sendable {
     /// - Returns: Its language's analyzer, or the fallback.
     private func analyzer(for file: SourceFile) -> LanguageAnalyzer {
         knownAnalyzers[file.language] ?? fallbackAnalyzer
+    }
+
+    /// Reads a file like `loadSourceFile`, skipping binary files, which no rule applies to.
+    ///
+    /// - Parameter url: The file's location.
+    /// - Returns: The loaded source file, or `nil` if it's binary.
+    /// - Throws: If the file can't be read.
+    private func loadTextFile(_ url: URL) throws -> SourceFile? {
+        do { return try loadSourceFile(url) } catch FileContentsError.binary { return nil }
     }
 
     /// Reads a file from disk and detects its language from its extension.

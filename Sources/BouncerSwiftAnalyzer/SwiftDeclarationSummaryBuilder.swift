@@ -23,14 +23,15 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     /// - Parameters:
     ///   - markers: The file's single-location smells, from `SwiftMarkerCollector`.
     ///   - names: The file's declared names and string literals, from `SwiftNameCollector`.
+    ///   - shapes: The file's type extents, closures, and typed names, from `SwiftShapeCollector`.
     ///   - unused: The file's unused declarations, from `SwiftDeadCodeCollector`.
     /// - Returns: Everything gathered during the walk.
     func summary(
-        markers: [CollectedMarker], names: SwiftNameCollector, unused: [UnusedDeclaration]
+        markers: [CollectedMarker], names: SwiftNameCollector, shapes: ShapeFacts, unused: [UnusedDeclaration]
     ) -> DeclarationSummary {
         DeclarationSummary(
             functions: functions, types: types, switches: switches, importCount: importCount, markers: markers,
-            declaredNames: names.names, stringLiterals: names.strings, unusedDeclarations: unused
+            declaredNames: names.names, stringLiterals: names.strings, unusedDeclarations: unused, shapes: shapes
         )
     }
 
@@ -143,7 +144,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
         let end = converter.location(for: body.endPositionBeforeTrailingTrivia).line
         return CollectedFunction(
             name: declaration.name, startLine: start, endLine: end, branchCount: counter.count,
-            hasDocComment: declaration.leadingTrivia.hasComment, visibility: visibility(of: declaration.modifiers),
+            hasDocComment: declaration.leadingTrivia.hasComment, visibility: Self.visibility(of: declaration.modifiers),
             metrics: declaration.metrics(of: body)
         )
     }
@@ -152,7 +153,7 @@ final class SwiftDeclarationSummaryBuilder: SyntaxVisitor {
     ///
     /// - Parameter modifiers: The declaration's modifiers.
     /// - Returns: `.public` for `public`/`open`, `.private` for `private`/`fileprivate`, else `.internal`.
-    private func visibility(of modifiers: DeclModifierListSyntax) -> DeclarationVisibility {
+    static func visibility(of modifiers: DeclModifierListSyntax) -> DeclarationVisibility {
         for modifier in modifiers {
             switch modifier.name.tokenKind {
             case .keyword(.public), .keyword(.open): return .public

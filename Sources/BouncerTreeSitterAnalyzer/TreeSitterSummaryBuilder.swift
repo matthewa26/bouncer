@@ -44,10 +44,23 @@ final class TreeSitterSummaryBuilder {
     /// - Returns: Everything gathered during the walk.
     func build(root: Node, unused: [UnusedDeclaration] = []) -> DeclarationSummary {
         walk(root)
+        let shapes = collectShapes(root)
         return DeclarationSummary(
-            functions: functions, types: types, switches: switches, importCount: importCount, markers: markers,
-            declaredNames: names, stringLiterals: strings, unusedDeclarations: unused
+            functions: functions, types: types, switches: switches, importCount: importCount,
+            markers: markers + (shapes?.markers ?? []), declaredNames: names, stringLiterals: strings,
+            unusedDeclarations: unused, shapes: shapes?.facts ?? ShapeFacts()
         )
+    }
+
+    /// Collects the size rules' facts with a separate walk, if the language has a quality spec.
+    ///
+    /// - Parameter root: The parse tree's root node.
+    /// - Returns: The size markers and shape facts, or `nil` without a quality spec.
+    private func collectShapes(_ root: Node) -> (markers: [CollectedMarker], facts: ShapeFacts)? {
+        let namingParents = Set(spec.nameSourceParents.keys)
+        return quality.map {
+            TreeSitterShapeCollector(spec: $0.quality.shapes, namingParents: namingParents, text: text).collect(root)
+        }
     }
 
     /// Visits one node, then recurses into every child.

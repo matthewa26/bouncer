@@ -16,6 +16,7 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
     private var maxControlDepth = 0
     private var closureDepth = 0
     private var typeChecks = 0
+    private var locals: Set<String> = []
 
     /// Creates a collector.
     init() {
@@ -35,7 +36,8 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
         return FunctionMetrics(
             parameterCount: parameterCount, booleanParameterCount: booleanParameterCount,
             returnCount: collector.returnCount, cognitiveComplexity: collector.score,
-            maxNestingDepth: collector.maxControlDepth, typeCheckCount: collector.typeChecks
+            maxNestingDepth: collector.maxControlDepth, typeCheckCount: collector.typeChecks,
+            localVariableCount: collector.locals.count
         )
     }
 
@@ -179,6 +181,22 @@ final class SwiftFunctionMetricsCollector: SyntaxVisitor {
     override func visitPost(_ node: FunctionDeclSyntax) {
         nesting -= 1
         closureDepth -= 1
+    }
+
+    /// Counts each name a local `let`/`var` binds, including every name in a tuple pattern, but not
+    /// those in nested closures and functions.
+    ///
+    /// - Parameter node: The variable declaration.
+    /// - Returns: `.visitChildren`.
+    override func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
+        guard closureDepth == 0 else { return .visitChildren }
+        for binding in node.bindings {
+            locals.formUnion(binding.pattern.tokens(viewMode: .sourceAccurate).filter {
+                if case .identifier = $0.tokenKind { return true }
+                return false
+            }.map(\.text))
+        }
+        return .visitChildren
     }
 
     /// Counts an `is` type check.

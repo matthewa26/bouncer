@@ -244,9 +244,13 @@ final class SwiftMarkerCollector: SyntaxVisitor {
     /// - Parameter item: A block item.
     /// - Returns: Whether it's a `return`, `throw`, `break`, `continue`, or `fallthrough`.
     private func isJump(_ item: CodeBlockItemSyntax.Item) -> Bool {
-        item.is(ReturnStmtSyntax.self) || item.is(ThrowStmtSyntax.self) || item.is(BreakStmtSyntax.self)
-            || item.is(ContinueStmtSyntax.self) || item.is(FallThroughStmtSyntax.self)
+        Self.jumpNodes.contains { Syntax(item).is($0) }
     }
+
+    private static let jumpNodes: [SyntaxProtocol.Type] = [
+        ReturnStmtSyntax.self, ThrowStmtSyntax.self, BreakStmtSyntax.self, ContinueStmtSyntax.self,
+        FallThroughStmtSyntax.self
+    ]
 
     /// Reports whether an operator sequence sits inside another sequence that holds a ternary.
     ///

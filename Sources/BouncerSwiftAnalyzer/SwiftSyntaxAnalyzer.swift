@@ -61,13 +61,25 @@ public struct SwiftSyntaxAnalyzer: LanguageAnalyzer {
     /// - Parameter parsed: The parsed file.
     /// - Returns: Its declaration summary.
     private func summarize(_ parsed: Parsed) -> DeclarationSummary {
-        let builder = SwiftDeclarationSummaryBuilder(converter: parsed.converter)
-        builder.walk(parsed.tree)
-        let markers = SwiftMarkerCollector(converter: parsed.converter)
-        markers.walk(parsed.tree)
-        let names = SwiftNameCollector(converter: parsed.converter)
-        names.walk(parsed.tree)
-        return builder.summary(markers: markers.markers, names: names, unused: Self.unusedDeclarations(in: parsed))
+        let builder = Self.walk(SwiftDeclarationSummaryBuilder(converter: parsed.converter), over: parsed)
+        let markers = Self.walk(SwiftMarkerCollector(converter: parsed.converter), over: parsed)
+        let names = Self.walk(SwiftNameCollector(converter: parsed.converter), over: parsed)
+        let shapes = Self.walk(SwiftShapeCollector(converter: parsed.converter), over: parsed)
+        return builder.summary(
+            markers: markers.markers + shapes.markers, names: names,
+            shapes: shapes.facts(typedNames: names.typedNames), unused: Self.unusedDeclarations(in: parsed)
+        )
+    }
+
+    /// Walks a visitor over a whole parsed file.
+    ///
+    /// - Parameters:
+    ///   - visitor: The visitor.
+    ///   - parsed: The parsed file.
+    /// - Returns: The visitor, after the walk.
+    private static func walk<Visitor: SyntaxVisitor>(_ visitor: Visitor, over parsed: Parsed) -> Visitor {
+        visitor.walk(parsed.tree)
+        return visitor
     }
 
     /// Finds the private symbols and parameters nothing in an already-parsed file uses.

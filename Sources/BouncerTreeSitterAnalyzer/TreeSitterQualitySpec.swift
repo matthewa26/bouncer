@@ -16,6 +16,8 @@ struct TreeSitterQualitySpec: Sendable {
     let initializerNames: Set<String>
     /// Node types for the convention rules (`else` after exit, global state, call chains, and so on).
     var conventions = ConventionSpec()
+    /// Node types for the size rules and the type-aware naming rules.
+    var shapes = ShapeSpec()
 }
 
 /// A node type whose named field (or, with no field, the node itself) has one of the given texts.
@@ -190,7 +192,8 @@ extension TreeSitterQualitySpec {
             receiverText: "this", staticKeyword: "static"
         ),
         initializerNames: ["constructor"],
-        conventions: javascriptConventions
+        conventions: javascriptConventions,
+        shapes: .javascript
     )
 
     private static let javascriptConventions = ConventionSpec(
@@ -258,7 +261,8 @@ extension TreeSitterQualitySpec {
                 callbackCallees: [], namePattern: "^test",
                 assertionPattern: #"\bassert\b|\.assert\w*\(|pytest\.raises"#
             )
-        )
+        ),
+        shapes: .python
     )
 
     /// Go's quality node types. Go has no classes, ternaries, or `catch`, so those rules don't apply.
@@ -306,6 +310,7 @@ extension TreeSitterQualitySpec {
                 callbackCallees: [], namePattern: "^Test[A-Z_]",
                 assertionPattern: #"\bt\.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)\(|\b(assert|require)\.\w+\("#
             )
-        )
+        ),
+        shapes: .go
     )
 }

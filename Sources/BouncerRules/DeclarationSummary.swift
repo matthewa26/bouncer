@@ -47,6 +47,8 @@ public struct FunctionMetrics: Sendable, Equatable {
     public let maxNestingDepth: Int
     /// Runtime type checks (`instanceof`, `is`, `as?`), a sign the function should use polymorphism.
     public let typeCheckCount: Int
+    /// Local variables declared in the body, excluding nested functions and closures.
+    public let localVariableCount: Int
 
     /// Creates a function's measurements.
     ///
@@ -58,9 +60,10 @@ public struct FunctionMetrics: Sendable, Equatable {
     ///   - cognitiveComplexity: The SonarSource-style cognitive complexity score.
     ///   - maxNestingDepth: The deepest nesting of control-flow structures.
     ///   - typeCheckCount: The number of runtime type checks.
+    ///   - localVariableCount: The number of distinct local variables declared in the body itself.
     public init(
         parameterCount: Int, booleanParameterCount: Int, returnCount: Int,
-        cognitiveComplexity: Int, maxNestingDepth: Int, typeCheckCount: Int = 0
+        cognitiveComplexity: Int, maxNestingDepth: Int, typeCheckCount: Int = 0, localVariableCount: Int = 0
     ) {
         self.parameterCount = parameterCount
         self.booleanParameterCount = booleanParameterCount
@@ -68,6 +71,7 @@ public struct FunctionMetrics: Sendable, Equatable {
         self.cognitiveComplexity = cognitiveComplexity
         self.maxNestingDepth = maxNestingDepth
         self.typeCheckCount = typeCheckCount
+        self.localVariableCount = localVariableCount
     }
 }
 
@@ -87,14 +91,22 @@ public enum MarkerKind: String, Sendable, CaseIterable {
     case globalMutableState = "global-mutable-state"
     case longMessageChain = "long-message-chain"
     case testWithoutAssertions = "test-without-assertions"
+    case longBooleanExpression = "long-boolean-expression"
+    case tooManyGenericParameters = "too-many-generic-parameters"
 
     /// The rule ID this marker is reported under.
     public var ruleID: String { rawValue }
 
     /// For markers that carry a measurement, the parameter limiting it, its default, and its unit.
     public var threshold: (parameter: String, defaultLimit: Int, unit: String)? {
-        self == .longMessageChain ? ("maxCalls", 5, "calls") : nil
+        Self.thresholds[self]
     }
+
+    private static let thresholds: [MarkerKind: (parameter: String, defaultLimit: Int, unit: String)] = [
+        .longMessageChain: ("maxCalls", 5, "calls"),
+        .longBooleanExpression: ("maxOperands", 4, "operands"),
+        .tooManyGenericParameters: ("maxParameters", 4, "generic parameters")
+    ]
 
     /// The finding message for this marker.
     public var message: String { Self.messages[self] ?? rawValue }
@@ -113,7 +125,9 @@ public enum MarkerKind: String, Sendable, CaseIterable {
         .elseAfterReturn: "else after a branch that always exits; drop the else and outdent its body.",
         .globalMutableState: "Mutable global state; pass it in, or make it a constant.",
         .longMessageChain: "Long chain of calls (Law of Demeter); name the intermediate results.",
-        .testWithoutAssertions: "Test has no assertions, so it can only fail by crashing."
+        .testWithoutAssertions: "Test has no assertions, so it can only fail by crashing.",
+        .longBooleanExpression: "Long boolean expression; name its parts with local variables or a helper.",
+        .tooManyGenericParameters: "Too many generic parameters; group related ones into a type."
     ]
 }
 
@@ -141,15 +155,22 @@ public struct CollectedMarker: Sendable, Equatable {
 public struct CollectedName: Sendable, Equatable {
     public let name: String
     public let line: Int
+    /// The declared type's source text, or a literal's type (`Bool`, `string`, `list`, ...), if known.
+    public let typeName: String?
+    public let isParameter: Bool
 
     /// Creates a collected name.
     ///
     /// - Parameters:
     ///   - name: The declared identifier.
     ///   - line: The 1-indexed line it's declared on.
-    public init(name: String, line: Int) {
+    ///   - typeName: Its declared or literal-inferred type, if known.
+    ///   - isParameter: Whether it's a function parameter rather than a variable or property.
+    public init(name: String, line: Int, typeName: String? = nil, isParameter: Bool = false) {
         self.name = name
         self.line = line
+        self.typeName = typeName
+        self.isParameter = isParameter
     }
 }
 
@@ -251,6 +272,8 @@ public struct DeclarationSummary: Sendable {
     public let stringLiterals: [CollectedString]
     /// Declarations nothing in the file uses, for the dead-code rules.
     public let unusedDeclarations: [UnusedDeclaration]
+    /// Type extents, closures, and typed names, for the size and naming rules.
+    public let shapes: ShapeFacts
 
     /// Creates a declaration summary.
     ///
@@ -263,19 +286,19 @@ public struct DeclarationSummary: Sendable {
     ///   - declaredNames: Every variable and parameter declared, for the naming rules.
     ///   - stringLiterals: Every plain string literal, for the duplicated-string rule.
     ///   - unusedDeclarations: Every private symbol, import, and parameter nothing in the file uses.
+    ///   - shapes: Every type's extent, every closure's extent, and every typed name.
     public init(
         functions: [CollectedFunction], types: [CollectedType], switches: [CollectedSwitch], importCount: Int,
         markers: [CollectedMarker] = [], declaredNames: [CollectedName] = [], stringLiterals: [CollectedString] = [],
-        unusedDeclarations: [UnusedDeclaration] = []
+        unusedDeclarations: [UnusedDeclaration] = [], shapes: ShapeFacts = ShapeFacts()
     ) {
-        self.functions = functions
-        self.types = types
-        self.switches = switches
+        (self.functions, self.types, self.switches) = (functions, types, switches)
         self.importCount = importCount
         self.markers = markers
         self.declaredNames = declaredNames
         self.stringLiterals = stringLiterals
         self.unusedDeclarations = unusedDeclarations
+        self.shapes = shapes
     }
 }
 

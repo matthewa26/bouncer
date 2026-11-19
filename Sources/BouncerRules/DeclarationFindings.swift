@@ -45,6 +45,7 @@ public enum DeclarationFindings {
             + typeShapeFindings(summary, file: file, context: context)
             + nameFindings(summary, file: file, context: context)
             + deadCodeFindings(summary, file: file, context: context)
+            + shapeFindings(summary, file: file, context: context)
     }
 
     public static let lackOfCohesionRuleID = "lack-of-cohesion"
@@ -137,6 +138,10 @@ public enum DeclarationFindings {
         MetricRule(
             ruleID: "nesting-depth", parameter: "maxDepth", defaultLimit: 4,
             value: { $0.maxNestingDepth }, describe: { "control flow nested \($0) deep" }
+        ),
+        MetricRule(
+            ruleID: "too-many-locals", parameter: "maxLocals", defaultLimit: 10,
+            value: { $0.localVariableCount }, describe: { "\($0) local variables" }
         )
     ]
 
@@ -321,7 +326,7 @@ public enum DeclarationFindings {
     ///
     /// - Parameter language: The language to look up.
     /// - Returns: Its line-comment prefixes.
-    private static func commentPrefixes(for language: Language) -> [String] {
+    static func commentPrefixes(for language: Language) -> [String] {
         LanguageProfiles.profile(for: language).lineCommentPrefixes
     }
 

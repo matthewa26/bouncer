@@ -236,6 +236,12 @@ targets whose public API is meant for other packages in `publicTargets`. Because
 name, two symbols sharing a name hide each other, and a value used without naming its type can
 look unused; treat its findings as candidates to make `internal`.
 
+Matching by symbol instead is possible but not built. It would read the index store the Swift
+compiler writes during `swift build`, through `IndexStoreDB`, and match each declaration's
+unique symbol ID (USR) to its references and protocol conformances. The cost: the rule would
+need a fresh build, so it couldn't run in `check`, and Bouncer would take on a dependency that
+tracks the Swift toolchain version. It can be built if there's demand.
+
 `missing-test-file` looks for `foo.test.ts`/`foo.spec.ts`, `test_foo.py`/`foo_test.py`,
 `foo_test.go`, or `FooTests.swift`/`FooTest.swift` anywhere in the project. It's off by default;
 turn it on by listing it under `rules`.

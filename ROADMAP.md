@@ -29,7 +29,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | `var` (`js-var`) | F | |
 | ⬜ | Floating promise (missing `await`/`.catch`) | T | Needs type information; see section 10 |
 | ⬜ | `enum` where a union type would do | F | Style preference; would be opt-in |
-| ✅ | Unused exports (`unused-export` for TS/JS named exports; opt-in `unused-public-symbol` for Swift `public` API) | X | |
+| ✅ | Unused exports (`unused-export` for TS/JS named exports; opt-in `unused-public-symbol` for Swift `public` API) | X | Swift matches by name; matching by symbol through the compiler's index store (`IndexStoreDB`) is deferred until there's demand |
 
 ---
 

@@ -89,7 +89,9 @@ public struct ProjectPhase: Sendable {
     /// - Returns: Project findings in target files.
     /// - Throws: If the index can't be listed or the cache can't be saved.
     func findings(targets: Set<String>, context: AnalysisContext, access: FileAccess) throws -> [Finding] {
-        let facts = try indexProvider.targetFiles().compactMap { try facts(for: $0, context: context, access: access) }
+        let facts = try indexProvider.targetFiles().compactMap {
+            try self.facts(for: $0, context: context, access: access)
+        }
         try store.save(facts)
         return analyzer.findings(for: facts, targets: targets, context: context).filter {
             targets.contains(RepoPath.relative($0.filePath, to: context.repoRoot))

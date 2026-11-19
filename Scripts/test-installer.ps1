@@ -28,3 +28,5 @@ try { Invoke-Expression $installer } catch { $rejected = $_.Exception.Message -l
 if (-not $rejected) { throw 'installer accepted a corrupted download' }
 Remove-Item -Recurse -Force $work
 Write-Host 'installer test passed'
+# The installer runs the fake bouncer.exe, which fails on purpose; don't let its exit code become ours.
+exit 0

@@ -23,7 +23,7 @@ jobs:
   macos:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: swift build -c release --arch arm64 --arch x86_64
       - name: Package
         run: |
@@ -42,7 +42,7 @@ jobs:
     # Job containers can't read env, so this tag repeats SWIFT_VERSION; keep them in sync.
     container: swift:6.4.2-noble
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install the Static Linux SDK
         run: |
           release="swift-${SWIFT_VERSION}-RELEASE"
@@ -69,7 +69,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: compnerd/gha-setup-swift@main
         with:
           swift-version: swift-${{ env.SWIFT_VERSION }}-release

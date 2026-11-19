@@ -28,7 +28,7 @@ public struct ImportResolvers: Sendable {
     ///   - paths: Every indexed file's repo-relative path.
     ///   - repoRoot: The repository root, for `tsconfig.json` and `go.mod`.
     public init(paths: Set<String>, repoRoot: URL) {
-        let javascript = JavaScriptImportResolver(paths: paths, config: TSConfig(repoRoot: repoRoot))
+        let javascript = JavaScriptImportResolver(paths: paths, repoRoot: repoRoot)
         let python = PythonImportResolver(paths: paths)
         var resolvers: [String: ImportResolver] = ["swift": SwiftImportResolver(paths: paths), "py": python]
         for ext in JavaScriptImportResolver.extensions { resolvers[ext] = javascript }

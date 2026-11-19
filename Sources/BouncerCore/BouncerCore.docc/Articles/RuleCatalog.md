@@ -230,8 +230,12 @@ volatile code then ripple into the stable code that depends on it.
 turn it on by listing it under `rules`.
 
 Imports are resolved per language. TypeScript and JavaScript resolve relative specifiers (trying
-each TS/JS extension, `index` files, and `.js` written for a `.ts` file) and the root
-`tsconfig.json`'s `baseUrl` and `paths` aliases; package imports are external. Swift resolves
+each TS/JS extension, `index` files, and `.js` written for a `.ts` file); `baseUrl` and `paths`
+aliases from each file's nearest `tsconfig.json`, following relative `extends` chains; and the
+repo's own workspace packages, found from every `package.json` above a source file. A workspace
+package import such as `@acme/ui` or `@acme/ui/button` resolves through `exports`, `source`,
+`module`, or `main`, mapping build output like `dist/index.js` back to `src/`, and falling back to
+`src/index`. Third-party packages are external. Swift resolves
 `import X` to the SwiftPM target in `Sources/X` or `Tests/X`. Python resolves dotted and relative
 imports to `.py` files or packages at the root or under `src/`. Go resolves imports under the
 `go.mod` module path to package directories.

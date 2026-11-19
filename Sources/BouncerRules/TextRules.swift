@@ -13,7 +13,8 @@ public enum TextRules {
         let shared: [Rule] = [
             FileLengthRule(profile: profile), LongLineRule(), TodoDensityRule(), DuplicateBlockRule(),
             TrailingWhitespaceRule(), SecretPatternRule(), DeepNestingRule(), MissingFinalNewlineRule(),
-            CrlfLineEndingsRule(), MixedIndentationRule(), ConsecutiveBlankLinesRule()
+            CrlfLineEndingsRule(), MixedIndentationRule(), ConsecutiveBlankLinesRule(),
+            CommentedOutCodeRule(profile: profile), RedundantCommentRule(profile: profile)
         ]
         return shared + CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
     }

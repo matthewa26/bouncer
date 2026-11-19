@@ -28,7 +28,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Double cast `as unknown as T` (`ts-double-cast`) | F | |
 | ✅ | `var` (`js-var`) | F | |
 | ⬜ | Floating promise (missing `await`/`.catch`) | T | Needs type information; see section 10 |
-| ⬜ | `enum` where a union type would do | F | Style preference; would be opt-in |
+| ✅ | `enum` where a union type would do (`ts-prefer-union-type`, opt-in) | F | TypeScript plain enums of string literals or implicit numbers |
 | ✅ | Unused exports (`unused-export` for TS/JS named exports; opt-in `unused-public-symbol` for Swift `public` API) | X | Swift matches by name; matching by symbol through the compiler's index store (`IndexStoreDB`) is deferred until there's demand |
 
 ---
@@ -77,7 +77,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Large class / god class | F | `god-class` (Swift, TS, JS, Python) |
 | ✅ | Long method | F | `long-function` |
 | ✅ | Long parameter list | F | `long-parameter-list` |
-| ⬜ | Primitive obsession | T | Many `String`/`Int` params; stringly-typed IDs, money, dates |
+| ✅ | Primitive obsession (`primitive-obsession`, opt-in) | T | ≥ 4 required string/number params, or ID/money/date/URL-named params and fields typed as plain strings or numbers; explicit annotations only |
 | ✅ | Data clumps (`data-clump`) | X | The same 3+ params or fields (name and type) in 4+ functions/types across files |
 
 ### Object-orientation abusers
@@ -86,15 +86,15 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Switch statements on a type tag | F | `switch-on-type-smell` |
 | ✅ | Repeated switches on the same discriminator (`repeated-switch`) | X | The same subject with shared cases in 3+ files |
 | ✅ | Type-checking chains (`type-check-chain`) | F | Replace with polymorphism |
-| ⬜ | Temporary field | T | A field set or used in only one method path |
+| ✅ | Temporary field (`temporary-field`) | T | A private, unset mutable field one method alone assigns first and then reads; the set-in-one, read-in-a-later-one variant isn't checked |
 | ✅ | Refused bequest (`refused-bequest`) | X/T | A subclass overrides methods to throw or no-op |
-| ⬜ | Alternative classes with different interfaces | X | |
+| ✅ | Alternative classes with different interfaces (`alternative-interfaces`, opt-in) | X | 3+ methods with matching parameter and return types under different names in unrelated types; shape stands in for purpose |
 
 ### Change preventers
 | ✓ | Smell | Scope | How to detect |
 |---|---|---|---|
-| ⬜ | Divergent change | X + git | One file changes for many unrelated reasons (churn by commit topic) |
-| ⬜ | Shotgun surgery | X + git | One change touches many files (co-change analysis) |
+| ✅ | Divergent change (`divergent-change`, opt-in) | X + git | A file's commits fall into 3+ reasons, approximated by co-changed modules that share no module or import |
+| ✅ | Shotgun surgery (`shotgun-surgery`, opt-in) | X + git | The file's median commit also changes 6+ hand-written files across 3+ modules |
 | ✅ | Parallel inheritance hierarchies (`parallel-inheritance`) | X | Subtypes pairing up by name stem |
 
 ### Dispensables
@@ -102,7 +102,7 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|---|
 | ✅ | Duplicate code within a file (exact match) | F | `duplicate-block` |
 | ✅ | Duplicate code across files | X | `duplicate-code`: token-based clone detection with winnowing |
-| ⬜ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) | F/X | Type-2 (renamed identifiers, changed literals) is in `duplicate-code`; Type-3 (small edits, inserted lines) isn't |
+| ✅ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) (`duplicate-code`) | F/X | Renamed copies and copies with an inserted, deleted, or changed line; near-duplicates are reported with an estimated similarity (`maxGap`, `minSimilarity`) |
 | ✅ | Dead code: unused private functions, vars, params, imports | F/T | `unused-private-symbol`, `unused-import`, opt-in `unused-parameter`; per file, by name |
 | ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS, Python, Go |
 | ✅ | Speculative generality: protocol/interface with one implementation (opt-in `single-implementation-interface`), unused params (`unused-parameter`); hooks aren't checked | X | Matches your "no single-implementation interfaces" principle |
@@ -116,8 +116,8 @@ The **Scope** column says what analysis a check needs:
 | ✓ | Smell | Scope | How to detect |
 |---|---|---|---|
 | ✅ | High coupling, measured by import count | F | `high-coupling` (a proxy only) |
-| ⬜ | Feature envy | T | A method uses another type's members more than its own |
-| ⬜ | Inappropriate intimacy | X | Two types access each other's internals |
+| ✅ | Feature envy (`feature-envy`, opt-in) | T | ≥ 5 data reads of one parameter or local, over twice the method's own member uses; objects told apart by name |
+| ✅ | Inappropriate intimacy (`inappropriate-intimacy`) | X | Two types each read 2+ of the other's stored fields or `_names`, through values whose type is written or constructed |
 | ✅ | Message chains / Law of Demeter (`long-message-chain`) | F | |
 | ✅ | Middle man: a type that mostly just delegates (`middle-man`) | F | ≥ 3 and > half of methods forward |
 | ✅ | Global mutable state (`global-mutable-state`) | F | |
@@ -130,30 +130,30 @@ The **Scope** column says what analysis a check needs:
 | ✅ | LCOM4: lack of cohesion of methods (`lack-of-cohesion`) | F | 1 is cohesive; more means the type splits into that many groups. Default ≤ 2, Kirby 1. Swift, TS, JS, Python |
 | ✅ | LCOM1–3 and LCOM-HS variants (`lack-of-cohesion`'s `variant`) | F | |
 | ✅ | TCC/LCC: tight/loose class cohesion (`class-cohesion`, opt-in) | F | Default TCC ≥ 0.33 |
-| ⬜ | CBO: coupling between objects (types referenced) | T | ≤ 5–10 |
-| ⬜ | RFC: response for a class | T | |
+| ✅ | CBO: coupling between objects (types referenced) (`coupling-between-objects`, opt-in) | T | ≤ 10; distinct type names in annotations, heritage, constructor calls, and static access, minus built-ins |
+| ✅ | RFC: response for a class (`response-for-class`, opt-in) | T | ≤ 50; methods plus distinct callees, by name |
 | ✅ | DIT: depth of inheritance tree (`deep-inheritance`) | X | Default 4, project classes only |
 | ✅ | NOC: number of children (opt-in `many-subclasses`) | X | Default ≤ 10 |
 | ✅ | Fan-in / fan-out per module (`hub-module`, `high-fan-out`) | X | |
 | ✅ | Instability I = Ce / (Ca + Ce), via the Stable Dependencies Principle (`unstable-dependency`) | X | |
 | ✅ | Abstractness A and distance from the main sequence \|A + I − 1\| (opt-in `main-sequence-distance`) | X | Default ≤ 0.7 |
-| ⬜ | ATFD (access to foreign data) for god-class detection | T | The Lanza–Marinescu god-class formula: WMC + ATFD + TCC |
+| ✅ | ATFD (access to foreign data) for god-class detection (`god-class` with `formula: lanza-marinescu`) | T | WMC ≥ 47, ATFD ≥ 6, TCC < 1/3; ATFD counts other objects' properties and getters read, per object name |
 
 ## 5. SOLID and design principles
 
 | ✓ | Principle | Detectable proxy | Scope |
 |---|---|---|---|
 | ✅ | Single Responsibility | LCOM4 > 1 (`lack-of-cohesion`), god class, many unrelated imports | F |
-| ⬜ | Open/Closed | Type-switches, `is`/`instanceof` chains | F |
-| ⬜ | Liskov Substitution | Overrides that throw "not supported", or narrow preconditions | X/T |
-| ⬜ | Interface Segregation | Protocols with many methods; conformers stubbing most of them | X |
-| ⬜ | Dependency Inversion | Concrete types instantiated inside business logic; no injected protocol | T |
-| ⬜ | DRY | Clone detection (see section 3) | X |
-| ⬜ | YAGNI | Unused params, single-implementation abstractions, unused config | X |
+| ✅ | Open/Closed | Type-switches and `is`/`instanceof` chains (`switch-on-type-smell`); the same switch repeated across files (`repeated-switch`) | F |
+| ✅ | Liskov Substitution | Requirements implemented only to throw or trap; overrides opening with an argument check the parent lacks (`liskov-substitution`; inherited refusals are `refused-bequest`'s) | X/T |
+| ✅ | Interface Segregation | A 5+ requirement protocol, interface, or abstract class a conformer stubs 3+ and half of (`interface-segregation`) | X |
+| ✅ | Dependency Inversion | A type keeps an instance it built of a class implementing a project abstraction, or of a `…Service`/`…Client`/`…Repository`, that no initializer takes (`dependency-inversion`, opt-in) | T |
+| ✅ | DRY | Clone detection: `duplicate-block` within a file, `duplicate-code` across files (exact, renamed, and near-duplicates) | X |
+| ✅ | YAGNI | Unused params (`unused-parameter`), single-implementation abstractions (`single-implementation-interface`), dead code (`unused-private-symbol`, `unused-export`); unused config keys aren't checked | X |
 | ✅ | Law of Demeter | Message chains reaching past the first object (`law-of-demeter`, opt-in) | F |
-| ⬜ | Composition over inheritance | Deep DIT; subclass that only overrides one method | X |
-| ⬜ | Tell, don't ask | Getter followed by a decision on another object's state | T |
-| ⬜ | Command–query separation | Function both mutates and returns a value | T |
+| ✅ | Composition over inheritance | Deep DIT (`deep-inheritance`); a fieldless subclass overriding exactly one method (`single-override-subclass`, opt-in) | X |
+| ✅ | Tell, don't ask | An `if` that reads another object's state and sets that same state in its body (`tell-dont-ask`, opt-in) | T |
+| ✅ | Command–query separation | A method that changes its own fields and returns a computed value, minus fluent, status-returning, `mutating`, override, caching, and `pop`/`next`-style methods (`command-query-separation`, opt-in) | T |
 
 ## 6. Architecture and dependencies
 
@@ -208,7 +208,7 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Swift `precondition` (`swift-precondition`, opt-in), and limiting either to library (non-app) code (`libraryOnly`) | F |
 | ✅ | Swift `try?` that silently discards errors (`swift-discarded-try`) | F |
 | ✅ | Go `if err != nil { return err }` with no wrapping context (`go-unwrapped-error`, opt-in) | F |
-| ⬜ | Returning `null`/`nil` where an empty collection would do | T |
+| ✅ | Returning `null`/`nil` where an empty collection would do (`null-collection-return`, opt-in; Swift, TS, Python, Java) | T |
 | ✅ | Error message without context (`generic-error-message`) | F |
 | ✅ | Resource leaks: file or handle opened with no `defer`/`with`/`using` (`resource-leak`) | F/T |
 
@@ -218,7 +218,7 @@ The **Scope** column says what analysis a check needs:
 |---|---|---|
 | ✅ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` (`swift-unchecked-sendable`) | F |
 | ✅ | `DispatchQueue.main.sync` and `semaphore.wait()` (`swift-main-sync`, `swift-semaphore-wait`) | F |
-| ⬜ | Mutable shared state without a lock or actor | T |
+| ✅ | Mutable shared state without a lock or actor (`shared-mutable-state`; Swift and Go by default, TS/JS and Python via `languages`) | T |
 | ✅ | Fire-and-forget `Task {}` with no cancellation handling (`fire-and-forget-task`, opt-in) | F |
 | ✅ | Go goroutine without context or a `WaitGroup` (`go-unmanaged-goroutine`) | F |
 | ⬜ | JS floating promise (missing `await`/`.catch`) | T |
@@ -293,10 +293,12 @@ The **Scope** column says what analysis a check needs:
   - The heuristic languages get none of the AST rules, the dead-code rules, or `duplicate-code`. A new tree-sitter language gets the shared AST rules by adding a `TreeSitterQualitySpec`, with no new rule code.
   - The dead-code rules cover Swift, TS/JS, and Python. Go is left out because a package spans files.
 - **Precision gaps:**
+  - Without type information, the design-principle rules (SOLID, feature envy, CBO/RFC, tell-don't-ask) are syntactic approximations; the catalog states each one's definition.
   - Dead-code rules and `unused-public-symbol` match by name, not by symbol, so a same-named identifier hides a dead declaration. Symbol-level Swift matching through the compiler's index store is deferred until there's demand.
-  - `duplicate-code` finds exact and renamed copies (Type-1/2), not copies with small edits (Type-3), and its region edges can start a line or two late.
+  - `duplicate-code`'s near-duplicate similarity is an estimate from fingerprints, and its region edges can start a line or two late.
   - Coupling is an import count. These are labelled as proxies in the docs.
 - **Git-aware rules:** `hotspot`, `change-coupling`, and `single-author-file` read history in the project pass; `oversized-change` and `complexity-ratchet` run in `check` through the change pass (`ChangePhase`), independent of `project.inCheck`. Function complexity for both comes from `LanguageAnalyzer.measureFunctions`.
+- **Suppressions:** `bouncer:disable-line`/`disable-next-line`/`disable`/`enable`/`disable-file` comments silence named rules in place (see Configuration); there's no check yet for suppressions that no longer silence anything.
 - **Architecture:** the project pass (`ProjectRules` over cached `FileFacts` in `.bouncer-cache/facts.json`) is where cross-file rules go, such as cycles, layers, unused exports, and clones. It runs in `review` and `baseline update`, and in `check` only with `project.inCheck`. Each file is parsed once for both per-file rules and facts.
 - **Easiest wins:**
   - Many remaining **F** items are a few lines of `LanguageProfiles` pattern data, such as a new language's debug-print or unsafe-call pattern.

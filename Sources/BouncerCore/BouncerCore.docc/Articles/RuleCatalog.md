@@ -45,6 +45,8 @@ These run on every language.
 | `path-traversal` | Request input (`req.params`, `request.args`, `r.URL.Query()`, …) reaching a path join or file call, on the same line or through a variable assigned within 10 lines | warning | none |
 | `logged-secret` | A log or print call that writes a password, secret, API or private key, auth token, SSN, or card number | warning | none |
 | `empty-catch` (Java, C++, PowerShell, C#/Kotlin/PHP/Dart files) | A `catch` block with nothing but whitespace inside; the parse-tree version covers Swift, TS/JS, Python, and Go | warning | none |
+| `null-collection-return` (Swift, TS, Python, Java) | A function declared to return an optional or nullable collection (`-> [T]?`, `T[] \| null`, `Optional[List[T]]`, a Java `List`/`Map`/array) whose own body returns `nil`/`null`/`None` and never an empty one, unless its doc comment says what the null means; off unless configured | warning | none |
+| `shared-mutable-state` (Swift, Go; TS/JS and Python through `languages`) | A Swift global or `static var` outside an actor or global actor, a Go package-level `var` written by a function, a TS/JS module-level `let` reassigned in a file with async code, or a Python `global` in a threaded or asyncio file, with no lock, queue, or atomic in the file | warning | `languages` (`["swift", "go"]`) |
 | `missing-final-newline` | A non-empty file that doesn't end with a newline | warning | none |
 | `crlf-line-endings` | A file using Windows (CRLF) line endings, reported once per file | warning | none |
 | `mixed-indentation` | A file indenting some lines with tabs and others with spaces | warning | none |
@@ -70,12 +72,15 @@ These six come from the design-pattern and code-quality catalog taught in OSU CS
 | `high-coupling` | A file's import/using/require count, as a coupling proxy | warning | `maxImports` (15) |
 | `switch-on-type-smell` | A switch/match statement's branch count | warning | `maxBranches` (6) |
 | `missing-documentation` | Whether a declaration has a doc comment | warning | `scope` (`public`), see below |
-| `god-class` (Swift, TypeScript, JavaScript, Python) | A type's member count combined with its file's import count | warning | `maxMembers` (20), `maxImportsForGodClass` (10) |
+| `god-class` (Swift, TypeScript, JavaScript, Python) | A type's member count combined with its file's import count | warning | `maxMembers` (20), `maxImportsForGodClass` (10), `formula` (`members`; `lanza-marinescu` uses `minWMC` (47), `minATFD` (6), `minTCC` (0.33)) |
 
 `god-class` only applies where the language has classes with a real member list Bouncer can
-count; Go, for instance, has no equivalent. `high-coupling` counts import statements as a
-coupling proxy, not an actual dependency graph; a real cross-file coupling metric is out of
-scope for a rule engine that only ever looks at one file at a time.
+count; Go, for instance, has no equivalent. With `formula: "lanza-marinescu"` it uses the
+Lanza–Marinescu detection strategy instead: weighted methods (WMC) of at least `minWMC`, access
+to foreign data (ATFD) of at least `minATFD`, and tight class cohesion below `minTCC`.
+`high-coupling` counts import statements as a coupling proxy; the project rules
+(`hub-module`, `unstable-dependency`) and `coupling-between-objects` measure coupling between
+files and types.
 
 ## Function shape and single-location smells
 
@@ -139,6 +144,13 @@ parameter. The heuristic languages don't get these rules.
 | `lazy-class` | A type with no fields, one branch-free method, and nothing else; off unless configured | warning | none |
 | `middle-man` | A type where at least `minDelegations` methods, and more than half, only call a field's same-named method | warning | `minDelegations` (3) |
 | `law-of-demeter` | A member chain reaching more than `maxReach` steps past its first object; off unless configured | warning | `maxReach` (2) |
+| `coupling-between-objects` | CBO: distinct other type names a class's annotations, heritage, constructor calls, and uppercase member-access bases name, minus its own, nested, generic, and built-in types; off unless configured | warning | `max` (10) |
+| `response-for-class` | RFC: a class's methods plus the distinct methods they call, told apart by name; off unless configured | warning | `max` (50) |
+| `feature-envy` | An instance method reading at least `minAccesses` data members (properties, `getX()`) of one parameter or local, more than twice its own members; off unless configured | warning | `minAccesses` (5) |
+| `temporary-field` | A private, mutable field declared without a value that one method alone uses, first assigning it unconditionally at the top of its body and then reading it | warning | none |
+| `command-query-separation` | An instance method that changes its own fields and returns a computed value; off unless configured | warning | none |
+| `tell-dont-ask` | An `if` that reads another object's state and whose body sets that same state (`if a.balance >= x { a.balance -= x }`); off unless configured | warning | none |
+| `primitive-obsession` (Swift, TS, Python, Go) | A function with at least `minParameters` required string/number parameters, or a parameter or field whose name ends in an ID/money/date/URL word but is typed as a plain string or number; off unless configured | warning | `minParameters` (4), `words` (id, uuid, amount, price, currency, date, timestamp, email, url, phone, and more) |
 | `incomplete-documentation` | A structured doc comment (Swift `- Parameter`/`- Returns`/`- Throws`, JSDoc `@param`/`@returns`/`@throws`, Python Google/NumPy/reST) that leaves out a parameter, the return value, or what's thrown | warning | `requireReturns` (true), `requireThrows` (true) |
 | `stale-documentation` | A structured doc comment describing a parameter the signature doesn't have | warning | none |
 | `oversized-test` | A test in a test file (path mentions `test`/`spec`) longer than `maxLines` logical lines or with more than `maxAssertions` assertions | warning | `maxLines` (50), `maxAssertions` (15) |
@@ -161,6 +173,24 @@ a one-line summary isn't "incomplete"; a return value is expected for a Swift no
 type or a JS/Python function that returns a value, and a throw for a Swift `throws` function
 that throws or calls `try`, or a JS/Python `throw`/`raise` outside any `try`. Go has no
 parameter-doc convention, so the doc rules skip it, and the class rules don't apply to Go.
+
+The class and function design rules (`coupling-between-objects` through `primitive-obsession`)
+are syntactic approximations without type information, and every one skips test files. ATFD
+and `feature-envy` count another object's data as the properties and `getX()` getters a method
+reads (not writes, other calls, library accessors like `count`, or values copied as is into a
+constructor call), keyed by the object's name. `feature-envy` also skips fields, settings bags
+(`options`, `config`, `context`), initializers, static methods, and methods named for reading
+another object (`==`, `hash`, `encode`, `visit…`, `from…`, `to…`, `make…`, `render…`).
+`temporary-field` needs `private`, `#x`, or a `_x` name, and skips types extended in the same
+file and, for fields only created by assignment, classes with a superclass or whose
+`self.x`/`this.x` is used elsewhere in the file. `command-query-separation` skips methods
+returning `self`/`this` or only constants, `@discardableResult`, `mutating`, and `override`
+methods, lazy caches whose changed fields are checked in an `if`/`guard` (or `hasattr`) first,
+and names like `pop`, `next`, `take`, `advance`, and `increment`. `tell-dont-ask` ignores the
+enclosing function's own locals (a Go receiver counts as self) and matches `getX`/`setX`/`isX`
+to `x`. `primitive-obsession` reads explicit annotations only, leaves defaulted parameters and
+initializers out of its count, and needs a qualifier for `id` (`userId`, not `id`). Go has no
+classes, so only `tell-dont-ask` and `primitive-obsession` apply to it.
 
 `cognitive-complexity` follows SonarSource's scheme: each `if`, loop, `switch`, `catch`, and
 ternary adds one plus its nesting level; `else` and `else if` add one; each run of mixed
@@ -258,6 +288,7 @@ mistake in that language, layered on top of the shared rules above:
 | TypeScript/JavaScript | `js-raw-html` | `innerHTML`/`outerHTML` assignment, `insertAdjacentHTML`, `dangerouslySetInnerHTML` |
 | TypeScript/JavaScript | `js-shell-injection` | `exec`/`execSync` with a template string containing `${…}` |
 | TypeScript/JavaScript | `skipped-test` | `it/test/describe.skip` or `.only`, `xit`/`xdescribe`, `fit`/`fdescribe` |
+| TypeScript | `ts-prefer-union-type` | A plain `enum` whose members are all string literals or all implicitly numbered, not merged with a `namespace` or iterated; use a string-literal union; off unless configured |
 | Swift | `swift-fatal-error` | `fatalError(...)`; `libraryOnly: true` limits it, and `swift-precondition`, to library code |
 | Swift | `swift-precondition` | `precondition`/`preconditionFailure`; off unless configured |
 | Swift | `fire-and-forget-task` | `Task { }`/`Task.detached { }` started as a statement with no cancellation check; off unless configured |
@@ -297,9 +328,15 @@ mistake in that language, layered on top of the shared rules above:
 Most of these are declarative pattern rules, the same mechanism `customRules` in your own
 `.bouncer` file uses; see <doc:Configuration>. Adding one for a language that doesn't have it
 yet is a data change, not new code. `swift-fatal-error`, `swift-precondition`,
-`swift-shell-injection`, `insecure-random`, `fire-and-forget-task`, `go-unwrapped-error`, and
-`go-unmanaged-goroutine` are small text rules instead, because they need more context than one
-line.
+`swift-shell-injection`, `insecure-random`, `fire-and-forget-task`, `go-unwrapped-error`,
+`go-unmanaged-goroutine`, `ts-prefer-union-type`, `null-collection-return`, and
+`shared-mutable-state` are small text rules instead, because they need more context than one
+line. `shared-mutable-state` trusts any lock, queue, `Mutex`, `Atomic`, `sync.`, or `Lock(`
+anywhere in the file, and skips `main.swift`, package manifests, `init`/`main`, test files, and
+isolated or computed declarations; JavaScript can't race on memory, but state written across an
+`await` interleaves between concurrent calls, which is why TS/JS is available through
+`languages`. `null-collection-return` reads only explicit `return` statements outside closures
+and nested functions.
 
 `swift-fatal-error` and `swift-precondition` take `libraryOnly`: when true, test files and
 executable code are skipped. A file is executable when it is `main.swift` or declares `@main`,
@@ -337,10 +374,12 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `unstable-dependency` | A stable module importing a less stable one (Stable Dependencies Principle) | warning | `minDifference` (30, a percentage) |
 | `missing-test-file` | A source file with no conventionally named test file; off unless configured | warning | none |
 | `unused-public-symbol` | A Swift `public`/`open` declaration no other target uses; off unless configured | warning | `publicTargets`, `ignoreNames` |
-| `duplicate-code` | A block of code copied into another file, exactly or with renamed identifiers or changed literals | warning | `minTokens` (50), `minLines` (6), `ignoreLiterals` (true), `ignore` (none) |
+| `duplicate-code` | A block of code copied into another file, exactly, with renamed identifiers or changed literals, or with small edits (reported as a near-duplicate) | warning | `minTokens` (50), `minLines` (6), `ignoreLiterals` (true), `maxGap` (40), `minSimilarity` (80), `ignore` (none) |
 | `hotspot` | A file that changes often and is complex: commits over `sinceDays` days × total cyclomatic complexity; the top `top` are reported at their most complex function | warning | `sinceDays` (180), `minCommits` (5), `minComplexity` (30), `top` (5), `ignore` (none) |
 | `change-coupling` | Two files that keep changing in the same commits although neither imports the other | warning | `sinceDays` (180), `minShared` (5), `minRatio` (0.5), `maxFilesPerCommit` (30) |
 | `single-author-file` | A file nearly all of whose recent commits are by one author (bus factor 1); off unless configured | warning | `sinceDays` (365), `minCommits` (5), `minShare` (0.9) |
+| `divergent-change` | A file whose commits change alongside several unrelated groups of modules; off unless configured | warning | `sinceDays` (365), `minReasons` (3), `minCommitsPerReason` (3), `maxFilesPerCommit` (30), `maxModulesPerCommit` (3) |
+| `shotgun-surgery` | A file whose typical commit also changes many files across many modules; off unless configured | warning | `sinceDays` (180), `minCommits` (5), `minFiles` (6), `minModules` (3), `maxFilesPerCommit` (30) |
 | `deep-inheritance` | A class more than `maxDepth` project classes deep (DIT) | warning | `maxDepth` (4) |
 | `many-subclasses` | A class with more direct subclasses than allowed (NOC); off unless configured | warning | `maxChildren` (10) |
 | `refused-bequest` | A subclass overriding inherited methods only to throw, trap, or do nothing | warning | none |
@@ -349,6 +388,12 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `data-clump` | The same 3+ parameters or fields (name and type) in several functions and types across files | warning | `minMembers` (3), `minOccurrences` (4), `maxMembers` (12) |
 | `repeated-switch` | The same `switch` subject with shared cases in several files | warning | `minOccurrences` (3), `minFiles` (3), `minSharedCases` (2), `ignoreSubjects` (none) |
 | `single-implementation-interface` | A protocol or interface with one implementation and no test double; off unless configured | warning | `includePublic` (false) |
+| `liskov-substitution` | A concrete type implementing a protocol, interface, or abstract-class requirement only to throw or trap, or an override adding a precondition on its arguments the parent lacks | warning | none |
+| `interface-segregation` | A protocol, interface, or abstract class a conformer implements mostly as empty or throwing stubs | warning | `minRequirements` (5), `minStubs` (3), `minShare` (0.5) |
+| `single-override-subclass` | A subclass adding no fields that overrides exactly one parent method; off unless configured | warning | none |
+| `inappropriate-intimacy` | Two types in different files each reading the other's fields | warning | `minFields` (2) |
+| `dependency-inversion` | A type constructing and keeping an implementation of a project abstraction, or a service, instead of taking it in its initializer; off unless configured | warning | none |
+| `alternative-interfaces` | Two unrelated types with matching method signatures under different names; off unless configured | warning | `minMatches` (3), `minShare` (0.5), `maxSharers` (4) |
 | `unused-dependency` | A SwiftPM, `package.json`, or `go.mod` dependency no code imports | warning | `ignore` (none) |
 | `inconsistent-terminology` | A module mixing synonym verbs (`fetchX`, `getY`, `loadZ`); off unless configured | warning | `groups`, `ignoreNames` |
 | `missing-readme` | A SwiftPM target, `package.json` package, or Go module without a README; off unless configured | warning | `includeTests` (false) |
@@ -425,8 +470,12 @@ are cached in `.bouncer-cache/facts.json`. Copies of at least `minTokens` tokens
 code lines are grouped into clone classes, and each copy is reported once, naming the first copy
 (by path, then line) and, for three or more, how many copies there are. Copies within one file
 are left to `duplicate-block`. Set `ignoreLiterals` to `false` to require literal values to
-match, and list generated or vendored paths in `ignore` (or `exclude`). Copies with small edits
-or inserted lines (Type-3 clones) show up only as their unchanged parts.
+match, and list generated or vendored paths in `ignore` (or `exclude`). Copies split by an
+inserted, deleted, or changed line (Type-3 clones) are joined into one near-duplicate, reported
+as `Nearly duplicates … (N tokens, ~X% identical)`: runs between the same two files join when
+they follow within `maxGap` tokens in both files, one piece is at least 31 tokens, and an
+estimated `minSimilarity` percent of the span is identical. Set `maxGap` to 0 to report only
+exact and renamed copies.
 
 `hotspot`, `change-coupling`, and `single-author-file` read the repository's history with one
 `git log` call per run. They count the window back from `HEAD`'s commit date rather than today,
@@ -438,7 +487,14 @@ generated files (a header saying `DO NOT EDIT`, `@generated`, or `Code generated
 counts and ignores commits touching more than `maxFilesPerCommit` files. It only pairs files in
 the dependency graph that aren't in the same Swift target or Go package and aren't joined by an
 import either way, since that coupling is already visible. `single-author-file` stays quiet when
-the window has fewer than two authors.
+the window has fewer than two authors. `divergent-change` approximates a commit's reason by the
+other modules it touches (Swift targets, Go packages, or folders; test, generated, and non-code
+files and the file's own module left out): commits sharing a module or joined by an import are
+one reason, commits touching more than `maxModulesPerCommit` other modules are ignored, and
+manifests (`Package.swift`, `setup.py`, `__init__.py`) aren't reported. `shotgun-surgery` uses
+the median commit, counting only hand-written, non-test code files, and reports files changed in
+exactly the same commits once. Both are off by default because how a team slices commits
+decides what they find.
 
 The structure rules (`deep-inheritance` through `inconsistent-terminology`) read the types,
 functions, and `switch` statements each analyzer caches in `.bouncer-cache/facts.json`.
@@ -465,6 +521,21 @@ parameters are `unused-parameter`'s. `inconsistent-terminology`'s default groups
 fetch/get/load/retrieve/read, create/make/build, delete/remove/destroy, and update/modify;
 functions named only the verb and framework-dictated names (`buildBlock`, `makeIterator`) don't
 count.
+
+`liskov-substitution` judges concrete types without project subclasses (not `Abstract…` or
+`Base…`); a Swift `throw` counts as a refusal only when the error says unsupported or
+unimplemented, and a narrowed precondition is a first statement (`precondition`,
+`guard … else { fatalError() }`, `if (…) throw`, `if …: raise`) that tests a parameter, on a
+method whose nearest project parent implements it without one. A refusal of a method a project
+class implements, or of any Swift `override`, is `refused-bequest`'s, and a conformer that stubs
+most of a protocol is `interface-segregation`'s. `inappropriate-intimacy` reads only members on
+values whose type is written or constructed, and counts stored fields (not Swift `public` ones)
+or `_names` in TS/JS and Python. `dependency-inversion` counts constructions kept in a property,
+and exempts injected types (default arguments count), error types, abstractions with no named
+methods, and composition roots by name or supertype (`…Factory`, `…Builder`, `…App`).
+`alternative-interfaces` compares methods whose every parameter has a written type, so shape
+stands in for purpose. `single-override-subclass` covers the subclass half of composition over
+inheritance; deep hierarchies are `deep-inheritance`'s.
 
 `unused-dependency` reads manifests as text. For SwiftPM, a `.package` is used if its identity
 appears quoted elsewhere in the manifest (plugin packages are skipped), and a

@@ -234,14 +234,15 @@ public struct AnalysisEngine: Sendable {
         do { return try loadSourceFile(url) } catch FileContentsError.binary { return nil }
     }
 
-    /// Reads a file from disk and detects its language from its extension.
+    /// Reads a file from disk and detects its language from its extension, sniffing a `.h` header's
+    /// contents to tell Objective-C from C.
     ///
     /// - Parameter url: The file's location.
     /// - Returns: The loaded source file.
     /// - Throws: If the file can't be read.
     private func loadSourceFile(_ url: URL) throws -> SourceFile {
         let contents = try contentsProvider.contents(of: url)
-        let language = Language.from(fileExtension: url.pathExtension)
+        let language = Language.from(fileExtension: url.pathExtension, contents: contents)
         return SourceFile(path: url, language: language, contents: contents)
     }
 

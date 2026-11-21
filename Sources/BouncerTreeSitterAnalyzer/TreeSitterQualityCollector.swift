@@ -60,13 +60,30 @@ struct TreeSitterQualityCollector {
     /// - Parameter node: The function node.
     /// - Returns: The parameter nodes; an arrow function's bare `x => …` parameter is the one entry.
     private func parameters(of node: Node) -> [Node] {
-        guard let list = node.child(byFieldName: "parameters") else {
+        guard let children = parameterEntries(of: node) else {
             return node.child(byFieldName: "parameter").map { [$0] } ?? []
         }
         let spec = quality.parameters
-        let children = (0..<list.namedChildCount).compactMap { list.namedChild(at: $0) }
         return children.filter { !spec.ignoredNodeTypes.contains($0.nodeType ?? "") }
             .filter { !spec.receiverNames.contains(text($0) ?? "") }
+    }
+
+    /// Lists a function's parameter-list entries: its `parameters` field's children, or a C function's or
+    /// Objective-C method's entries.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: The entries, or `nil` if the function has no parameter list.
+    private func parameterEntries(of node: Node) -> [Node]? {
+        guard let list = node.child(byFieldName: "parameters") else { return spec.cDeclarations?.parameters(of: node) }
+        return (0..<list.namedChildCount).compactMap { list.namedChild(at: $0) }
+    }
+
+    /// Names a function from its `name` field, or a C function's declarator or Objective-C method's selector.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: The name, or `""` without one.
+    func ownName(of node: Node) -> String {
+        node.child(byFieldName: "name").flatMap(text) ?? spec.cDeclarations?.name(of: node, text: text) ?? ""
     }
 
     /// Counts the parameters in a list of parameter nodes, where one Go node can declare several names.
@@ -86,7 +103,7 @@ struct TreeSitterQualityCollector {
     /// - Parameter node: The function node.
     /// - Returns: The flag parameter count.
     private func flagCount(of node: Node) -> Int {
-        let name = node.child(byFieldName: "name").flatMap(text) ?? ""
+        let name = ownName(of: node)
         return quality.initializerNames.contains(name) ? 0 : weight(of: parameters(of: node).filter(isBooleanFlag))
     }
 
@@ -96,10 +113,23 @@ struct TreeSitterQualityCollector {
     /// - Returns: Whether it's a boolean flag.
     private func isBooleanFlag(_ parameter: Node) -> Bool {
         let spec = quality.parameters
-        let type = parameter.child(byFieldName: spec.booleanTypeField).flatMap(text)?.filter { $0 != " " }
-        if type == spec.booleanTypeText.filter({ $0 != " " }) { return true }
+        let booleans = Set(([spec.booleanTypeText] + spec.booleanTypeAliases).map { $0.filter { $0 != " " } })
+        if let type = declaredType(of: parameter), booleans.contains(type) { return true }
         let defaults = spec.defaultFields.compactMap { parameter.child(byFieldName: $0)?.nodeType }
         return defaults.contains { spec.booleanLiteralNodeTypes.contains($0) }
+    }
+
+    /// Reads a parameter's declared type without spaces or the parentheses of Objective-C's `(BOOL)`.
+    ///
+    /// - Parameter parameter: The parameter node.
+    /// - Returns: The type's text, or `nil` if it has none written.
+    private func declaredType(of parameter: Node) -> String? {
+        let spec = quality.parameters
+        let child = spec.typeChildNodeType.flatMap { type in
+            namedChildren(of: parameter).first { $0.nodeType == type }
+        }
+        let type = parameter.child(byFieldName: spec.booleanTypeField) ?? child
+        return type.flatMap(text)?.filter { $0 != " " && $0 != "(" && $0 != ")" }
     }
 
     /// Walks every child of a node at a given depth.

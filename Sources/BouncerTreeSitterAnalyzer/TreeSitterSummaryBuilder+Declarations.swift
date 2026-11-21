@@ -2,8 +2,9 @@ import SwiftTreeSitter
 import BouncerCore
 import BouncerRules
 
-/// Naming, wrapper, and visibility conventions for languages whose functions are often
-/// anonymous expressions bound to a name, such as TypeScript's `export const f = () => {}`.
+/// Naming, wrapper, visibility, and documentation conventions: functions that are anonymous expressions
+/// bound to a name, such as TypeScript's `export const f = () => {}`, and C-family declarations that keep
+/// their names, bodies, and members outside of fields, such as Objective-C methods and classes.
 extension TreeSitterSummaryBuilder {
     /// Resolves a function's name from its own `name` field, or from the node that binds it.
     ///
@@ -13,7 +14,9 @@ extension TreeSitterSummaryBuilder {
     /// - Parameter node: The function node.
     /// - Returns: The name, or `CollectedFunction.anonymousName` for an unbound expression.
     func functionName(of node: Node) -> String {
-        if let name = node.child(byFieldName: "name").flatMap(text) { return name }
+        if let name = node.child(byFieldName: "name").flatMap(text) ?? spec.cDeclarations?.name(of: node, text: text) {
+            return name
+        }
         let anonymous = CollectedFunction.anonymousName
         guard let parent = node.parent, let parentType = parent.nodeType,
               let field = spec.nameSourceParents[parentType] else { return anonymous }
@@ -60,5 +63,100 @@ extension TreeSitterSummaryBuilder {
             if modifier == "private" || modifier == "protected" { return modifier }
         }
         return nil
+    }
+
+    /// Checks for a `///` or `/** */` comment directly above a declaration or its wrapper.
+    ///
+    /// - Parameter node: The declaration node.
+    /// - Returns: Whether such a comment documents it.
+    func hasCDocComment(_ node: Node) -> Bool {
+        let anchor = declarationAnchor(of: node)
+        return hasPrecedingComment(anchor, prefix: "///") || hasPrecedingComment(anchor, prefix: "/**")
+    }
+
+    /// Reads a function's body: its `body` field, or for a C-family grammar its body block child.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: The body, or `nil` for a declaration without one.
+    func functionBody(of node: Node) -> Node? {
+        node.child(byFieldName: "body") ?? spec.cDeclarations?.body(of: node)
+    }
+
+    /// Reads a type's body: its `body` field, or for a C-family grammar the type node, which holds its members.
+    ///
+    /// - Parameter node: The type node.
+    /// - Returns: The body, or `nil` for a declaration without one.
+    func typeBody(of node: Node) -> Node? {
+        node.child(byFieldName: "body") ?? (spec.cDeclarations == nil ? nil : node)
+    }
+
+    /// Names a type: its `name` field, or for a C-family grammar its identifier and category.
+    ///
+    /// - Parameter node: The type node.
+    /// - Returns: The name, or `"<anonymous>"` without one.
+    func typeName(of node: Node) -> String {
+        node.child(byFieldName: "name").flatMap(text) ?? spec.cDeclarations?.typeName(of: node, text: text)
+            ?? "<anonymous>"
+    }
+
+    /// Counts a type's members: its body's named children, or for a C-family grammar its declared methods,
+    /// properties, and instance variables.
+    ///
+    /// - Parameter body: The type's body (for Objective-C, the type node itself).
+    /// - Returns: The member count.
+    func memberCount(of body: Node) -> Int {
+        spec.cDeclarations.map { $0.members(of: body).count } ?? body.namedChildCount
+    }
+
+    /// Applies Objective-C visibility: a `static` C function or an underscored method is private, any other
+    /// method is internal (its header declares, and documents, the public contract), and any other C
+    /// function is public.
+    ///
+    /// - Parameters:
+    ///   - node: The function or method node.
+    ///   - name: The resolved name.
+    /// - Returns: The declaration's visibility.
+    func visibilityByFileScope(_ node: Node, name: String) -> DeclarationVisibility {
+        guard let declarations = spec.cDeclarations else { return .public }
+        if name.hasPrefix("_") || declarations.isFileScoped(node, text: text) { return .private }
+        return declarations.selectorMethodNodeTypes.contains(node.nodeType ?? "") ? .internal : .public
+    }
+
+    /// Determines a declaration's access level, per this language's convention.
+    ///
+    /// - Parameters:
+    ///   - node: The declaration node, for conventions that read modifiers or wrappers.
+    ///   - name: The declared identifier.
+    /// - Returns: The declaration's inferred visibility.
+    func visibility(of node: Node, name: String) -> DeclarationVisibility {
+        switch spec.visibilityConvention {
+        case .leadingUnderscore: return visibilityByLeadingUnderscore(name)
+        case .leadingCase: return (name.first?.isUppercase ?? false) ? .public : .internal
+        case .exportKeyword: return visibilityByExport(node, name: name)
+        case .fileScope: return visibilityByFileScope(node, name: name)
+        }
+    }
+
+    /// Applies Python's underscore-prefix naming convention.
+    ///
+    /// - Parameter name: The declared identifier.
+    /// - Returns: `.private` for a double leading underscore, `.internal` for one, else `.public`.
+    func visibilityByLeadingUnderscore(_ name: String) -> DeclarationVisibility {
+        if name.hasPrefix("__") && !name.hasSuffix("__") { return .private }
+        if name.hasPrefix("_") { return .internal }
+        return .public
+    }
+
+    /// Checks whether a declaration is documented, per this language's convention.
+    ///
+    /// - Parameter node: The function/method declaration node.
+    /// - Returns: Whether it counts as documented.
+    func isDocumented(_ node: Node) -> Bool {
+        switch spec.documentationStyle {
+        case .docstring: return hasDocstring(node)
+        case .precedingComment: return hasPrecedingComment(node)
+        case .jsdoc: return hasPrecedingComment(declarationAnchor(of: node), prefix: "/**")
+        case .cDocComment: return hasCDocComment(node)
+        }
     }
 }

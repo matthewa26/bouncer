@@ -105,4 +105,23 @@ final class AnalysisEngineTests: XCTestCase {
         let result = try engine.run()
         XCTAssertTrue(result.findings.isEmpty)
     }
+
+    func testRoutesObjectiveCHeadersToTheObjectiveCAnalyzerAndOtherHeadersToC() throws {
+        let repoRoot = URL(fileURLWithPath: "/repo")
+        let objc = repoRoot.appendingPathComponent("Widget.h"), plain = repoRoot.appendingPathComponent("util.h")
+        let engine = AnalysisEngine(
+            fileProvider: FakeFileProvider(files: [objc, plain]),
+            contentsProvider: FakeContentsProvider(contents: [
+                objc: "NS_ASSUME_NONNULL_BEGIN\n@interface Widget : NSObject\n@end\n", plain: "int util(void);\n"
+            ]),
+            knownAnalyzers: [
+                .objc: FixedFindingAnalyzer(supportedLanguage: .objc, line: 1),
+                .c: FixedFindingAnalyzer(supportedLanguage: .c, line: 2)
+            ],
+            fallbackAnalyzer: FixedFindingAnalyzer(supportedLanguage: .other(""), line: 3),
+            context: AnalysisContext(repoRoot: repoRoot, ruleSettings: [:])
+        )
+        let lines = try engine.run().findings.map { "\($0.filePath.lastPathComponent):\($0.line)" }
+        XCTAssertEqual(lines.sorted(), ["Widget.h:1", "util.h:2"])
+    }
 }

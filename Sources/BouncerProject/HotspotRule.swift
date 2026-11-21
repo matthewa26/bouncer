@@ -118,7 +118,8 @@ public struct HotspotRule: HistoryRule {
     private func measure(_ path: String, commits: Int, context: AnalysisContext) -> Hotspot? {
         let url = RepoPath.url(path, in: context.repoRoot)
         guard let contents = try? FileSystemContentsProvider().contents(of: url) else { return nil }
-        let file = SourceFile(path: url, language: Language.from(fileExtension: url.pathExtension), contents: contents)
+        let language = Language.from(fileExtension: url.pathExtension, contents: contents)
+        let file = SourceFile(path: url, language: language, contents: contents)
         guard !SourceCode.isGenerated(file), let functions = measurer.functions(in: file), !functions.isEmpty else {
             return nil
         }

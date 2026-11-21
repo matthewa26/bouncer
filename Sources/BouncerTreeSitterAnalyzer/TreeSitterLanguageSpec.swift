@@ -15,6 +15,8 @@ enum DocumentationStyle: Sendable {
     case precedingComment
     /// A `/** */` comment directly above the declaration or its enclosing wrapper, as in TypeScript.
     case jsdoc
+    /// A `///` or `/** */` comment directly above the declaration or its enclosing wrapper, as in Objective-C.
+    case cDocComment
 }
 
 /// How a language's naming convention signals a declaration's access level.
@@ -25,6 +27,9 @@ enum VisibilityConvention: Sendable {
     case leadingCase
     /// An `export` wrapper or public class member is public; `private`/`#name` is private, as in TypeScript.
     case exportKeyword
+    /// A C function is public unless `static`; a method is internal, since its header declares the public
+    /// contract, or private with a leading underscore, as in Objective-C.
+    case fileScope
 }
 
 /// A call expression that loads a module, such as CommonJS `require("x")`.
@@ -66,6 +71,8 @@ public struct TreeSitterLanguageSpec: Sendable {
     var moduleFacts: ModuleFactsExtractor?
     /// Finds unused private symbols, imports, and parameters, or `nil` for none, as for Go.
     var deadCode: DeadCodeExtractor?
+    /// Where a C-family grammar keeps names, bodies, and parameters that have no field, or `nil` for none.
+    var cDeclarations: CDeclarationSpec?
 
     /// Picks the grammar for a file, honoring any per-extension override.
     ///

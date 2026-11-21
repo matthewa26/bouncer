@@ -27,6 +27,13 @@ final class LanguageProfilesExtraRulesTests: XCTestCase {
         XCTAssertEqual(java, ["java-system-out"])
     }
 
+    func testFlagsNSLogAndCsUnsafeCallsInObjectiveC() {
+        let contents = "  NSLog(@\"x\");\n  strcpy(dst, src);\n  [logger log:@\"NSLog is fine in a string\"];\n"
+        let ids = findings(contents, path: "/repo/a.m", language: .objc).map(\.ruleID)
+        XCTAssertEqual(ids.filter { $0 == "objc-debug-log" }.count, 1)
+        XCTAssertTrue(ids.contains("c-unsafe-string-function"))
+    }
+
     func testFlagsCppRawNewAndUsingNamespaceStd() {
         let contents = "using namespace std;\nint* p = new int(5);\n"
         let ids = findings(contents, path: "/repo/a.cpp", language: .cpp).map(\.ruleID)

@@ -114,6 +114,10 @@ struct ParameterSpec: Sendable {
     let booleanTypeText: String
     let defaultFields: [String]
     let booleanLiteralNodeTypes: Set<String>
+    /// Other spellings of the boolean type, such as C's `bool` beside Objective-C's `BOOL`.
+    var booleanTypeAliases: Set<String> = []
+    /// For entries with no `booleanTypeField`, the child node holding the type, such as Objective-C's `(BOOL)`.
+    var typeChildNodeType: String?
 }
 
 /// Blocks, jumps, and `catch` clauses, for the unreachable-code and empty-catch rules.

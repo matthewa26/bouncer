@@ -17,7 +17,7 @@ The **Scope** column says what analysis a check needs:
 
 **Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16 by indentation, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example). On Swift, TypeScript and JavaScript also: ≤ 5 parameters, no boolean flag parameters, ≤ 4 returns, cognitive complexity ≤ 15, control-flow nesting ≤ 4, LCOM4 ≤ 2.
 
-**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Python and Go are parsed too and get the same function-shape, cohesion, and single-location rules wherever the language has the construct (Go has no classes, ternaries, or `catch`). Everything else is heuristic.
+**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Objective-C, Python and Go are parsed too and get the same function-shape, cohesion, and single-location rules wherever the language has the construct (Go has no classes, ternaries, or `catch`). Everything else is heuristic.
 
 ### 0.1 TypeScript type safety
 
@@ -400,9 +400,9 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Husky pre-commit hook (`bouncer configure --husky`) | | 1.0.0 |
 | ✅ | Agent self-check (`bouncer check --files`/`--stdin`) | | 1.0.0 |
 | ✅ | Xcode coverage from `.xcresult` (`xcrun xccov`) | macOS | 1.0.0 |
-| ⬜ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | planned 1.3 |
-| ⬜ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | planned 1.3 |
-| ⬜ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | planned 1.3 |
+| ✅ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | 1.3.0 |
+| ✅ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | 1.3.0 |
+| ✅ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | 1.3.0 |
 | ⬜ | Token-efficient agent output (`--format agent`, `--limit`, `--rule`, `--group-by`, `--changed-since`) | design workshop first | planned 1.5 |
 | ⬜ | MCP server (`bouncer mcp`): summary-first tools, paged drill-down, next fix batch, verify | design workshop first | planned 1.5 |
 | ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.5 |
@@ -418,7 +418,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Python | tree-sitter | 1.0.0 |
 | ✅ | Go | tree-sitter | 1.0.0 |
 | ✅ | zsh, bash, PowerShell, C, C++, Java, SQL, and any other file | heuristic | 1.0.0 |
-| ⬜ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | planned 1.3 |
+| ✅ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | 1.3.0 |
 | ⬜ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | planned 1.4 |
 
 ## Notes on the current implementation

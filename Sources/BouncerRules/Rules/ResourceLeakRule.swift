@@ -80,7 +80,7 @@ enum ResourceOpeners {
         .swift: #"\b(?:let|var)\s+(\w+)\s*=\s*(?:try\s*[?!]?\s*)?FileHandle\(\s*(?:forReadingAtPath|"#
             + #"forWritingAtPath|forUpdatingAtPath|forReadingFrom|forWritingTo|forUpdating)\s*:"#,
         .typescript: scriptPattern, .javascript: scriptPattern,
-        .c: #"\b(\w+)\s*=\s*fopen\("#, .cpp: #"\b(\w+)\s*=\s*(?:std::)?fopen\("#,
+        .c: #"\b(\w+)\s*=\s*fopen\("#, .objc: #"\b(\w+)\s*=\s*fopen\("#, .cpp: #"\b(\w+)\s*=\s*(?:std::)?fopen\("#,
         .powershell: #"\$(\w+)\s*=\s*(?:\[System\.IO\.File\]::Open\w*\(|New-Object\s+(?:System\.)?IO\."#
             + #"(?:StreamReader|StreamWriter|FileStream)\b|\[System\.IO\.(?:StreamReader|StreamWriter|FileStream)\]"#
             + #"::new\()"#

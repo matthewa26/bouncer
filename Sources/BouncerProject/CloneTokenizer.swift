@@ -21,7 +21,8 @@ struct CloneSyntax {
     private static let swift = CloneSyntax(
         lineComment: slashes, blockComment: block, quotes: [quote], tripleQuotes: true
     )
-    /// TypeScript, JavaScript, and Go: `'` and `` ` `` quote too (runes, template and raw strings).
+    /// TypeScript, JavaScript, Go, and Objective-C: `'` and `` ` `` quote too (runes, chars, template and raw
+    /// strings).
     private static let cFamily = CloneSyntax(
         lineComment: slashes, blockComment: block, quotes: [quote, apostrophe, backtick], tripleQuotes: false
     )
@@ -36,7 +37,7 @@ struct CloneSyntax {
     static func of(_ language: Language) -> CloneSyntax? {
         switch language {
         case .swift: return swift
-        case .typescript, .javascript, .go: return cFamily
+        case .typescript, .javascript, .go, .objc: return cFamily
         case .python: return python
         default: return nil
         }

@@ -11,7 +11,8 @@ extension TreeSitterQualityCollector {
     func method(from member: Node) -> (name: String, node: Node)? {
         guard let type = member.nodeType, !isStatic(member), let cohesion = quality.cohesion else { return nil }
         if cohesion.methodNodeTypes.contains(type) {
-            return member.child(byFieldName: "name").flatMap(text).map { ($0, member) }
+            let name = ownName(of: member)
+            return name.isEmpty ? nil : (name, member)
         }
         guard let nameField = cohesion.fieldNameFields[type], let value = member.child(byFieldName: "value"),
               spec.functionNodeTypes.contains(value.nodeType ?? "") else { return nil }
@@ -23,6 +24,7 @@ extension TreeSitterQualityCollector {
     /// - Parameter body: The class body node.
     /// - Returns: The class's shape, or `nil` without a cohesion spec that names field declarations.
     func shape(of body: Node) -> TypeShape? {
+        if let declarations = spec.cDeclarations { return memberShape(of: body, declarations: declarations) }
         guard let cohesion = quality.cohesion, !cohesion.fieldNameFields.isEmpty else { return nil }
         let members = (0..<body.namedChildCount).compactMap { body.namedChild(at: $0) }
         let methods = members.compactMap(method(from:)).filter { !quality.initializerNames.contains($0.name) }
@@ -30,6 +32,36 @@ extension TreeSitterQualityCollector {
             cohesion.fieldNameFields[member.nodeType ?? ""] != nil && !holdsFunction(member)
         }
         return TypeShape(methodCount: methods.count, fieldCount: fields.count, isClass: true)
+    }
+
+    /// Counts an Objective-C type's methods (excluding initializers) and its properties and instance variables.
+    ///
+    /// - Parameters:
+    ///   - type: The type node, which holds its members.
+    ///   - declarations: Where the grammar keeps members.
+    /// - Returns: The type's shape.
+    private func memberShape(of type: Node, declarations: CDeclarationSpec) -> TypeShape {
+        let members = declarations.members(of: type)
+        let methods = members.filter { declarations.methodMemberNodeTypes.contains($0.nodeType ?? "") }
+            .filter { !quality.initializerNames.contains(ownName(of: $0)) }
+        let fields = members.filter { declarations.fieldMemberNodeTypes.contains($0.nodeType ?? "") }
+        return TypeShape(methodCount: methods.count, fieldCount: fields.count, isClass: true)
+    }
+
+    /// Lists a class body's members: its named children, or an Objective-C type's declared members.
+    ///
+    /// - Parameter body: The class body (for Objective-C, the type node itself).
+    /// - Returns: The member nodes.
+    func classMembers(of body: Node) -> [Node] {
+        spec.cDeclarations?.members(of: body) ?? namedChildren(of: body)
+    }
+
+    /// Reads a function's body: its `body` field, or a C-family grammar's body block child.
+    ///
+    /// - Parameter function: The function node.
+    /// - Returns: The body, if it has one.
+    func body(of function: Node) -> Node? {
+        function.child(byFieldName: "body") ?? spec.cDeclarations?.body(of: function)
     }
 
     /// Reports whether a field's value is a function, which makes it a method for these counts.

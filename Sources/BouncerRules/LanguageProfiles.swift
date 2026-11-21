@@ -19,7 +19,7 @@ public enum LanguageProfiles {
     private static let byLanguage: [Language: LanguageProfile] = [
         .swift: swift, .python: python, .zsh: shell, .bash: shell,
         .powershell: powershell, .typescript: javascriptLike, .javascript: javascriptLike,
-        .cpp: cpp, .java: java, .go: go, .sql: sql, .c: c
+        .cpp: cpp, .java: java, .go: go, .sql: sql, .c: c, .objc: objc
     ]
 
     private static let python = LanguageProfile(
@@ -258,6 +258,31 @@ public enum LanguageProfiles {
                 message: "Unbounded string function; prefer the bounded variant (strncpy/strncat/snprintf)."
             ),
             PatternRuleSpec(id: "c-debug-print", pattern: CDebugOutput.cPattern, message: CDebugOutput.message)
+        ]
+    )
+
+    /// Objective-C: C's patterns, since it's a strict superset of C, plus methods, `#import`, and `@import` for
+    /// the heuristic fallback, and `NSLog` as debug output.
+    private static let objc = LanguageProfile(
+        lineCommentPrefixes: ["//"],
+        functionStartPattern: #"^(?!\s*(if|for|while|switch|@catch|@try|@finally|@synchronized|@autoreleasepool)\b)"#
+            + #".*\)\s*\{\s*$|^\s*[-+]\s*\(.*\{\s*$"#,
+        switchStartPattern: c.switchStartPattern, switchBranchPattern: c.switchBranchPattern,
+        importLinePattern: #"^\s*(#\s*(include|import)\s*[<"]|@import\s)"#,
+        namingRules: [
+            NamingRule(
+                declarationPattern: #"^\s*@(?:interface|implementation)\s+([A-Za-z_]\w*)"#,
+                expectedIdentifierPattern: #"^_?[A-Z]\w*$"#, kindLabel: "class"
+            )
+        ],
+        extraPatternRules: c.extraPatternRules + [
+            PatternRuleSpec(
+                id: "objc-debug-log", pattern: #"\bNSLog\s*\("#,
+                message: "NSLog writes to the system log in release builds; remove it, or use os_log or a logger."
+            ),
+            PatternRuleSpec(
+                id: "skipped-test", pattern: #"\bXCTSkip(If|Unless)?\b"#, message: "Skipped test; fix it or delete it."
+            )
         ]
     )
 

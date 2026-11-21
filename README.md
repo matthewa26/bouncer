@@ -1,6 +1,6 @@
 # Bouncer
 
-Bouncer is a configurable coding-standards and code-smell checker. It analyzes TypeScript (including TSX), JavaScript (including JSX), Swift, Python, and Go with real parse trees, and everything else (zsh, bash, PowerShell, C++, Java, SQL, C, and best-effort anything else) heuristically, all through the same dependency-injected rule engine. It runs as a Husky pre-commit hook, as an ad-hoc audit of any codebase, and as a self-check a coding agent can run after every edit.
+Bouncer is a configurable coding-standards and code-smell checker. It analyzes TypeScript (including TSX), JavaScript (including JSX), Swift, Objective-C, Python, and Go with real parse trees, and everything else (zsh, bash, PowerShell, C++, Java, SQL, C, and best-effort anything else) heuristically, all through the same dependency-injected rule engine. It runs as a Husky pre-commit hook, as an ad-hoc audit of any codebase, and as a self-check a coding agent can run after every edit.
 
 Full documentation, including the config reference and rule catalog, is at [matthewa26.github.io/bouncer](https://matthewa26.github.io/bouncer/documentation/bouncercore/).
 
@@ -46,7 +46,13 @@ bouncer profile set-default strict     # use a profile by default in this repo
 bouncer configure --set coverage.threshold=90
 bouncer configure --husky              # wire 'bouncer check' into .husky/pre-commit
 bouncer baseline update                # accept every current finding, so only new ones are flagged
+bouncer xcode install                  # add a Bouncer build phase to an Xcode project (macOS)
+bouncer review . --format xcode        # compiler-style diagnostics that Xcode shows inline
 ```
+
+### Xcode and Swift packages
+
+`bouncer xcode install` adds a Run Script phase to your Xcode targets, and the [bouncer-plugin](https://github.com/matthewa26/bouncer-plugin) package runs Bouncer as a SwiftPM build-tool plugin. Either way, findings appear inline in Xcode and in `swift build` output.
 
 ### Husky integration
 

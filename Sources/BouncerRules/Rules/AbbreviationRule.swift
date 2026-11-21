@@ -92,7 +92,8 @@ enum Abbreviations {
         .typescript: ["req", "res", "ctx", "prev", "cur", "curr", "evt", "idx", "val", "obj", "arr", "len"],
         .python: ["ctx", "req", "resp", "tmp", "idx", "len", "buf"],
         .c: ["ptr", "len", "str", "tmp", "idx", "num", "val", "cnt", "buf", "addr", "ctx", "cur", "prev", "res"],
-        .cpp: ["ptr", "len", "str", "tmp", "idx", "num", "val", "cnt", "buf", "addr", "ctx", "cur", "prev", "res"]
+        .cpp: ["ptr", "len", "str", "tmp", "idx", "num", "val", "cnt", "buf", "addr", "ctx", "cur", "prev", "res"],
+        .objc: ["ptr", "len", "str", "tmp", "idx", "num", "val", "cnt", "buf", "addr", "ctx", "cur", "prev", "res"]
     ]
 
     /// Builds the denied words for a language: the defaults and `deny`, less the language's idioms and `allow`.

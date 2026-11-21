@@ -105,6 +105,9 @@ struct ImportPolicy {
 enum ForbiddenImportReader {
     private static let javaImport = TextMatching.regex(#"^\s*import\s+(?:static\s+)?([\w.]+?)(?:\.\*)?\s*;"#)
     private static let include = TextMatching.regex(#"^\s*#\s*include\s*[<"]([^>"]+)[>"]"#)
+    private static let objcImport = TextMatching.regex(
+        #"^\s*(?:#\s*(?:include|import)\s*[<"]|@import\s+)([^>";\s]+)"#
+    )
 
     /// Lists a file's imports.
     ///
@@ -123,11 +126,13 @@ enum ForbiddenImportReader {
     /// Picks the line pattern for a language `ImportStatements` doesn't read.
     ///
     /// - Parameter language: The file's language.
-    /// - Returns: Java's `import` or C and C++'s `#include` pattern, capturing the module, or `nil`.
+    /// - Returns: Java's `import`, C and C++'s `#include`, or Objective-C's `#import`/`#include`/`@import`
+    ///   pattern, capturing the module, or `nil`.
     private static func textPattern(for language: Language) -> NSRegularExpression? {
         switch language {
         case .java: javaImport
         case .c, .cpp: include
+        case .objc: objcImport
         default: nil
         }
     }

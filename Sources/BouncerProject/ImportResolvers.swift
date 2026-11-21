@@ -29,9 +29,10 @@ public struct ImportResolvers: Sendable {
     ///   - repoRoot: The repository root, for `tsconfig.json` and `go.mod`.
     public init(paths: Set<String>, repoRoot: URL) {
         let javascript = JavaScriptImportResolver(paths: paths, repoRoot: repoRoot)
-        let python = PythonImportResolver(paths: paths)
+        let python = PythonImportResolver(paths: paths), objc = ObjCImportResolver(paths: paths)
         var resolvers: [String: ImportResolver] = ["swift": SwiftImportResolver(paths: paths), "py": python]
         for ext in JavaScriptImportResolver.extensions { resolvers[ext] = javascript }
+        for ext in ObjCImportResolver.extensions { resolvers[ext] = objc }
         if let module = GoImportResolver.modulePath(repoRoot: repoRoot) {
             resolvers["go"] = GoImportResolver(module: module)
         }
@@ -115,7 +116,7 @@ struct SwiftImportResolver: ImportResolver {
     ///
     /// - Parameter path: The file's repo-relative path.
     /// - Returns: The target name.
-    private static func target(of path: String) -> String {
+    static func target(of path: String) -> String {
         let parts = path.split(separator: "/").map(String.init)
         if let index = parts.firstIndex(where: { $0 == "Sources" || $0 == "Tests" }), index + 1 < parts.count - 1 {
             return parts[index + 1]

@@ -11,13 +11,20 @@ import BouncerRules
 public struct TreeSitterAnalyzer: LanguageAnalyzer {
     public let supportedLanguage: BouncerCore.Language
     private let spec: TreeSitterLanguageSpec
+    /// Analyzes a file whose parse fails too widely to trust, for a grammar whose `CDeclarationSpec` sets
+    /// `maxErrorShare`.
+    private let fallback: LanguageAnalyzer?
 
     /// Creates a tree-sitter analyzer for one language.
     ///
-    /// - Parameter spec: The language's tree-sitter node types and conventions.
-    public init(spec: TreeSitterLanguageSpec) {
+    /// - Parameters:
+    ///   - spec: The language's tree-sitter node types and conventions.
+    ///   - fallback: Analyzes a file that fails to parse past the grammar's `maxErrorShare`, such as
+    ///     Objective-C++ in the Objective-C grammar; `nil` always uses the tree.
+    public init(spec: TreeSitterLanguageSpec, fallback: LanguageAnalyzer? = nil) {
         self.supportedLanguage = spec.coreLanguage
         self.spec = spec
+        self.fallback = fallback
     }
 
     /// Parses a file and runs every generic and AST-based rule against it.
@@ -28,7 +35,9 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Returns: The combined findings.
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if the parser produces no tree.
     public func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] {
-        findings(root: try parse(file), file: file, context: context)
+        let root = try parse(file)
+        if let fallback = fallback(for: root) { return try fallback.analyze(file: file, context: context) }
+        return findings(root: root, file: file, context: context)
     }
 
     /// Analyzes a file and reads its module facts from a single parse.
@@ -40,7 +49,8 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
     public func analyzeWithFacts(file: SourceFile, context: AnalysisContext) throws -> FileAnalysis {
         let root = try parse(file)
-        let found = findings(root: root, file: file, context: context)
+        let found = try fallback(for: root)?.analyze(file: file, context: context)
+            ?? findings(root: root, file: file, context: context)
         return FileAnalysis(findings: found, facts: facts(root: root, file: file))
     }
 
@@ -72,7 +82,9 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Returns: One measurement per function.
     /// - Throws: `TreeSitterAnalyzerError.parseFailed` if parsing fails.
     public func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? {
-        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: try parse(file))
+        let root = try parse(file)
+        if let fallback = fallback(for: root) { return try fallback.measureFunctions(file: file) }
+        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root)
         let profile = LanguageProfiles.profile(for: spec.coreLanguage)
         return DeclarationFindings.measures(summary, file: file, profile: profile)
     }
@@ -87,6 +99,17 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
         spec.moduleFacts?.facts(root: root) { node in
             Range(node.range, in: file.contents).map { String(file.contents[$0]) }
         }
+    }
+
+    /// Picks the fallback analyzer for a tree that failed to parse past the spec's limit.
+    ///
+    /// Imports still come from the tree, since `#import` lines parse even where the code around them doesn't.
+    ///
+    /// - Parameter root: The file's parse tree.
+    /// - Returns: The fallback, or `nil` to analyze the tree.
+    private func fallback(for root: Node) -> LanguageAnalyzer? {
+        guard let fallback, let limit = spec.cDeclarations?.maxErrorShare else { return nil }
+        return ParseQuality.errorShare(of: root, declarations: spec.cDeclarations) > limit ? fallback : nil
     }
 
     /// Parses a file with its language's grammar.

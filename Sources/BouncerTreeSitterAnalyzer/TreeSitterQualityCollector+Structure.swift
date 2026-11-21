@@ -15,11 +15,11 @@ extension TreeSitterQualityCollector {
     /// - Returns: Its structure, or `nil` for a language without a cohesion or flow spec.
     func structure(of node: Node, body: Node, complexity: (Node) -> Int) -> TypeStructure? {
         guard quality.cohesion != nil, let flow = quality.flow else { return nil }
-        let members = namedChildren(of: body), all = members.compactMap(method(from:))
+        let members = classMembers(of: body), all = members.compactMap(method(from:))
         let methods = all.filter { !quality.initializerNames.contains($0.name) }
         let reached = all.flatMap { thisReferences(in: $0.node) }
         let fields = declaredFields(members).union(reached).subtracting(methods.map(\.name))
-        let bodies = members.compactMap(functionDefinition).compactMap { $0.child(byFieldName: "body") }
+        let bodies = members.compactMap(functionDefinition).compactMap(self.body(of:))
         return TypeStructure(methods: methods.map { graphMethod($0, fields: fields) }, fieldNames: fields,
                              methodComplexities: bodies.map(complexity), isPlain: isPlain(node, flow: flow))
     }
@@ -74,7 +74,7 @@ extension TreeSitterQualityCollector {
         guard !wrappers.contains(node.parent?.nodeType ?? ""), node.nodeType != "abstract_class_declaration" else {
             return false
         }
-        let hasSuperclass = node.child(byFieldName: "superclasses") != nil
+        let hasSuperclass = node.child(byFieldName: "superclasses") ?? node.child(byFieldName: "superclass") != nil
         let isDecorated = namedChildren(of: node).contains { flow.classDecorationTypes.contains($0.nodeType ?? "") }
         return !hasSuperclass && !isDecorated
     }

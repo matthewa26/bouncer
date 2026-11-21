@@ -150,7 +150,7 @@ final class TreeSitterSummaryBuilder {
     ///
     /// - Parameter node: The function/method declaration node.
     private func collectFunction(_ node: Node) {
-        guard let body = node.child(byFieldName: "body") else { return }
+        guard let body = functionBody(of: node) else { return }
         let function = makeCollectedFunction(node, body: body)
         functions.append(function)
         if quality?.isTestWithoutAssertions(node, name: function.name) == true {
@@ -179,7 +179,7 @@ final class TreeSitterSummaryBuilder {
     ///
     /// - Parameter node: The class declaration node.
     private func collectType(_ node: Node) {
-        guard let body = node.child(byFieldName: "body") else { return }
+        guard let body = typeBody(of: node) else { return }
         types.append(makeCollectedType(node, body: body))
     }
 
@@ -190,12 +190,12 @@ final class TreeSitterSummaryBuilder {
     ///   - body: Its body, already resolved by the caller.
     /// - Returns: The collected type.
     private func makeCollectedType(_ node: Node, body: Node) -> CollectedType {
-        let name = node.child(byFieldName: "name").flatMap(text) ?? "<anonymous>"
+        let name = typeName(of: node)
         let startLine = line(of: node.pointRange.lowerBound), endLine = line(of: node.pointRange.upperBound)
         let structure = quality.flatMap { $0.structure(of: node, body: body) { self.countBranches(in: $0) + 1 } }
         let design = quality?.design(of: node, body: body) { self.line(of: $0.pointRange.lowerBound) }
         return CollectedType(
-            name: name, memberCount: body.namedChildCount, startLine: startLine, endLine: endLine,
+            name: name, memberCount: memberCount(of: body), startLine: startLine, endLine: endLine,
             cohesionGroups: structure.map { CohesionGraph.groupCount($0.methods) },
             shape: quality.flatMap { $0.shape(of: body) }, structure: structure, design: design
         )
@@ -233,30 +233,6 @@ final class TreeSitterSummaryBuilder {
         return op == "&&" || op == "||" || op == "??"
     }
 
-    /// Determines a declaration's access level, per this language's convention.
-    ///
-    /// - Parameters:
-    ///   - node: The declaration node, for conventions that read modifiers or wrappers.
-    ///   - name: The declared identifier.
-    /// - Returns: The declaration's inferred visibility.
-    private func visibility(of node: Node, name: String) -> DeclarationVisibility {
-        switch spec.visibilityConvention {
-        case .leadingUnderscore: return visibilityByLeadingUnderscore(name)
-        case .leadingCase: return (name.first?.isUppercase ?? false) ? .public : .internal
-        case .exportKeyword: return visibilityByExport(node, name: name)
-        }
-    }
-
-    /// Applies Python's underscore-prefix naming convention.
-    ///
-    /// - Parameter name: The declared identifier.
-    /// - Returns: `.private` for a double leading underscore, `.internal` for one, else `.public`.
-    private func visibilityByLeadingUnderscore(_ name: String) -> DeclarationVisibility {
-        if name.hasPrefix("__") && !name.hasSuffix("__") { return .private }
-        if name.hasPrefix("_") { return .internal }
-        return .public
-    }
-
     /// Counts every descendant matching a set of node types, anywhere within a subtree.
     ///
     /// - Parameters:
@@ -271,18 +247,6 @@ final class TreeSitterSummaryBuilder {
             count += countDescendants(of: child, matching: types)
         }
         return count
-    }
-
-    /// Checks whether a declaration is documented, per this language's convention.
-    ///
-    /// - Parameter node: The function/method declaration node.
-    /// - Returns: Whether it counts as documented.
-    private func isDocumented(_ node: Node) -> Bool {
-        switch spec.documentationStyle {
-        case .docstring: return hasDocstring(node)
-        case .precedingComment: return hasPrecedingComment(node)
-        case .jsdoc: return hasPrecedingComment(declarationAnchor(of: node), prefix: "/**")
-        }
     }
 
     /// Checks whether a function's first body statement is a string literal (a docstring).

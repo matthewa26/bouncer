@@ -11,17 +11,22 @@ enum AnalyzerFactory {
 
     /// Builds an analyzer for every language with dedicated support.
     ///
-    /// - Returns: The real-AST analyzers (Swift, Python, Go, TS, JS), plus a heuristic one per other language.
+    /// - Returns: The real-AST analyzers (Swift, Python, Go, TS, JS, Objective-C), plus a heuristic one per
+    ///   other language.
     static func makeKnownAnalyzers() -> [Language: LanguageAnalyzer] {
-        var analyzers: [Language: LanguageAnalyzer] = [
-            .swift: SwiftSyntaxAnalyzer(),
-            .python: TreeSitterAnalyzer(spec: .python),
-            .go: TreeSitterAnalyzer(spec: .go),
-            .typescript: TreeSitterAnalyzer(spec: .typescript),
-            .javascript: TreeSitterAnalyzer(spec: .javascript)
-        ]
+        var analyzers: [Language: LanguageAnalyzer] = [.swift: SwiftSyntaxAnalyzer()]
+        for analyzer in makeTreeSitterAnalyzers() { analyzers[analyzer.supportedLanguage] = analyzer }
         for language in heuristicLanguages { analyzers[language] = HeuristicAnalyzer(language: language) }
         return analyzers
+    }
+
+    /// Builds the tree-sitter analyzers. Objective-C files that fail to parse widely, as Objective-C++ does,
+    /// fall back to the heuristic analyzer.
+    ///
+    /// - Returns: One analyzer per tree-sitter grammar.
+    private static func makeTreeSitterAnalyzers() -> [TreeSitterAnalyzer] {
+        [TreeSitterLanguageSpec.python, .go, .typescript, .javascript].map { TreeSitterAnalyzer(spec: $0) }
+            + [TreeSitterAnalyzer(spec: .objc, fallback: HeuristicAnalyzer(language: .objc))]
     }
 
     /// Builds the fallback analyzer used for any unrecognized language.

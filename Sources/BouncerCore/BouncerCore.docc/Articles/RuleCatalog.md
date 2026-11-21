@@ -5,14 +5,22 @@ Every built-in rule, what it checks, its default severity, and its parameters.
 ## Where each rule runs
 
 Swift, TypeScript (`.ts`, `.mts`, `.cts`, and `.tsx` via the TSX grammar), JavaScript
-(`.js`, `.mjs`, `.cjs`, `.jsx`), Python, and Go get most of these rules computed exactly from
-a real parse tree. Every other supported language (zsh, bash, PowerShell, C++, Java, SQL, C,
-and anything unrecognized) gets the same checks computed heuristically instead, from
+(`.js`, `.mjs`, `.cjs`, `.jsx`), Python, Go, and Objective-C (`.m`, `.mm`, and Objective-C `.h`
+headers) get most of these rules computed exactly from a real parse tree. Every other supported
+language (zsh, bash, PowerShell, C++, Java, SQL, C, and anything unrecognized) gets the same checks
+computed heuristically instead, from
 indentation and regular expressions rather than a real grammar. The rule IDs, defaults, and
 config keys are identical either way; only the precision of the check differs. `missing-documentation`'s
 `scope` parameter is the one exception worth calling out: heuristic languages can't reliably
 determine a declaration's access level, so the heuristic version always behaves as `scope: all`,
 regardless of what's configured.
+
+A `.h` header is Objective-C when any line starts with `@interface`, `@protocol`, `@class`,
+`@import`, `#import`, `NS_ASSUME_NONNULL_BEGIN`, or `@property`, and C otherwise. Objective-C++
+(`.mm`) parses with the Objective-C grammar; when more than one declaration in five fails to parse
+(each method of an `@implementation` counts as one declaration), as it does wherever C++ namespaces,
+templates, or `::` appear, the file gets the heuristic checks instead, though its imports still
+come from the parse tree.
 
 ## Code smells
 
@@ -85,10 +93,21 @@ files and types.
 ## Function shape and single-location smells
 
 These run on every parsed language: Swift, TypeScript (including TSX), JavaScript (including
-JSX), Python, and Go, wherever the language has the construct. Go has no classes, ternaries, or
+JSX), Python, Go, and Objective-C, wherever the language has the construct. Go has no classes, ternaries, or
 `catch`, so `lack-of-cohesion`, `nested-ternary`, and `empty-catch` don't apply to it; in Python,
 an `except` that only `pass`es counts as empty, and methods take `self`, which isn't counted as a
 parameter. The heuristic languages don't get these rules.
+
+In Objective-C, a method is named by its selector (`configureWithName:size:`) and its parameters
+are its selector arguments; a `(BOOL)`/`bool` argument is a flag. Blocks (`^{ … }`) count as
+closures, as arrow functions do in TS/JS. `@try`/`@catch`/`@throw` are the `try`, `catch`, and
+`throw` the rules read. `@interface`, `@implementation`, categories (named `Widget(Extras)`), and
+`@protocol` are the types: methods, properties, and instance variables are their members, `+` class
+methods are left out of LCOM4, and `self.x` is the field access cohesion reads (direct `_x` instance
+variable access isn't). `naming-convention` expects camelCase selectors, any C function name, and an
+uppercase type name, so `NS`/`ABC`-style prefixes pass. The design-smell facts (coupling, feature
+envy, temporary field) and the doc-completeness rules aren't mapped for Objective-C, and neither are
+`global-mutable-state`, `large-type`, and `file-name-mismatch`.
 
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
@@ -253,7 +272,11 @@ JavaScript's `export` (an exported function, or any class member, is public; an 
 top-level function or `protected` member is internal; a `private` or `#name` member is
 private); Python's leading-underscore convention (no underscore is public, one is internal,
 two is private); Go's exported-by-capitalization convention (uppercase first letter is
-public, lowercase is internal, since Go has no true private).
+public, lowercase is internal, since Go has no true private). In Objective-C, a C function is
+public unless it's `static` (private); a method is internal, since its header declares (and
+usually documents) the public contract, or private if its selector starts with `_`. Header
+method declarations have no body, so they aren't checked; a `///` or `/** */` comment directly
+above a method or function documents it.
 
 TypeScript and JavaScript count only a `/** */` JSDoc comment as documentation, directly above
 the declaration or the `export`/`const` that wraps it. Anonymous inline callbacks are never
@@ -298,6 +321,9 @@ mistake in that language, layered on top of the shared rules above:
 | Swift | `swift-main-sync` | `DispatchQueue.main.sync`, which deadlocks on the main thread |
 | Swift | `swift-semaphore-wait` | Blocking `semaphore.wait()` |
 | Swift | `skipped-test` | `XCTSkip` or a `.disabled(...)` trait |
+| Objective-C | `objc-debug-log` | An `NSLog(...)` call, which writes to the system log in release builds |
+| Objective-C | `c-gets-usage`, `c-unsafe-string-function`, `c-debug-print` | The C checks, since Objective-C is a superset of C |
+| Objective-C | `skipped-test` | `XCTSkip`/`XCTSkipIf`/`XCTSkipUnless` |
 | C | `c-gets-usage` | `gets(...)`, which can't bound its input |
 | C | `c-unsafe-string-function` | `strcpy`/`strcat`/`sprintf` |
 | PowerShell | `powershell-invoke-expression` | `Invoke-Expression`/`iex` usage |
@@ -403,6 +429,18 @@ or any later one, never an earlier one, and files matching no layer are unconstr
 example, `["src/ui/**", "src/domain/**", "src/infra/**"]` lets the UI use the domain and the
 domain use infrastructure, but not the reverse.
 
+Objective-C's graph has one node per header-and-implementation pair (`Foo.h` beside `Foo.m` or
+`Foo.mm`, shown as `Foo`), so `A.m` importing `B.h` while `B.m` imports `A.h` is a cycle. A
+quoted `#import`/`#include` resolves beside the importing file, then to the one project file with
+that path suffix (none, or several, is unresolved); `#import <Kit/Button.h>` and `@import Kit;`
+resolve only to a project `Kit/` folder holding that header (or `Kit/Kit.h`), and anything else is
+a system or package module. `#import "App-Swift.h"` is an edge to Swift module `App` (the same node
+as Swift target `App`, or a node of its own when no folder is named for the module), and a
+`*-Bridging-Header.h` belongs to the Swift target whose folder holds it, so its imports are edges
+from that Swift module. Macros and `#if` branches aren't evaluated, so a conditional import counts
+whether or not it's compiled, and the usual mixed-target arrangement (Objective-C importing
+`App-Swift.h` while the bridging header imports that Objective-C) shows up as an `import-cycle`.
+
 `unused-export` skips default exports, which frameworks load by convention (pages, stories,
 configs), and entry points: `index` files, `.d.ts` files, tests, stories, `*.config.*` files, and
 anything matching `entryPoints`. A namespace import or `export *` counts every export as used.
@@ -463,7 +501,7 @@ imports.
 `foo_test.go`, or `FooTests.swift`/`FooTest.swift` anywhere in the project. It's off by default;
 turn it on by listing it under `rules`.
 
-`duplicate-code` tokenizes each Swift, TypeScript/JavaScript, Python, and Go file without
+`duplicate-code` tokenizes each Swift, TypeScript/JavaScript, Python, Go, and Objective-C file without
 whitespace or comments, normalizing identifiers (by consistent renaming, so a copy with renamed
 variables still matches) and literals, and fingerprints it with k-gram winnowing; fingerprints
 are cached in `.bouncer-cache/facts.json`. Copies of at least `minTokens` tokens and `minLines`

@@ -390,7 +390,8 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | `"profile"` key in `.bouncer` selects a profile | documented before, but ignored | 1.2.0 |
 | ✅ | User profiles: repo `.bouncer-profiles/` (shareable) and global `~/.bouncer-profiles/` | | 1.2.0 |
 | ✅ | `bouncer profile list\|show\|create\|set-default\|delete` | | 1.2.0 |
-| ⬜ | Landing page at the site root, with the bouncer mascot | | planned 1.2 |
+| ✅ | Landing page at the site root, with the bouncer mascot | | 1.2.0 |
+| ⬜ | FAQ on the landing page | | backlog |
 
 ## 16. Integrations
 

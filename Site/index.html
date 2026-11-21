@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bouncer: only clean code gets in</title>
+<meta name="description" content="Bouncer is a configurable coding-standards and code-smell checker for pre-commit hooks, full-repo audits, and coding agents.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<style>
+:root {
+  --ground: #160E1F; --panel: #221632; --line: #3A2850; --text: #F5EFFA; --muted: #C9BBD8;
+  --accent: #FF5FA8; --gold: #F2C14E;
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--text); font-family: var(--sans); }
+a { color: var(--text); text-decoration: none; }
+a:hover { color: #FF8CC0; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+header.wrap { padding-top: 24px; padding-bottom: 24px; display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 700;
+  font-size: 24px; letter-spacing: 0.5px; }
+nav { display: flex; flex-wrap: wrap; gap: 24px; font-size: 16px; font-weight: 500; }
+.hero { padding-top: 40px; padding-bottom: 64px; display: flex; flex-wrap: wrap; align-items: center; gap: 48px; }
+.hero-copy { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.eyebrow { margin: 0; font-family: var(--mono); font-size: 14px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--gold); }
+h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(40px, 6vw, 72px); line-height: 1.02; }
+h1 span { color: var(--accent); }
+.lede { margin: 0; max-width: 560px; font-size: 19px; line-height: 1.6; color: var(--muted); }
+.install { max-width: 600px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1 1 0; min-height: 48px; padding: 0 16px; border: 0; background: transparent;
+  font: 500 15px var(--sans); color: var(--muted); cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--text); box-shadow: inset 0 -3px 0 var(--accent); }
+.command { display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 20px; }
+.command code { flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: var(--mono);
+  font-size: 15px; }
+.command code span { color: var(--accent); }
+.copy { flex: 0 0 auto; min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent);
+  color: var(--ground); font: 600 15px var(--sans); cursor: pointer; }
+.note { margin: 0; font-size: 15px; color: var(--muted); }
+.note code { font-family: var(--mono); color: var(--text); }
+.mascot { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.mascot img { width: 100%; max-width: 380px; height: auto; }
+.mascot svg { width: 100%; max-width: 400px; height: auto; margin-top: -8px; }
+.scene { padding-bottom: 56px; }
+.scene svg { display: block; width: 100%; height: auto; }
+.features { padding-top: 24px; padding-bottom: 72px; }
+h2 { margin: 0 0 24px; font-family: var(--display); font-size: 32px; font-weight: 700; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: flex;
+  flex-direction: column; gap: 12px; }
+.card p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
+.card .eyebrow { font-size: 14px; letter-spacing: 0; text-transform: none; }
+h3 { margin: 0; font-family: var(--display); font-size: 22px; }
+footer { border-top: 1px solid var(--line); }
+footer .wrap { padding-top: 24px; padding-bottom: 24px; display: flex; flex-wrap: wrap; justify-content: space-between;
+  gap: 12px; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <a class="brand" href="#top"><img src="logo.svg" width="44" height="44" alt=""> Bouncer</a>
+  <nav aria-label="Main">
+    <a href="documentation/bouncercore/">Docs</a>
+    <a href="documentation/bouncercore/rulecatalog">Rules</a>
+    <a href="https://github.com/matthewa26/bouncer/releases">Releases</a>
+    <a href="https://github.com/matthewa26/bouncer">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="wrap hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Coding standards, enforced at the door</p>
+      <h1>Only clean code<br><span>gets in.</span></h1>
+      <p class="lede">Bouncer is a configurable coding-standards and code-smell checker. It reads TypeScript, JavaScript,
+        Swift, Python and Go with real parse trees, everything else heuristically, and turns away what breaks your
+        rules: as a pre-commit hook, a full-repo audit, or a coding agent's self-check.</p>
+      <div class="install">
+        <div class="tabs" role="tablist" aria-label="Install command">
+          <button role="tab" aria-selected="true" data-command="curl -fsSL https://matthewa26.github.io/bouncer/install.ps1 | sh">macOS, Linux, WSL</button>
+          <button role="tab" aria-selected="false" data-command="irm https://matthewa26.github.io/bouncer/install.ps1 | iex">Windows</button>
+        </div>
+        <div class="command">
+          <code><span aria-hidden="true">$ </span><span id="command" style="color: inherit">curl -fsSL https://matthewa26.github.io/bouncer/install.ps1 | sh</span></code>
+          <button class="copy" id="copy" aria-label="Copy install command">Copy</button>
+        </div>
+      </div>
+      <p class="note">One verified installer for every platform. Or <code>brew tap matthewa26/tap &amp;&amp; brew install bouncer</code>.</p>
+    </div>
+    <div class="mascot">
+      <img src="logo.svg" alt="Bouncer mascot: a square-jawed bouncer in sunglasses">
+      <svg viewBox="0 0 360 90" aria-hidden="true">
+        <rect x="20" y="30" width="10" height="56" rx="3" fill="#F2C14E"></rect>
+        <circle cx="25" cy="26" r="9" fill="#F2C14E"></circle>
+        <rect x="330" y="30" width="10" height="56" rx="3" fill="#F2C14E"></rect>
+        <circle cx="335" cy="26" r="9" fill="#F2C14E"></circle>
+        <rect x="8" y="82" width="34" height="8" rx="4" fill="#B8902F"></rect>
+        <rect x="318" y="82" width="34" height="8" rx="4" fill="#B8902F"></rect>
+        <path d="M30 36 C110 86 250 86 330 36" stroke="#C2185B" stroke-width="10" fill="none" stroke-linecap="round"></path>
+      </svg>
+    </div>
+  </section>
+
+  <section class="wrap scene" aria-label="How Bouncer works">
+    <svg viewBox="-110 -80 600 400" role="img" aria-label="Isometric scene: files ride a conveyor toward a velvet-rope checkpoint with the Bouncer booth. Clean files pass through to the club, marked main; a flawed file is bounced into a reject bin.">
+      <defs><clipPath id="iso-badge"><circle cx="120" cy="120" r="116"></circle></clipPath></defs>
+      <polygon points="161.1,45.0 207.8,72.0 207.8,45.0 161.1,18.0" fill="#3A2850"></polygon>
+      <polygon points="249.4,48.0 207.8,72.0 207.8,45.0 249.4,21.0" fill="#2A1B3D"></polygon>
+      <polygon points="202.6,-6.0 249.4,21.0 207.8,45.0 161.1,18.0" fill="#0E0914"></polygon>
+      <polygon points="179.3,30.0 202.6,43.5 202.6,22.5 179.3,9.0" fill="#3A2850"></polygon>
+      <polygon points="226.0,30.0 202.6,43.5 202.6,22.5 226.0,9.0" fill="#2A1B3D"></polygon>
+      <polygon points="202.6,-4.5 226.0,9.0 202.6,22.5 179.3,9.0" fill="#FF5FA8"></polygon>
+      <g stroke="#160E1F" stroke-width="2" stroke-linecap="round">
+        <line x1="200.1" y1="3.0" x2="213.0" y2="10.5"></line>
+        <line x1="194.9" y1="6.0" x2="207.8" y2="13.5"></line>
+        <line x1="189.7" y1="9.0" x2="197.5" y2="13.5"></line>
+      </g>
+      <polygon points="-77.9,15.0 285.8,225.0 285.8,210.0 -77.9,0.0" fill="#6E5C82"></polygon>
+      <polygon points="337.7,195.0 285.8,225.0 285.8,210.0 337.7,180.0" fill="#4A3A5E"></polygon>
+      <polygon points="-26.0,-30.0 337.7,180.0 285.8,210.0 -77.9,0.0" fill="#C9BBD8"></polygon>
+      <g stroke="#B3A3C4" stroke-width="1.5" stroke-linecap="round">
+        <line x1="-24.7" y1="-24.8" x2="-68.8" y2="0.8"></line>
+        <line x1="-11.7" y1="-17.2" x2="-55.9" y2="8.2"></line>
+        <line x1="1.3" y1="-9.8" x2="-42.9" y2="15.7"></line>
+        <line x1="14.3" y1="-2.2" x2="-29.9" y2="23.2"></line>
+        <line x1="27.3" y1="5.2" x2="-16.9" y2="30.8"></line>
+        <line x1="40.3" y1="12.7" x2="-3.9" y2="38.2"></line>
+        <line x1="53.3" y1="20.2" x2="9.1" y2="45.8"></line>
+        <line x1="66.3" y1="27.8" x2="22.1" y2="53.3"></line>
+        <line x1="79.2" y1="35.2" x2="35.1" y2="60.8"></line>
+        <line x1="92.2" y1="42.8" x2="48.1" y2="68.3"></line>
+        <line x1="105.2" y1="50.3" x2="61.1" y2="75.8"></line>
+        <line x1="118.2" y1="57.8" x2="74.0" y2="83.3"></line>
+        <line x1="131.2" y1="65.3" x2="87.0" y2="90.8"></line>
+        <line x1="144.2" y1="72.8" x2="100.0" y2="98.3"></line>
+        <line x1="157.2" y1="80.3" x2="113.0" y2="105.8"></line>
+        <line x1="170.2" y1="87.8" x2="126.0" y2="113.2"></line>
+        <line x1="183.2" y1="95.3" x2="139.0" y2="120.8"></line>
+        <line x1="196.2" y1="102.8" x2="152.0" y2="128.2"></line>
+        <line x1="209.1" y1="110.2" x2="165.0" y2="135.7"></line>
+        <line x1="222.1" y1="117.8" x2="178.0" y2="143.2"></line>
+        <line x1="235.1" y1="125.2" x2="191.0" y2="150.7"></line>
+        <line x1="248.1" y1="132.8" x2="203.9" y2="158.2"></line>
+        <line x1="261.1" y1="140.2" x2="216.9" y2="165.7"></line>
+        <line x1="274.1" y1="147.8" x2="229.9" y2="173.2"></line>
+        <line x1="287.1" y1="155.2" x2="242.9" y2="180.7"></line>
+        <line x1="300.1" y1="162.8" x2="255.9" y2="188.2"></line>
+      </g>
+      <polygon points="-48.1,0.8 -24.7,14.3 -24.7,-6.7 -48.1,-20.2" fill="#3A2850"></polygon>
+      <polygon points="-1.3,0.8 -24.7,14.3 -24.7,-6.7 -1.3,-20.2" fill="#2A1B3D"></polygon>
+      <polygon points="-24.7,-33.8 -1.3,-20.2 -24.7,-6.7 -48.1,-20.2" fill="#F5EFFA"></polygon>
+      <g stroke="#7A6A8C" stroke-width="2" stroke-linecap="round">
+        <line x1="-27.3" y1="-26.2" x2="-14.3" y2="-18.8"></line>
+        <line x1="-32.5" y1="-23.2" x2="-19.5" y2="-15.8"></line>
+        <line x1="-37.7" y1="-20.2" x2="-29.9" y2="-15.8"></line>
+      </g>
+      <polygon points="9.1,33.8 32.5,47.3 32.5,26.3 9.1,12.8" fill="#3A2850"></polygon>
+      <polygon points="55.9,33.8 32.5,47.3 32.5,26.3 55.9,12.8" fill="#2A1B3D"></polygon>
+      <polygon points="32.5,-0.8 55.9,12.8 32.5,26.3 9.1,12.8" fill="#F5EFFA"></polygon>
+      <g stroke="#7A6A8C" stroke-width="2" stroke-linecap="round">
+        <line x1="29.9" y1="6.8" x2="42.9" y2="14.2"></line>
+        <line x1="24.7" y1="9.8" x2="37.7" y2="17.2"></line>
+        <line x1="19.5" y1="12.8" x2="27.3" y2="17.2"></line>
+      </g>
+      <path d="M90 40 Q140 -48 196 -10" stroke="#FF5FA8" stroke-width="2.5" stroke-dasharray="4 6" fill="none" stroke-linecap="round"></path>
+      <polygon points="96.1,34.5 119.5,48.0 119.5,27.0 96.1,13.5" fill="#3A2850"></polygon>
+      <polygon points="142.9,34.5 119.5,48.0 119.5,27.0 142.9,13.5" fill="#2A1B3D"></polygon>
+      <polygon points="119.5,0.0 142.9,13.5 119.5,27.0 96.1,13.5" fill="#FF5FA8"></polygon>
+      <g stroke="#160E1F" stroke-width="2" stroke-linecap="round">
+        <line x1="116.9" y1="7.5" x2="129.9" y2="15.0"></line>
+        <line x1="111.7" y1="10.5" x2="124.7" y2="18.0"></line>
+        <line x1="106.5" y1="13.5" x2="114.3" y2="18.0"></line>
+      </g>
+      <polygon points="189.7,106.5 205.2,115.5 205.2,25.5 189.7,16.5" fill="#2A1B3D"></polygon>
+      <polygon points="220.8,106.5 205.2,115.5 205.2,25.5 220.8,16.5" fill="#221632"></polygon>
+      <polygon points="205.2,7.5 220.8,16.5 205.2,25.5 189.7,16.5" fill="#3A2850"></polygon>
+      <polygon points="201.4,144.7 224.7,158.2 224.7,137.2 201.4,123.7" fill="#3A2850"></polygon>
+      <polygon points="248.1,144.8 224.7,158.2 224.7,137.2 248.1,123.8" fill="#2A1B3D"></polygon>
+      <polygon points="224.7,110.2 248.1,123.8 224.7,137.2 201.4,123.7" fill="#F5EFFA"></polygon>
+      <g stroke="#7A6A8C" stroke-width="2" stroke-linecap="round">
+        <line x1="222.1" y1="117.7" x2="235.1" y2="125.2"></line>
+        <line x1="216.9" y1="120.8" x2="229.9" y2="128.2"></line>
+        <line x1="211.7" y1="123.7" x2="219.5" y2="128.2"></line>
+      </g>
+      <polygon points="248.1,171.8 271.5,185.3 271.5,164.3 248.1,150.8" fill="#3A2850"></polygon>
+      <polygon points="294.9,171.8 271.5,185.3 271.5,164.3 294.9,150.8" fill="#2A1B3D"></polygon>
+      <polygon points="271.5,137.2 294.9,150.8 271.5,164.3 248.1,150.8" fill="#F5EFFA"></polygon>
+      <g stroke="#7A6A8C" stroke-width="2" stroke-linecap="round">
+        <line x1="268.9" y1="144.7" x2="281.9" y2="152.2"></line>
+        <line x1="263.7" y1="147.8" x2="276.7" y2="155.2"></line>
+        <line x1="258.5" y1="150.8" x2="266.3" y2="155.2"></line>
+      </g>
+      <polygon points="116.9,148.5 132.5,157.5 132.5,67.5 116.9,58.5" fill="#2A1B3D"></polygon>
+      <polygon points="148.1,148.5 132.5,157.5 132.5,67.5 148.1,58.5" fill="#221632"></polygon>
+      <polygon points="132.5,49.5 148.1,58.5 132.5,67.5 116.9,58.5" fill="#3A2850"></polygon>
+      <polygon points="116.9,58.5 132.5,67.5 132.5,52.5 116.9,43.5" fill="#C2185B"></polygon>
+      <polygon points="220.8,16.5 132.5,67.5 132.5,52.5 220.8,1.5" fill="#A3134C"></polygon>
+      <polygon points="205.2,-7.5 220.8,1.5 132.5,52.5 116.9,43.5" fill="#FF5FA8"></polygon>
+      <polygon points="-2.6,79.5 2.6,82.5 2.6,46.5 -2.6,43.5" fill="#B8902F"></polygon>
+      <polygon points="7.8,79.5 2.6,82.5 2.6,46.5 7.8,43.5" fill="#9C7A26"></polygon>
+      <polygon points="2.6,40.5 7.8,43.5 2.6,46.5 -2.6,43.5" fill="#F2C14E"></polygon>
+      <polygon points="59.8,115.5 65.0,118.5 65.0,82.5 59.8,79.5" fill="#B8902F"></polygon>
+      <polygon points="70.1,115.5 65.0,118.5 65.0,82.5 70.1,79.5" fill="#9C7A26"></polygon>
+      <polygon points="65.0,76.5 70.1,79.5 65.0,82.5 59.8,79.5" fill="#F2C14E"></polygon>
+      <path d="M2.6 46.5 Q33.8 104.5 65.0 82.5" stroke="#C2185B" stroke-width="5" fill="none" stroke-linecap="round"></path>
+      <polygon points="31.2,150.0 67.5,171.0 67.5,123.0 31.2,102.0" fill="#2A1B3D"></polygon>
+      <polygon points="103.9,150.0 67.5,171.0 67.5,123.0 103.9,102.0" fill="#221632"></polygon>
+      <polygon points="67.5,81.0 103.9,102.0 67.5,123.0 31.2,102.0" fill="#3A2850"></polygon>
+      <rect x="65" y="40" width="5" height="62" rx="2" fill="#B8902F"></rect>
+      <image href="logo.svg" x="37.5" y="8" width="60" height="60"></image>
+      <polygon points="254.6,225.0 358.5,285.0 358.5,183.0 254.6,123.0" fill="#221632"></polygon>
+      <polygon points="465.1,223.5 358.5,285.0 358.5,183.0 465.1,121.5" fill="#1A1024"></polygon>
+      <polygon points="361.1,61.5 465.1,121.5 358.5,183.0 254.6,123.0" fill="#2A1B3D"></polygon>
+      <polygon points="254.6,123.0 358.5,183.0 358.5,177.0 254.6,117.0" fill="#FF5FA8"></polygon>
+      <polygon points="465.1,121.5 358.5,183.0 358.5,177.0 465.1,115.5" fill="#FF5FA8"></polygon>
+      <polygon points="361.1,55.5 465.1,115.5 358.5,177.0 254.6,117.0" fill="#3A2850"></polygon>
+      <polygon points="267.6,232.5 304.0,253.5 304.0,193.5 267.6,172.5" fill="#F2C14E"></polygon>
+      <g font-family="JetBrains Mono, ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#C9BBD8">
+        <text x="-96" y="-52">your changes</text>
+        <text x="67.5" y="196" text-anchor="middle">bouncer check</text>
+        <text x="256" y="-14">turned away</text>
+        <text x="360" y="312" text-anchor="middle">main</text>
+      </g>
+    </svg>
+  </section>
+
+  <section class="wrap features" aria-labelledby="features-heading">
+    <h2 id="features-heading">How the door works</h2>
+    <div class="cards">
+      <div class="card">
+        <p class="eyebrow">bouncer check</p>
+        <h3>Checks IDs at the door</h3>
+        <p>Runs on your staged files as a Husky pre-commit hook, or on the files an agent just edited, and fails the
+          commit when a finding crosses your threshold.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">bouncer review</p>
+        <h3>Sweeps the whole club</h3>
+        <p>Audits a whole repository, cross-file checks included: import cycles, layering, unused exports, duplicate
+          code and git-history hotspots. Reports as console, table, JSON or HTML.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">.bouncer</p>
+        <h3>Your club, your list</h3>
+        <p>Every rule, severity and threshold is configurable, per repo or globally. Save your choices as a profile
+          and share it with your team.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Bouncer is free software under the GPL-3.0-or-later license.</span>
+    <a href="https://github.com/matthewa26/bouncer">github.com/matthewa26/bouncer</a>
+  </div>
+</footer>
+
+<script>
+  const tabs = document.querySelectorAll('.tabs button');
+  const command = document.getElementById('command');
+  const copy = document.getElementById('copy');
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(other => other.setAttribute('aria-selected', String(other === tab)));
+    command.textContent = tab.dataset.command;
+    copy.textContent = 'Copy';
+  }));
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(command.textContent);
+      copy.textContent = 'Copied';
+    } catch (error) {
+      copy.textContent = 'Select and copy';
+    }
+  });
+</script>
+</body>
+</html>

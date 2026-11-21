@@ -233,9 +233,9 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
 | ✅ | Path traversal: user input joined into a file path (`path-traversal`; same line or a 10-line assignment window) | T | 1.0.0 |
-| ✅ | Server-side request forgery: user input in a fetched URL (`ssrf`) | T | 1.4.0 |
-| ✅ | Open redirect: user input in a redirect target (`open-redirect`) | T | 1.4.0 |
-| ✅ | CORS allowing any origin with credentials (`cors-credentials-any-origin`) | F | 1.4.0 |
+| ✅ | Server-side request forgery: user input in a fetched URL (`ssrf`) | T | 1.2.0 |
+| ✅ | Open redirect: user input in a redirect target (`open-redirect`) | T | 1.2.0 |
+| ✅ | CORS allowing any origin with credentials (`cors-credentials-any-origin`) | F | 1.2.0 |
 
 ### A02 Security Misconfiguration
 
@@ -243,19 +243,19 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 |---|---|---|---|
 | ✅ | `http://` in non-local code (`insecure-http-url`); every language | F | 1.0.0 |
 | ✅ | Hardcoded IP addresses (`hardcoded-ip`; IPv4 in strings) | F | 1.0.0 |
-| ✅ | Debug mode enabled in app config (`debug-mode-enabled`: Flask, Django, Express) | F | 1.4.0 |
-| ✅ | CORS allowing any origin (`permissive-cors`) | F | 1.4.0 |
-| ✅ | Cookies set without `Secure`/`HttpOnly`/`SameSite` (`insecure-cookie`) | F | 1.4.0 |
-| ✅ | XML parser with external entities enabled (`xml-external-entities`) | F | 1.4.0 |
+| ✅ | Debug mode enabled in app config (`debug-mode-enabled`: Flask, Django, Express) | F | 1.2.0 |
+| ✅ | CORS allowing any origin (`permissive-cors`) | F | 1.2.0 |
+| ✅ | Cookies set without `Secure`/`HttpOnly`/`SameSite` (`insecure-cookie`) | F | 1.2.0 |
+| ✅ | XML parser with external entities enabled (`xml-external-entities`) | F | 1.2.0 |
 
 ### A03 Software Supply Chain Failures
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
-| ✅ | Unpinned dependency: `*`, `latest`, open ranges, git deps without a rev (`unpinned-dependency`: `package.json`, `Cargo.toml`, `Package.swift`) | X | 1.4.0 |
-| ✅ | Manifest without a lockfile (`missing-lockfile`) | X | 1.4.0 |
-| ✅ | Download piped into a shell, `curl … \| sh` (`pipe-to-shell`) | F | 1.4.0 |
-| ✅ | GitHub Action referenced by tag instead of commit SHA (`unpinned-ci-action`, opt-in) | F | 1.4.0 |
+| ✅ | Unpinned dependency: `*`, `latest`, open ranges, git deps without a rev (`unpinned-dependency`: `package.json`, `Cargo.toml`, `Package.swift`) | X | 1.2.0 |
+| ✅ | Manifest without a lockfile (`missing-lockfile`) | X | 1.2.0 |
+| ✅ | Download piped into a shell, `curl … \| sh` (`pipe-to-shell`) | F | 1.2.0 |
+| ✅ | GitHub Action referenced by tag instead of commit SHA (`unpinned-ci-action`, opt-in) | F | 1.2.0 |
 
 ### A04 Cryptographic Failures
 
@@ -265,8 +265,8 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Weak crypto: MD5, SHA-1, DES, ECB (`weak-crypto`); every language | F | 1.0.0 |
 | ✅ | `Math.random` used for tokens or IDs (`insecure-random`; also Python `random`, Go `math/rand`) | T | 1.0.0 |
 | ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F | 1.0.0 |
-| ✅ | Hardcoded IV, nonce or salt (`hardcoded-iv`) | F | 1.4.0 |
-| ✅ | RSA keys under 2048 bits, EC curves of 192 bits or fewer (`short-crypto-key`) | F | 1.4.0 |
+| ✅ | Hardcoded IV, nonce or salt (`hardcoded-iv`) | F | 1.2.0 |
+| ✅ | RSA keys under 2048 bits, EC curves of 192 bits or fewer (`short-crypto-key`) | F | 1.2.0 |
 
 ### A05 Injection
 
@@ -280,10 +280,10 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Swift `Process` launched through a shell with interpolated input (`swift-shell-injection`; literal interpolation only) | T | 1.0.0 |
 | ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F | 1.0.0 |
 | ✅ | Python `eval`/`exec` (`python-eval-exec`) | F | 1.0.0 |
-| ✅ | Rust shell command built from formatted input (`rust-shell-injection`) | F | 1.4.0 |
-| ✅ | Objective-C `NSTask`/`system` with formatted input (`objc-shell-injection`) | F | 1.4.0 |
-| ✅ | Template injection: user input rendered as a template (`template-injection`) | T | 1.4.0 |
-| ✅ | NoSQL injection: `$where` or query objects built from input (`nosql-injection`) | F | 1.4.0 |
+| ✅ | Rust shell command built from formatted input (`rust-shell-injection`) | F | 1.2.0 |
+| ✅ | Objective-C `NSTask`/`system` with formatted input (`objc-shell-injection`) | F | 1.2.0 |
+| ✅ | Template injection: user input rendered as a template (`template-injection`) | T | 1.2.0 |
+| ✅ | NoSQL injection: `$where` or query objects built from input (`nosql-injection`) | F | 1.2.0 |
 
 ### A06 Insecure Design (not statically checkable)
 
@@ -293,22 +293,22 @@ Insecure design is about missing threat modeling and controls, which no syntax p
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
-| ✅ | JWT with `alg: none` or signature verification disabled (`jwt-verification-disabled`) | F | 1.4.0 |
-| ✅ | Secret or token compared with `==` instead of a constant-time comparison (`timing-unsafe-comparison`) | F | 1.4.0 |
+| ✅ | JWT with `alg: none` or signature verification disabled (`jwt-verification-disabled`) | F | 1.2.0 |
+| ✅ | Secret or token compared with `==` instead of a constant-time comparison (`timing-unsafe-comparison`) | F | 1.2.0 |
 
 ### A08 Software or Data Integrity Failures
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
 | ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F | 1.0.0 |
-| ✅ | Unsafe deserialization in every language (`unsafe-deserialization`: Java `ObjectInputStream`, YAML `load`, `NSKeyedUnarchiver` without secure coding) | F | 1.4.0 |
+| ✅ | Unsafe deserialization in every language (`unsafe-deserialization`: Java `ObjectInputStream`, YAML `load`, `NSKeyedUnarchiver` without secure coding) | F | 1.2.0 |
 
 ### A09 Security Logging & Alerting Failures
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
 | ✅ | Logging of secrets or PII (`logged-secret`) | T | 1.0.0 |
-| ✅ | Security failure caught and swallowed without logging (`unlogged-security-failure`; a proxy on auth and security paths) | T | 1.4.0 |
+| ✅ | Security failure caught and swallowed without logging (`unlogged-security-failure`; a proxy on auth and security paths) | T | 1.2.0 |
 
 ### A10 Mishandling of Exceptional Conditions
 
@@ -316,15 +316,15 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
-| ✅ | Fail-open: a catch block that returns success or grants access (`fail-open`) | T | 1.4.0 |
-| ✅ | Rust `unwrap()`/`expect()` outside tests (`rust-unwrap`) | F | 1.4.0 |
+| ✅ | Fail-open: a catch block that returns success or grants access (`fail-open`) | T | 1.2.0 |
+| ✅ | Rust `unwrap()`/`expect()` outside tests (`rust-unwrap`) | F | 1.2.0 |
 
 ### Reporting
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
-| ✅ | OWASP category on every security finding (JSON `owasp` field, HTML filter, rule catalog) | F | 1.4.0 |
-| ✅ | Bundled `owasp` profile: every security rule as an error | F | 1.4.0 |
+| ✅ | OWASP category on every security finding (JSON `owasp` field, HTML filter, rule catalog) | F | 1.2.0 |
+| ✅ | Bundled `owasp` profile: every security rule as an error | F | 1.2.0 |
 
 ## 12. Testing
 
@@ -400,12 +400,12 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Husky pre-commit hook (`bouncer configure --husky`) | | 1.0.0 |
 | ✅ | Agent self-check (`bouncer check --files`/`--stdin`) | | 1.0.0 |
 | ✅ | Xcode coverage from `.xcresult` (`xcrun xccov`) | macOS | 1.0.0 |
-| ✅ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | 1.3.0 |
-| ✅ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | 1.3.0 |
-| ✅ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | 1.3.0 |
-| ⬜ | Token-efficient agent output (`--format agent`, `--limit`, `--rule`, `--group-by`, `--changed-since`) | design workshop first | planned 1.5 |
-| ⬜ | MCP server (`bouncer mcp`): summary-first tools, paged drill-down, next fix batch, verify | design workshop first | planned 1.5 |
-| ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.5 |
+| ✅ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | 1.2.0 |
+| ✅ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | 1.2.0 |
+| ✅ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | 1.2.0 |
+| ⬜ | Token-efficient agent output (`--format agent`, `--limit`, `--rule`, `--group-by`, `--changed-since`) | design workshop first | planned 1.3 |
+| ⬜ | MCP server (`bouncer mcp`): summary-first tools, paged drill-down, next fix batch, verify | design workshop first | planned 1.3 |
+| ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.3 |
 | ⬜ | Symbol-level Swift analysis from the compiler's index store | deferred until there's demand | backlog |
 
 ## 17. Languages
@@ -418,8 +418,8 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Python | tree-sitter | 1.0.0 |
 | ✅ | Go | tree-sitter | 1.0.0 |
 | ✅ | zsh, bash, PowerShell, C, C++, Java, SQL, and any other file | heuristic | 1.0.0 |
-| ✅ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | 1.3.0 |
-| ✅ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | 1.4.0 |
+| ✅ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | 1.2.0 |
+| ✅ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | 1.2.0 |
 
 ## Notes on the current implementation
 

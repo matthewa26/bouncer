@@ -54,7 +54,7 @@ Add the package, then the plugin to each target you want checked:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/matthewa26/bouncer-plugin", from: "1.3.0"),
+    .package(url: "https://github.com/matthewa26/bouncer-plugin", from: "1.2.0"),
 ],
 targets: [
     .target(name: "MyLibrary", plugins: [.plugin(name: "BouncerBuildPlugin", package: "bouncer-plugin")]),

@@ -7,6 +7,6 @@
   "exclude": [
     "Tests/**", "**/*.md", ".build/**", "Sources/CTreeSitterPython/**", "Sources/CTreeSitterTypeScript/**",
     "Sources/CTreeSitterTSX/**", "Sources/CTreeSitterJavaScript/**", "Sources/CTreeSitterObjC/**",
-    "Scripts/windows-vm/autounattend.xml"
+    "Sources/CTreeSitterRust/**", "Scripts/windows-vm/autounattend.xml"
   ]
 }

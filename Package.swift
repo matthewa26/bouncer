@@ -56,6 +56,11 @@ let package = Package(
             cSettings: [.headerSearchPath("src")]
         ),
         .target(
+            name: "CTreeSitterRust",
+            exclude: ["LICENSE", "NOTICE.md"],
+            cSettings: [.headerSearchPath("src")]
+        ),
+        .target(
             name: "BouncerTreeSitterAnalyzer",
             dependencies: [
                 "BouncerCore",
@@ -65,6 +70,7 @@ let package = Package(
                 "CTreeSitterTSX",
                 "CTreeSitterJavaScript",
                 "CTreeSitterObjC",
+                "CTreeSitterRust",
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterGo", package: "tree-sitter-go")
             ]

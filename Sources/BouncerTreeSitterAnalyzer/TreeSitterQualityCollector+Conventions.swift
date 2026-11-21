@@ -86,10 +86,8 @@ extension TreeSitterQualityCollector {
     ///   - name: Its resolved name.
     /// - Returns: Whether it's a test that never asserts.
     func isTestWithoutAssertions(_ node: Node, name: String) -> Bool {
-        guard let tests = conventions.tests, isTest(node, name: name, tests: tests), let body = text(node) else {
-            return false
-        }
-        return body.range(of: tests.assertionPattern, options: .regularExpression) == nil
+        guard let tests = conventions.tests, isTest(node, name: name, tests: tests) else { return false }
+        return testText(node, tests: tests).range(of: tests.assertionPattern, options: .regularExpression) == nil
     }
 
     /// Counts a test's assertions: the matches of the language's assertion pattern in its text.
@@ -99,9 +97,36 @@ extension TreeSitterQualityCollector {
     ///   - name: Its resolved name.
     /// - Returns: The count for a test, or `nil` for any other function.
     func assertionCount(_ node: Node, name: String) -> Int? {
-        guard let tests = conventions.tests, isTest(node, name: name, tests: tests), let body = text(node),
+        guard let tests = conventions.tests, isTest(node, name: name, tests: tests),
               let regex = try? NSRegularExpression(pattern: tests.assertionPattern) else { return nil }
+        let body = testText(node, tests: tests)
         return regex.numberOfMatches(in: body, range: NSRange(body.startIndex..., in: body))
+    }
+
+    /// Reads a test's text with its attributes, since an attribute such as Rust's `#[should_panic]` can be the
+    /// test's assertion.
+    ///
+    /// - Parameters:
+    ///   - node: The test function.
+    ///   - tests: The language's test conventions.
+    /// - Returns: Its attributes' text and its own, one per line.
+    private func testText(_ node: Node, tests: TestSpec) -> String {
+        (attributes(of: node, tests: tests).compactMap(text) + [text(node) ?? ""]).joined(separator: "\n")
+    }
+
+    /// Lists the attributes directly above a function, nearest first.
+    ///
+    /// - Parameters:
+    ///   - node: The function.
+    ///   - tests: The language's test conventions, naming its attribute node types.
+    /// - Returns: The attribute nodes, or none for a language without attributes.
+    private func attributes(of node: Node, tests: TestSpec) -> [Node] {
+        var found: [Node] = [], current = node.previousNamedSibling
+        while let sibling = current, tests.attributeNodeTypes.contains(sibling.nodeType ?? "") {
+            found.append(sibling)
+            current = sibling.previousNamedSibling
+        }
+        return found
     }
 
     /// Reads the name a declaration introduces, for the naming rules.
@@ -155,7 +180,8 @@ extension TreeSitterQualityCollector {
             && conventions.rootNodeTypes.contains(node.parent?.parent?.nodeType ?? "")
     }
 
-    /// Reports whether a function is a test, by its name or by being passed to a test-defining call.
+    /// Reports whether a function is a test, by its name, an attribute above it, or being passed to a
+    /// test-defining call.
     ///
     /// - Parameters:
     ///   - node: The function node.
@@ -164,6 +190,9 @@ extension TreeSitterQualityCollector {
     /// - Returns: Whether it's a test.
     private func isTest(_ node: Node, name: String, tests: TestSpec) -> Bool {
         if let pattern = tests.namePattern, name.range(of: pattern, options: .regularExpression) != nil { return true }
+        if let pattern = tests.attributePattern, attributes(of: node, tests: tests).compactMap(text).contains(where: {
+            $0.range(of: pattern, options: .regularExpression) != nil
+        }) { return true }
         guard node.parent?.nodeType == "arguments", let call = node.parent?.parent else { return false }
         return call.child(byFieldName: "function").flatMap(text).map(tests.callbackCallees.contains) ?? false
     }

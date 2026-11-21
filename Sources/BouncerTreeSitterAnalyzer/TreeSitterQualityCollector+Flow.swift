@@ -61,13 +61,14 @@ extension TreeSitterQualityCollector {
         return flow.selfReceiver.map { ($0, name) }
     }
 
-    /// Reports whether a function is declared in a class body, within a few levels of wrapping.
+    /// Reports whether a function is declared in a class body or an `impl` block, within a few levels of wrapping.
     ///
     /// - Parameter node: The function node.
-    /// - Returns: Whether a class encloses it directly.
+    /// - Returns: Whether a class or type extension encloses it directly.
     func isMethod(_ node: Node) -> Bool {
         [node.parent, node.parent?.parent, node.parent?.parent?.parent].contains {
-            spec.classNodeTypes.contains($0?.nodeType ?? "")
+            let type = $0?.nodeType ?? ""
+            return spec.classNodeTypes.contains(type) || spec.typeExtensionNodeTypes[type] != nil
         }
     }
 
@@ -190,23 +191,27 @@ extension TreeSitterQualityCollector {
     ///   - flow: The language's flow node types.
     ///   - tally: The running totals.
     private func countJump(_ node: Node, type: String, flow: FlowSpec, tally: inout FlowTally) {
-        guard type == "break_statement" || type == "continue_statement" else { return }
+        let isBreak = flow.jumps.breakNodeTypes.contains(type)
+        guard isBreak || flow.jumps.continueNodeTypes.contains(type) else { return }
         let label = namedChildren(of: node).first { flow.labelNodeTypes.contains($0.nodeType ?? "") }.flatMap(text)
         for index in tally.targets.indices.reversed() {
             guard let target = tally.targets[index] else { return }
-            guard label.map({ target.label == $0 }) ?? (target.isLoop || type == "break_statement") else { continue }
+            guard label.map({ target.label == $0 }) ?? (target.isLoop || isBreak) else { continue }
             if target.isLoop { tally.targets[index]?.jumps += 1 }
             return
         }
     }
 
-    /// Reads the label on a loop or `switch`, from the labeled statement wrapping it.
+    /// Reads the label on a loop or `switch`, from its own label child or the labeled statement wrapping it.
     ///
     /// - Parameters:
     ///   - node: The loop or `switch`.
     ///   - flow: The language's flow node types.
     /// - Returns: The label, or `nil`.
     private func targetLabel(_ node: Node, flow: FlowSpec) -> String? {
+        if let own = flow.jumps.loopLabelNodeType {
+            return namedChildren(of: node).first { $0.nodeType == own }.flatMap(text)
+        }
         guard let parent = node.parent, parent.nodeType == flow.labeledNodeType else { return nil }
         return parent.child(byFieldName: "label").flatMap(text)
     }

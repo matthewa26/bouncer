@@ -19,6 +19,10 @@ struct FlowSpec: Sendable {
     /// The labeled-statement wrapper and the node types of a label inside a jump.
     var labeledNodeType: String?
     var labelNodeTypes: Set<String> = []
+    /// The jumps that leave or restart a loop, and where a loop keeps its label.
+    var jumps = LoopJumpSpec()
+    /// Wrappers between a `switch` and its cases, such as `switch_body` or Rust's `match_block`.
+    var caseContainerNodeTypes: Set<String> = ["switch_body", "block"]
     /// Nodes that can stop a recursion besides logical operators: branches, loops, throws, optional chains.
     let baseCaseNodeTypes: Set<String>
     /// The receiver a method calls itself through, such as `this`; `nil` skips methods' recursion check.
@@ -30,6 +34,14 @@ struct FlowSpec: Sendable {
     var classDecorationTypes: Set<String> = []
     /// How to read parameters and doc comments, or `nil` to skip the doc-completeness rules.
     var documentation: DocumentationSpec?
+}
+
+/// The jumps that leave or restart a loop, and a label written on the loop itself.
+struct LoopJumpSpec: Sendable {
+    var breakNodeTypes: Set<String> = ["break_statement"]
+    var continueNodeTypes: Set<String> = ["continue_statement"]
+    /// A label written as the loop's own child rather than a wrapper, as in Rust's `'outer: loop { … }`.
+    var loopLabelNodeType: String?
 }
 
 /// The doc convention and the parameter and statement node types the doc-completeness facts read.

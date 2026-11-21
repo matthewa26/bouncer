@@ -73,7 +73,9 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     private func findings(root: Node, file: SourceFile, context: AnalysisContext) -> [Finding] {
         let unused = spec.deadCode?.unusedDeclarations(in: DeadCodeTree(root: root, file: file)) ?? []
         let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root, unused: unused)
+        let smells = spec.smells?.findings(in: SmellTree(root: root, file: file, context: context)) ?? []
         return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
+            + smells
     }
 
     /// Measures every function from a single parse.

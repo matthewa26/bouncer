@@ -99,13 +99,14 @@ extension TreeSitterSummaryBuilder {
             ?? "<anonymous>"
     }
 
-    /// Counts a type's members: its body's named children, or for a C-family grammar its declared methods,
-    /// properties, and instance variables.
+    /// Counts a type's members: its body's named children (less non-members such as Rust's comments), or for a
+    /// C-family grammar its declared methods, properties, and instance variables.
     ///
     /// - Parameter body: The type's body (for Objective-C, the type node itself).
     /// - Returns: The member count.
     func memberCount(of body: Node) -> Int {
-        spec.cDeclarations.map { $0.members(of: body).count } ?? body.namedChildCount
+        spec.cDeclarations.map { $0.members(of: body).count }
+            ?? TreeWalk.namedChildren(body).filter { !spec.nonMemberNodeTypes.contains($0.nodeType ?? "") }.count
     }
 
     /// Applies Objective-C visibility: a `static` C function or an underscored method is private, any other
@@ -130,10 +131,11 @@ extension TreeSitterSummaryBuilder {
     /// - Returns: The declaration's inferred visibility.
     func visibility(of node: Node, name: String) -> DeclarationVisibility {
         switch spec.visibilityConvention {
-        case .leadingUnderscore: return visibilityByLeadingUnderscore(name)
-        case .leadingCase: return (name.first?.isUppercase ?? false) ? .public : .internal
-        case .exportKeyword: return visibilityByExport(node, name: name)
-        case .fileScope: return visibilityByFileScope(node, name: name)
+        case .leadingUnderscore: visibilityByLeadingUnderscore(name)
+        case .leadingCase: (name.first?.isUppercase ?? false) ? .public : .internal
+        case .exportKeyword: visibilityByExport(node, name: name)
+        case .fileScope: visibilityByFileScope(node, name: name)
+        case .visibilityModifier: visibilityByModifier(node)
         }
     }
 
@@ -153,10 +155,11 @@ extension TreeSitterSummaryBuilder {
     /// - Returns: Whether it counts as documented.
     func isDocumented(_ node: Node) -> Bool {
         switch spec.documentationStyle {
-        case .docstring: return hasDocstring(node)
-        case .precedingComment: return hasPrecedingComment(node)
-        case .jsdoc: return hasPrecedingComment(declarationAnchor(of: node), prefix: "/**")
-        case .cDocComment: return hasCDocComment(node)
+        case .docstring: hasDocstring(node)
+        case .precedingComment: hasPrecedingComment(node)
+        case .jsdoc: hasPrecedingComment(declarationAnchor(of: node), prefix: "/**")
+        case .cDocComment: hasCDocComment(node)
+        case .rustDoc: hasRustDoc(node)
         }
     }
 }

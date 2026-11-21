@@ -80,8 +80,12 @@ struct TestSpec: Sendable {
     let callbackCallees: Set<String>
     /// A pattern a test function's name matches, such as `^test`.
     let namePattern: String?
-    /// A pattern matching an assertion anywhere in a test's text.
+    /// A pattern matching an assertion anywhere in a test's text, which includes its attributes.
     let assertionPattern: String
+    /// A pattern an attribute directly above a function matches to make it a test, such as Rust's `#[test]`.
+    var attributePattern: String?
+    /// The nodes that may sit directly above a function as its attributes, such as `attribute_item`.
+    var attributeNodeTypes: Set<String> = []
 }
 
 /// What scores cognitive complexity, deepens nesting, and counts as a `return`.
@@ -129,6 +133,9 @@ struct StatementSpec: Sendable {
     let jumpNodeTypes: Set<String>
     /// Statements that may follow a jump without being unreachable, such as hoisted functions.
     let hoistedNodeTypes: Set<String>
+    /// Statements that wrap one expression, such as Rust's `expression_statement`, whose expression is what
+    /// jumps (`return x;`).
+    var wrapperNodeTypes: Set<String> = []
 }
 
 /// Number literals, and which surrounding constructs give a number a name.

@@ -350,6 +350,15 @@ mistake in that language, layered on top of the shared rules above:
 | C | `c-debug-print` | `printf`/`fprintf(stderr, …)` of a `DEBUG`/`DBG`/`XXX`/`debug:`/`"here"` message |
 | C++ | `cpp-debug-print` | The same, plus `std::cout`/`cerr`/`clog <<` a debug marker |
 | PowerShell | `powershell-debug-leftover` | `Set-PSDebug -Trace`, `$DebugPreference = 'Continue'`, `Wait-Debugger`, `Set-PSBreakpoint`, `Write-Host "DEBUG…"` |
+| Rust | `rust-unwrap` | `.unwrap()` or `.expect(…)` outside test code |
+| Rust | `rust-unsafe-without-safety-comment` | An `unsafe` block, `unsafe fn`, or `unsafe impl` with no `// SAFETY:` comment (or `# Safety` doc section on an `unsafe fn`) |
+| Rust | `rust-todo-macro` | `todo!()` or `unimplemented!()`, test code included |
+| Rust | `rust-debug-print` | `dbg!` anywhere; `println!`/`print!`/`eprintln!`/`eprint!` outside tests and programs |
+| Rust | `rust-panic` | `panic!` outside tests and programs |
+| Rust | `rust-shell-injection` | `Command::new("sh")` (or `bash`, `cmd`, …) given `-c`/`/C` and a command built with `format!` or `+` |
+| Rust | `disabled-tls-verification` | `.danger_accept_invalid_certs(true)`/`.danger_accept_invalid_hostnames(true)`, or rustls's `dangerous().set_certificate_verifier(…)` |
+| Rust | `sql-string-building` | `format!("SELECT …{}…")` and the other SQL verbs |
+| Rust | `skipped-test` | `#[ignore]` |
 
 Most of these are declarative pattern rules, the same mechanism `customRules` in your own
 `.bouncer` file uses; see <doc:Configuration>. Adding one for a language that doesn't have it
@@ -384,6 +393,47 @@ same line or through an assignment within the 10 lines above, and `basename`,
 words inside strings; names ending in a describing word (`passwordField`, `tokenCount`),
 presence or length checks, and lines that redact or mask are skipped. `forbidden-import`
 matches a module, anything under it (`lodash/fp`, `UIKit.UIView`), or a trailing-`*` prefix.
+
+Rust (`.rs`) is parsed with tree-sitter too, and gets the shared parse-tree rules: `function_item`s (free, in an
+`impl`, or a trait's default method) are functions, with `self` not counted as a parameter and a `bool` one a
+flag; closures are nested functions; `if`, `match` (each `match_arm` is a branch, for `switch-on-type-smell`
+and cyclomatic complexity), `loop`, `while`, and `for` are the control flow, with `&&`/`||` runs scored as
+elsewhere. The `?` operator isn't a decision point: like Swift's `try`, it propagates an error without a path
+the reader has to follow. Structs, enums, unions, and traits are the types, and an `impl` block's members count
+toward the same-named type in the same file (an `impl` for a type declared elsewhere isn't merged); LCOM4 and the
+design-smell facts aren't mapped, since a type's methods and fields live in separate blocks. Visibility is the
+`pub` modifier (bare `pub` is public, `pub(crate)`/`pub(super)`/`pub(in …)` internal, none private, and a trait's
+methods take the trait's); a `///` or `/** */` comment above the item's attributes, a `#[doc = …]` attribute, or a
+`//!` comment opening its body documents it. `naming-convention` expects snake_case functions and CamelCase types,
+with raw identifiers (`r#type`) allowed. Rust has no ternary or `catch`, so `nested-ternary` and `empty-catch`
+don't apply, and `global-mutable-state` isn't mapped (`static mut` can't be told from `static` by node type).
+A test is a function with a `#[test]`-style attribute (`#[test]`, `#[tokio::test]`, `#[rstest]`, …); its
+assertions are the `assert!`/`assert_eq!`/`assert_ne!`/`debug_assert*!` macros, or `#[should_panic]`, but not
+`.unwrap()`. Numbers named by `let`, `const`, `static`, a struct field, an enum discriminant, a `match` pattern,
+an array length, or a macro argument aren't magic.
+
+The Rust checks treat as test code a `#[test]`-style function, anything under `#[cfg(test)]`, a file opening
+with `#![cfg(test)]`, and any file under the package's `tests/`, `benches/`, or `examples/`, under a `tests`
+module folder (`src/tests/…`), or named `tests.rs`. A program, where `println!` and `panic!` are expected, is a
+build script, any `main.rs`, anything under `src/bin/` or `examples/`, a file declaring `fn main`, or any source
+file of a package with a `src/main.rs` and no `src/lib.rs`; the package is the nearest folder above the file with
+a `Cargo.toml`. `dbg!` is always flagged. Arguments to another macro (`vec![x.unwrap()]`) aren't parsed, so
+they aren't checked, and a shell command built into a variable before `.arg(cmd)` isn't followed. The
+cross-language text rules (`secret-looking-pattern`, `weak-crypto`, `insecure-http-url`, `hardcoded-ip`, and the rest)
+apply to Rust as written.
+
+Rust's project graph has one node per file. A crate's modules live under its root file's folder (`src/lib.rs`,
+`src/main.rs`, `src/bin/*.rs`, `tests/*.rs`, `build.rs`, …), with module `a::b` in `a/b.rs` or `a/b/mod.rs`. A
+crate root's `mod name;` is an edge to `name.rs` or `name/mod.rs` beside it; a nested module's `mod` declarations
+aren't edges, since they only place children in the tree and would make any `use` of an item in `a/mod.rs` reach
+every module under `a`. A `use` path (lists expanded, aliases and globs dropped) is an edge to the deepest module
+file it names, starting from `crate::`, `self::`, `super::`, a child module, or another crate: a workspace member's
+library when the root `Cargo.toml`'s `[workspace] members` (globs included) lists it, keyed by its `[lib] name` or
+package name, and otherwise an external crate. A `use` of an item in the importer's own ancestor module (`use
+crate::Error`, `use super::*`) isn't an edge. `Cargo.toml` is read line by line: section headers, string values,
+and string arrays over one or several lines, with `#` comments. `#[path = "…"]` modules and macro-generated
+modules aren't followed, and `unused-export` isn't mapped for Rust, since a library's `pub` items are its API.
+`duplicate-code` tokenizes Rust with `"` as its only quote, so a lifetime (`'a`) doesn't open a string.
 
 ## Project rules
 

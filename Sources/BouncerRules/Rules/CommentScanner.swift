@@ -35,7 +35,7 @@ struct CommentSyntax: Sendable {
     /// - Returns: The opener and closer, or `nil` for a language without block comments (Python, shells).
     private static func blockDelimiters(for language: Language) -> (open: String, close: String)? {
         switch language {
-        case .swift, .typescript, .javascript, .cpp, .c, .objc, .java, .go, .sql: return ("/*", "*/")
+        case .swift, .typescript, .javascript, .cpp, .c, .objc, .java, .go, .sql, .rust: return ("/*", "*/")
         case .powershell: return ("<#", "#>")
         default: return nil
         }

@@ -51,6 +51,20 @@ enum TreeWalk {
         literal.trimmingCharacters(in: CharacterSet(charactersIn: "\"'`"))
     }
 
+    /// Collects every import in a tree, at the line of the node that declares it.
+    ///
+    /// - Parameters:
+    ///   - root: The parse tree's root.
+    ///   - specifiers: Reads the specifiers one node imports, or none.
+    /// - Returns: The tree's imports, in walk order.
+    static func imports(in root: Node, specifiers: (Node) -> [String]) -> [ImportFact] {
+        var imports: [ImportFact] = []
+        forEach(root) { node in
+            imports += specifiers(node).map { ImportFact(specifier: $0, line: line(node)) }
+        }
+        return imports
+    }
+
     /// Collects a tree's structure facts with one language's collector.
     ///
     /// - Parameters:

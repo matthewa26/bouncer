@@ -17,7 +17,7 @@ The **Scope** column says what analysis a check needs:
 
 **Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16 by indentation, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example). On Swift, TypeScript and JavaScript also: ≤ 5 parameters, no boolean flag parameters, ≤ 4 returns, cognitive complexity ≤ 15, control-flow nesting ≤ 4, LCOM4 ≤ 2.
 
-**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Objective-C, Python and Go are parsed too and get the same function-shape, cohesion, and single-location rules wherever the language has the construct (Go has no classes, ternaries, or `catch`). Everything else is heuristic.
+**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Objective-C, Rust, Python and Go are parsed too and get the same function-shape, cohesion, and single-location rules wherever the language has the construct (Go has no classes, ternaries, or `catch`). Everything else is heuristic.
 
 ### 0.1 TypeScript type safety
 
@@ -280,7 +280,7 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Swift `Process` launched through a shell with interpolated input (`swift-shell-injection`; literal interpolation only) | T | 1.0.0 |
 | ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F | 1.0.0 |
 | ✅ | Python `eval`/`exec` (`python-eval-exec`) | F | 1.0.0 |
-| ⬜ | Rust shell command built from formatted input (`rust-shell-injection`) | F | planned 1.4 |
+| ✅ | Rust shell command built from formatted input (`rust-shell-injection`) | F | 1.4.0 |
 | ⬜ | Objective-C `NSTask`/`system` with formatted input (`objc-shell-injection`) | F | planned 1.4 |
 | ⬜ | Template injection: user input rendered as a template (`template-injection`) | T | planned 1.4 |
 | ⬜ | NoSQL injection: `$where` or query objects built from input (`nosql-injection`) | F | planned 1.4 |
@@ -317,7 +317,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
 | ⬜ | Fail-open: a catch block that returns success or grants access (`fail-open`) | T | planned 1.4 |
-| ⬜ | Rust `unwrap()`/`expect()` outside tests (`rust-unwrap`) | F | planned 1.4 |
+| ✅ | Rust `unwrap()`/`expect()` outside tests (`rust-unwrap`) | F | 1.4.0 |
 
 ### Reporting
 
@@ -419,7 +419,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Go | tree-sitter | 1.0.0 |
 | ✅ | zsh, bash, PowerShell, C, C++, Java, SQL, and any other file | heuristic | 1.0.0 |
 | ✅ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | 1.3.0 |
-| ⬜ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | planned 1.4 |
+| ✅ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | 1.4.0 |
 
 ## Notes on the current implementation
 

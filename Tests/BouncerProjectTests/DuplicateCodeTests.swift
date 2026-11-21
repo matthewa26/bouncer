@@ -100,6 +100,12 @@ final class DuplicateCodeTests: XCTestCase {
         XCTAssertEqual(go.count, 4)
     }
 
+    func testRustLifetimesDoNotOpenStrings() {
+        let rust = tokens("a.rs", "fn f<'a>(s: &'a str) -> &'a str { \"x\" } // c\n")
+        XCTAssertEqual(rust.count, 23, "fn ID < ' ID > ( ID : & ' ID ID ) - > & ' ID ID { LIT }")
+        XCTAssertEqual(rust.filter { $0.line == 1 }.count, rust.count)
+    }
+
     func testKeepingLiteralsDistinguishesValues() {
         XCTAssertEqual(tokens("a.ts", "f(1, 'a')").map(\.hash), tokens("a.ts", "f(2, 'b')").map(\.hash))
         XCTAssertNotEqual(

@@ -26,7 +26,7 @@ public struct ImportResolvers: Sendable {
     ///
     /// - Parameters:
     ///   - paths: Every indexed file's repo-relative path.
-    ///   - repoRoot: The repository root, for `tsconfig.json` and `go.mod`.
+    ///   - repoRoot: The repository root, for `tsconfig.json`, `go.mod`, and `Cargo.toml`.
     public init(paths: Set<String>, repoRoot: URL) {
         let javascript = JavaScriptImportResolver(paths: paths, repoRoot: repoRoot)
         let python = PythonImportResolver(paths: paths), objc = ObjCImportResolver(paths: paths)
@@ -36,7 +36,7 @@ public struct ImportResolvers: Sendable {
         if let module = GoImportResolver.modulePath(repoRoot: repoRoot) {
             resolvers["go"] = GoImportResolver(module: module)
         }
-        byExtension = resolvers
+        byExtension = resolvers.merging(["rs": RustImportResolver(paths: paths, repoRoot: repoRoot)]) { $1 }
     }
 
     /// Looks up the resolver for a file.

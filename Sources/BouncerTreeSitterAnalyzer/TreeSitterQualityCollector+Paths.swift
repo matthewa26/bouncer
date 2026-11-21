@@ -100,7 +100,7 @@ extension TreeSitterQualityCollector {
         namedChildren(of: node).flatMap { child -> [Node] in
             let type = child.nodeType ?? ""
             if flow.caseNodeTypes.contains(type) || flow.defaultCaseNodeTypes.contains(type) { return [child] }
-            return type == "switch_body" || type == "block" ? caseNodes(in: child, flow: flow) : []
+            return flow.caseContainerNodeTypes.contains(type) ? caseNodes(in: child, flow: flow) : []
         }
     }
 

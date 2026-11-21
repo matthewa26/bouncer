@@ -29,6 +29,10 @@ struct CloneSyntax {
     private static let python = CloneSyntax(
         lineComment: Array("#".utf8), blockComment: nil, quotes: [quote, apostrophe], tripleQuotes: true
     )
+    /// Rust: only `"` quotes, since `'` also opens a lifetime (`'a`); a char literal reads as punctuation.
+    private static let rust = CloneSyntax(
+        lineComment: slashes, blockComment: block, quotes: [quote], tripleQuotes: false
+    )
 
     /// Looks up a language's syntax.
     ///
@@ -36,10 +40,11 @@ struct CloneSyntax {
     /// - Returns: Its syntax, or `nil` for a language duplicate-code doesn't tokenize.
     static func of(_ language: Language) -> CloneSyntax? {
         switch language {
-        case .swift: return swift
-        case .typescript, .javascript, .go, .objc: return cFamily
-        case .python: return python
-        default: return nil
+        case .swift: swift
+        case .typescript, .javascript, .go, .objc: cFamily
+        case .python: python
+        case .rust: rust
+        default: nil
         }
     }
 }

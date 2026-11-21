@@ -17,6 +17,9 @@ enum DocumentationStyle: Sendable {
     case jsdoc
     /// A `///` or `/** */` comment directly above the declaration or its enclosing wrapper, as in Objective-C.
     case cDocComment
+    /// A `///` or `/** */` comment above the declaration's attributes, a `#[doc = …]` attribute, or a `//!`
+    /// comment opening its body, as in Rust.
+    case rustDoc
 }
 
 /// How a language's naming convention signals a declaration's access level.
@@ -30,6 +33,9 @@ enum VisibilityConvention: Sendable {
     /// A C function is public unless `static`; a method is internal, since its header declares the public
     /// contract, or private with a leading underscore, as in Objective-C.
     case fileScope
+    /// A `visibility_modifier` child: bare `pub` is public, a restricted `pub(…)` is internal, and none is private;
+    /// a trait's methods take the trait's visibility, as in Rust.
+    case visibilityModifier
 }
 
 /// A call expression that loads a module, such as CommonJS `require("x")`.
@@ -73,6 +79,13 @@ public struct TreeSitterLanguageSpec: Sendable {
     var deadCode: DeadCodeExtractor?
     /// Where a C-family grammar keeps names, bodies, and parameters that have no field, or `nil` for none.
     var cDeclarations: CDeclarationSpec?
+    /// Blocks that add members to a type declared elsewhere in the file, mapped to the field naming that type,
+    /// such as Rust's `impl Foo { … }`; their members count toward the same-named type's.
+    var typeExtensionNodeTypes: [String: String] = [:]
+    /// A type body's children that aren't members, such as Rust's comments and attributes.
+    var nonMemberNodeTypes: Set<String> = []
+    /// Finds the language's own smells that need more than one node to judge, or `nil` for none.
+    var smells: LanguageSmellExtractor?
 
     /// Picks the grammar for a file, honoring any per-extension override.
     ///

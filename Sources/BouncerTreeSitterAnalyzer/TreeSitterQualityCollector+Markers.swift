@@ -27,10 +27,20 @@ extension TreeSitterQualityCollector {
         let spec = quality.statements
         guard spec.blockNodeTypes.contains(type) else { return nil }
         let children = (0..<node.namedChildCount).compactMap { node.namedChild(at: $0) }
-        guard let jump = children.firstIndex(where: { spec.jumpNodeTypes.contains($0.nodeType ?? "") }) else {
+        guard let jump = children.firstIndex(where: { spec.jumpNodeTypes.contains(statementType(of: $0)) }) else {
             return nil
         }
         return children[(jump + 1)...].first { !spec.hoistedNodeTypes.contains($0.nodeType ?? "") }
+    }
+
+    /// Reads a statement's type, looking through a wrapper such as Rust's `expression_statement` to its expression.
+    ///
+    /// - Parameter statement: A block's statement.
+    /// - Returns: The type of what it does.
+    private func statementType(of statement: Node) -> String {
+        let type = statement.nodeType ?? ""
+        guard quality.statements.wrapperNodeTypes.contains(type) else { return type }
+        return statement.namedChild(at: 0)?.nodeType ?? type
     }
 
     /// Reports whether a node matches a marker rule's type and, if given, exact text.

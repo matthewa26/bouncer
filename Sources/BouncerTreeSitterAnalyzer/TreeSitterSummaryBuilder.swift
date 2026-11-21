@@ -13,6 +13,8 @@ final class TreeSitterSummaryBuilder {
     private var markers: [CollectedMarker] = []
     private var names: [CollectedName] = []
     private var strings: [CollectedString] = []
+    /// Members that `impl`-style blocks add to each type name, merged into that type once the walk is done.
+    var extensionMembers: [String: Int] = [:]
     lazy var quality: TreeSitterQualityCollector? = spec.quality.map {
         TreeSitterQualityCollector(spec: spec, quality: $0, text: { [unowned self] in self.text(of: $0) })
     }
@@ -47,7 +49,7 @@ final class TreeSitterSummaryBuilder {
         walk(root)
         let shapes = collectShapes(root)
         return DeclarationSummary(
-            functions: functions, types: types, switches: switches, importCount: importCount,
+            functions: functions, types: types.map(withExtensionMembers), switches: switches, importCount: importCount,
             markers: markers + (shapes?.markers ?? []), declaredNames: names, stringLiterals: strings,
             unusedDeclarations: unused, shapes: shapes?.facts ?? ShapeFacts()
         )
@@ -82,6 +84,7 @@ final class TreeSitterSummaryBuilder {
         guard let type = node.nodeType else { return }
         if spec.functionNodeTypes.contains(type) { collectFunction(node) }
         if spec.classNodeTypes.contains(type) { collectType(node) }
+        if let field = spec.typeExtensionNodeTypes[type] { collectExtension(node, typeField: field) }
         if spec.switchNodeTypes.contains(type) { collectSwitch(node) }
         if spec.importNodeTypes.contains(type) || isImportCall(node, type: type) { importCount += 1 }
         collectMarkers(node, type: type)

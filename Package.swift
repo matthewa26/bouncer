@@ -14,7 +14,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-syntax", from: "604.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
         .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.25.0"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-go", from: "0.25.0")
+        .package(url: "https://github.com/tree-sitter/tree-sitter-go", from: "0.25.0"),
+        // 9.17 raised its minimum to macOS 14; 9.16 still supports Bouncer's macOS 13.
+        .package(url: "https://github.com/tuist/XcodeProj", .upToNextMinor(from: "9.16.1"))
     ],
     targets: [
         .target(name: "BouncerCore"),
@@ -49,6 +51,11 @@ let package = Package(
             cSettings: [.headerSearchPath("src")]
         ),
         .target(
+            name: "CTreeSitterObjC",
+            exclude: ["LICENSE", "NOTICE.md"],
+            cSettings: [.headerSearchPath("src")]
+        ),
+        .target(
             name: "BouncerTreeSitterAnalyzer",
             dependencies: [
                 "BouncerCore",
@@ -57,6 +64,7 @@ let package = Package(
                 "CTreeSitterTypeScript",
                 "CTreeSitterTSX",
                 "CTreeSitterJavaScript",
+                "CTreeSitterObjC",
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterGo", package: "tree-sitter-go")
             ]
@@ -68,6 +76,14 @@ let package = Package(
         .target(name: "BouncerConfig", dependencies: ["BouncerCore", "BouncerRules"]),
         .target(name: "BouncerUpdateCheck", dependencies: ["BouncerCore"]),
         .target(name: "BouncerHooks", dependencies: ["BouncerCore"]),
+        .target(
+            name: "BouncerXcode",
+            dependencies: [
+                "BouncerCore",
+                // Xcode projects only exist on macOS, so Linux and Windows builds don't carry the library.
+                .product(name: "XcodeProj", package: "XcodeProj", condition: .when(platforms: [.macOS]))
+            ]
+        ),
         .executableTarget(
             name: "BouncerCLI",
             dependencies: [
@@ -83,6 +99,7 @@ let package = Package(
                 "BouncerUpdateCheck",
                 "BouncerHooks",
                 "BouncerProject",
+                "BouncerXcode",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ),
@@ -97,6 +114,7 @@ let package = Package(
         .testTarget(name: "BouncerGitTests", dependencies: ["BouncerGit"]),
         .testTarget(name: "BouncerHooksTests", dependencies: ["BouncerHooks"]),
         .testTarget(name: "BouncerProjectTests", dependencies: ["BouncerProject"]),
-        .testTarget(name: "BouncerUpdateCheckTests", dependencies: ["BouncerUpdateCheck"])
+        .testTarget(name: "BouncerUpdateCheckTests", dependencies: ["BouncerUpdateCheck"]),
+        .testTarget(name: "BouncerXcodeTests", dependencies: ["BouncerXcode"])
     ]
 )

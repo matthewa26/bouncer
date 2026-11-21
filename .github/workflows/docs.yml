@@ -45,7 +45,9 @@ jobs:
           if gh release view --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release download --repo "$GITHUB_REPOSITORY" --dir ./docs/download/latest \
               --pattern 'bouncer-*' --pattern SHA256SUMS
-            (cd ./docs/download/latest && shasum -a 256 -c SHA256SUMS)
+            # SHA256SUMS also lists bouncer.artifactbundle.zip, which only the plugin package needs, so the
+            # site skips it; every archive the installer can fetch is still verified.
+            (cd ./docs/download/latest && grep '  bouncer-' SHA256SUMS | shasum -a 256 -c -)
           else
             echo "No release yet; the site has no downloads."
           fi

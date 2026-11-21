@@ -5,6 +5,8 @@ name: release
 # - Linux: fully static musl binaries for x86_64 and arm64, built with the Static Linux SDK,
 #   so they run on any distro and under WSL1/WSL2.
 # - Windows: an x86_64 zip of bouncer.exe plus the Swift runtime DLLs it loads.
+# - SwiftPM: bouncer.artifactbundle.zip, the macOS and Linux binaries as one binary artifact for the
+#   bouncer-plugin package (github.com/matthewa26/bouncer-plugin), whose Package.swift pins its URL and checksum.
 # Plus SHA256SUMS, which install.ps1 verifies every download against.
 #
 # The Swift version is pinned so the Static Linux SDK matches its toolchain exactly; bump
@@ -99,12 +101,39 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - uses: actions/checkout@v7
+        with:
+          path: source
+      - name: Build the SwiftPM artifact bundle
+        run: |
+          for archive in macos-universal linux-x86_64 linux-arm64; do
+            mkdir -p "bin/$archive"
+            tar -xzf "dist/bouncer-$archive.tar.gz" -C "bin/$archive"
+          done
+          sh source/Scripts/make-artifactbundle.sh "$GITHUB_REF_NAME" bin/macos-universal/bouncer \
+            bin/linux-x86_64/bouncer bin/linux-arm64/bouncer dist/bouncer.artifactbundle.zip
       - name: Write SHA256SUMS
         working-directory: dist
-        run: sha256sum bouncer-* > SHA256SUMS && cat SHA256SUMS
+        # The installer looks up its own archive's line, so the bundle's extra line doesn't affect it.
+        run: sha256sum bouncer-* bouncer.artifactbundle.zip > SHA256SUMS && cat SHA256SUMS
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: dist/*
+      # Bumping the plugin package is a manual step: it needs write access to another repo, which this
+      # workflow's token doesn't have. See bouncer-plugin's README, "Releasing".
+      - name: Print the bouncer-plugin bump
+        run: |
+          checksum=$(sha256sum dist/bouncer.artifactbundle.zip | cut -d ' ' -f 1)
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/bouncer.artifactbundle.zip"
+          {
+            echo "### bouncer-plugin bump"
+            echo "In bouncer-plugin's Package.swift set:"
+            echo '```swift'
+            echo "let bouncerVersion = \"$GITHUB_REF_NAME\""
+            echo "let bouncerChecksum = \"$checksum\""
+            echo '```'
+            echo "Bundle: $url"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Puts this release on the Pages site, which the installer downloads from by default. The
   # site is deployed only by docs.yml, from main (Pages refuses deploys from a tag), so this

@@ -70,20 +70,67 @@ public struct AnalysisEngine: Sendable {
         self.change = change
     }
 
+    /// A target file as the main pass read it, with its analysis.
+    private struct AnalyzedFile {
+        /// The file.
+        let file: SourceFile
+        /// Its findings, and its module facts when the project pass needs them.
+        let analysis: FileAnalysis
+    }
+
+    /// Receives the run's progress events, in order; does nothing unless set.
+    public var onEvent: AnalysisEventHandler = { _ in }
+
     /// Analyzes every target file, runs the project pass and change rules, and checks coverage, if configured.
     ///
     /// - Returns: The combined findings and coverage report.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func run() throws -> AnalysisResult {
-        let files = try fileProvider.targetFiles().compactMap(loadTextFile)
-        let analyses = try files.map(analyze)
-        let findings = zip(files, analyses).flatMap { file, analysis in
-            analysis.findings.filter { !isBaselined($0, in: file) }
-        }
+        let urls = try AnalysisPhase.discoverFiles.run(emit: onEvent) { try fileProvider.targetFiles() }
+        let analyzed = try AnalysisPhase.analyzeFiles.run(total: urls.count, emit: onEvent) { try analyzeAll(urls) }
+        let files = analyzed.map(\.file)
+        let findings = AnalysisPhase.baseline.run(emit: onEvent) { baselineFiltered(analyzed) }
         let coverageReport = try loadCoverageReport()
-        let all = findings + (try projectFindings(for: files, analyses: analyses)) + changeFindings(for: files)
-        let kept = unsuppressed(all, in: files)
+        let project = try projectFindings(for: files, analyses: analyzed.map(\.analysis))
+        let all = findings + project + changeFindings(for: files)
+        let kept = AnalysisPhase.suppressions.run(emit: onEvent) { unsuppressed(all, in: files) }
         return AnalysisResult(findings: kept + coverageFindings(from: coverageReport), coverage: coverageReport)
+    }
+
+    /// Reads and analyzes every target file, skipping binary ones.
+    ///
+    /// - Parameter urls: The target files.
+    /// - Returns: The text files and their analyses, in order.
+    /// - Throws: If a file can't be read or its analyzer fails.
+    private func analyzeAll(_ urls: [URL]) throws -> [AnalyzedFile] {
+        let analyzed = try urls.compactMap(analyzeOne)
+        let skipped = urls.count - analyzed.count
+        if skipped > 0 { onEvent(.note("skipped \(skipped) binary file(s)")) }
+        return analyzed
+    }
+
+    /// Reads and analyzes one target file between its file events.
+    ///
+    /// - Parameter url: The file.
+    /// - Returns: The file and its analysis, or `nil` if it's binary.
+    /// - Throws: If the file can't be read or its analyzer fails.
+    private func analyzeOne(_ url: URL) throws -> AnalyzedFile? {
+        try AnalysisEvent.timingFile(url, emit: onEvent) { () throws -> (value: AnalyzedFile?, findings: Int) in
+            guard let file = try loadTextFile(url) else { return (nil, 0) }
+            let analysis = try analyze(file)
+            return (AnalyzedFile(file: file, analysis: analysis), analysis.findings.count)
+        }
+    }
+
+    /// Keeps the main pass's findings that the baseline doesn't accept, noting how many it did.
+    ///
+    /// - Parameter analyzed: The analyzed target files.
+    /// - Returns: The findings the baseline doesn't accept.
+    private func baselineFiltered(_ analyzed: [AnalyzedFile]) -> [Finding] {
+        let kept = analyzed.flatMap { item in item.analysis.findings.filter { !isBaselined($0, in: item.file) } }
+        let accepted = analyzed.reduce(0) { $0 + $1.analysis.findings.count } - kept.count
+        if accepted > 0 { onEvent(.note("the baseline accepted \(accepted) finding(s)")) }
+        return kept
     }
 
     /// Analyzes one file, also extracting its module facts in the same parse when the project pass will run.
@@ -112,6 +159,7 @@ public struct AnalysisEngine: Sendable {
         var access = ProjectPhase.FileAccess(read: loadSourceFile) { try analyzer(for: $0).moduleFacts(file: $0) }
         access.parsed = parsedFacts(files: files, analyses: analyses)
         access.sources = byPath
+        access.onEvent = onEvent
         return unbaselined(try project.findings(targets: Set(byPath.keys), context: context, access: access), byPath)
     }
 
@@ -122,7 +170,8 @@ public struct AnalysisEngine: Sendable {
     private func changeFindings(for files: [SourceFile]) -> [Finding] {
         guard let change else { return [] }
         let byPath = Dictionary(files.map { (repoPath(of: $0.path), $0) }) { first, _ in first }
-        return unbaselined(change.findings(for: files, context: context), byPath)
+        let found = AnalysisPhase.changeRules.run(emit: onEvent) { change.findings(for: files, context: context) }
+        return unbaselined(found, byPath)
     }
 
     /// Drops findings a `bouncer:disable…` comment in their file switches off.
@@ -133,9 +182,12 @@ public struct AnalysisEngine: Sendable {
     /// - Returns: The findings no comment suppresses.
     private func unsuppressed(_ findings: [Finding], in files: [SourceFile]) -> [Finding] {
         let byPath = Dictionary(files.map { (repoPath(of: $0.path), Suppressions(file: $0)) }) { first, _ in first }
-        return findings.filter { finding in
+        let kept = findings.filter { finding in
             byPath[repoPath(of: finding.filePath)]?.suppresses(finding.ruleID, at: finding.line) != true
         }
+        let dropped = findings.count - kept.count
+        if dropped > 0 { onEvent(.note("suppression comments switched off \(dropped) finding(s)")) }
+        return kept
     }
 
     /// Drops findings the baseline accepts, judging each by the target file it lands in.
@@ -241,7 +293,9 @@ public struct AnalysisEngine: Sendable {
     /// - Throws: If the report exists but can't be parsed.
     private func loadCoverageReport() throws -> CoverageReport? {
         guard let coverage else { return nil }
-        return try coverage.provider.parse(reportPath: coverage.reportPath)
+        return try AnalysisPhase.coverage.run(emit: onEvent) {
+            try coverage.provider.parse(reportPath: coverage.reportPath)
+        }
     }
 
     /// Builds the synthetic coverage-threshold finding, if coverage is below threshold.

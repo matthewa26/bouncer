@@ -3,6 +3,7 @@ import Foundation
 import BouncerCore
 import BouncerConfig
 import BouncerGit
+import BouncerReporting
 
 /// Manages `.bouncer-baseline.json`, the snapshot of accepted pre-existing findings.
 struct BaselineCommand: AsyncParsableCommand {
@@ -15,6 +16,8 @@ struct BaselineCommand: AsyncParsableCommand {
     struct Update: AsyncParsableCommand {
         @Argument(help: "The directory to analyze.")
         var path: String = "."
+
+        @OptionGroup var progressArguments: ProgressArguments
 
         /// Analyzes the directory and writes every finding's fingerprint to the baseline.
         ///
@@ -29,7 +32,8 @@ struct BaselineCommand: AsyncParsableCommand {
             print("Wrote \(baseline.fingerprints.count) fingerprint(s) to \(baselinePath).")
         }
 
-        /// Runs analysis with no existing baseline applied, so every finding is captured.
+        /// Runs analysis with no existing baseline applied, so every finding is captured, showing its progress
+        /// on stderr.
         ///
         /// - Parameters:
         ///   - rootDirectory: The directory to analyze.
@@ -41,6 +45,23 @@ struct BaselineCommand: AsyncParsableCommand {
             let engine = FullAnalysisEngineFactory.make(
                 rootDirectory: rootDirectory, repoRoot: repoRoot, resolution: resolution
             )
+            return try run(engine, repoRoot: repoRoot)
+        }
+
+        /// Runs an engine with its progress shown on stderr, cleared however the run ends.
+        ///
+        /// - Parameters:
+        ///   - engine: The engine.
+        ///   - repoRoot: The repository root, which progress paths are shown relative to.
+        /// - Returns: The analysis result.
+        /// - Throws: If analysis fails.
+        private func run(_ engine: AnalysisEngine, repoRoot: URL) throws -> AnalysisResult {
+            let context = RunLog.configLines(repoRoot: repoRoot, profile: nil, explicitPath: nil)
+            let invocation = ProgressInvocation()
+            let log = RunLog.start(progressArguments, invocation: invocation, root: repoRoot, context: context)
+            var engine = engine
+            engine.onEvent = log.onEvent
+            defer { log.finish() }
             return try engine.run()
         }
     }

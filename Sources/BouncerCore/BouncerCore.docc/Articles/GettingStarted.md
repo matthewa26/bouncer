@@ -66,8 +66,10 @@ shape, and `--output <file>` writes it to a file instead of printing it:
   request, or an AI chat.
 - `json`: the complete structured findings, for scripts, CI, and coding agents.
 - `html`: one self-contained page with no external files, so it opens straight from disk. Its
-  **Table** view filters by text and severity and sorts by any column; its **JSON** view shows the
-  same data as `--format json`, with buttons to copy or download it.
+  **Table** view loads 100 rows at a time as you scroll, so it stays fast with millions of findings.
+  It filters by text and severity, sorts by any column, and has a **Rules** panel to hide noisy rules
+  (remembered per repository) and copy them as `.bouncer` settings that switch them off. Its **JSON**
+  view previews the first findings, with buttons to copy or download the same data as `--format json`.
 
 ```sh
 bouncer review . --format html                       # writes .bouncer-cache/report.html
@@ -75,12 +77,27 @@ bouncer review . --format json --output report.json  # for another tool to read
 bouncer check --format table                         # staged changes, as a table
 ```
 
-When a report goes to a file, Bouncer prints the summary, the file's path, and a `file://` link
-to open it. Under WSL, where a Linux path or a `localhost` address doesn't reach the file from a
-Windows browser or tool, it also prints the Windows address: `file://wsl.localhost/<distro>/…`
-(and `\\wsl.localhost\<distro>\…`) for files in the Linux filesystem, or the drive path, such as
-`C:\Users\…`, for files under `/mnt/c`. `.bouncer-cache/` is git-ignored, so the default HTML
+When a report goes to a file, Bouncer prints the summary, the file's path, and an `Open:` link.
+Under WSL, where a Linux path or a `localhost` address doesn't reach the file from a Windows
+browser, the `Open:` link is the Windows address, so clicking it in Windows Terminal works:
+`file://wsl.localhost/<distro>/…` for files in the Linux filesystem, or `file:///C:/…` for files
+under `/mnt/c`. A `Windows path:` line gives the same location for Explorer. `.bouncer-cache/` is git-ignored, so the default HTML
 report never gets committed.
+
+## Watching a run
+
+On a terminal, `check` and `review` draw a live progress line on standard error: a bar, the
+current phase and file, and the elapsed time. Piped or in CI, they print one line per phase
+instead, with a heartbeat during long phases, so a stalled run is easy to spot. When an agent
+runs Bouncer (`--files`, `--stdin`, or `review --format json`), progress is off. Choose
+explicitly with `--progress live|plain|off`.
+
+`--verbose` (`-v`) logs everything a run does: which config files were found, every file with
+its analyzer, finding count and time, each phase's timing, cache use, and hooks. Standard output
+is never affected, so reports stay clean for scripts.
+
+After the report, a short summary on standard error lists the totals, the five rules and files
+with the most findings, and how long the run took.
 
 ## Wiring up Husky
 
@@ -97,7 +114,10 @@ A non-zero exit blocks the commit. Run `bouncer configure --husky` to add this l
 
 ## Configuring
 
-`bouncer configure` walks you through the most common settings interactively, or you can set
+`bouncer configure` walks you through setup: start from the defaults or a profile, then choose
+verbosity, coverage, the thresholds people most often disagree on (function length, line length,
+file length, complexity, parameters, nesting, magic numbers, doc comments), and where to save:
+this repo, your global settings, or a named profile (see <doc:Profiles>). You can also set
 values directly:
 
 ```sh

@@ -38,7 +38,11 @@ bouncer review .                       # recursively audit a directory, independ
 bouncer review . --format json         # structured output for CI or an agent
 bouncer review . --format table        # an aligned Markdown table, to read or paste anywhere
 bouncer review . --format html         # a self-contained page with table and JSON views
-bouncer configure                      # create or edit .bouncer interactively
+bouncer review . --progress plain      # one progress line per phase (auto: a live bar on a terminal)
+bouncer review . --verbose             # log everything the run does to stderr
+bouncer configure                      # guided setup: thresholds, coverage, where to save
+bouncer profile create strict          # save a named profile, then pick it with --profile strict
+bouncer profile set-default strict     # use a profile by default in this repo
 bouncer configure --set coverage.threshold=90
 bouncer configure --husky              # wire 'bouncer check' into .husky/pre-commit
 bouncer baseline update                # accept every current finding, so only new ones are flagged
@@ -77,6 +81,8 @@ Settings live in a JSON `.bouncer` file: `~/.bouncer` for global defaults, `<rep
 ```
 
 Every built-in rule can be enabled, disabled, re-severitied, and parameterized this way. Project rules, which look across files (such as `import-cycle`), cache each file's imports in `.bouncer-cache/` at the repo root; add it to your `.gitignore`. `--profile kirby` applies a strict, opinionated preset as the base layer beneath your own config (see below).
+
+Profiles are named presets in the same format. Keep your own in `~/.bouncer-profiles/<name>.json`, or share one with your team by committing it to `<repo>/.bouncer-profiles/<name>.json`. Select one with `--profile <name>` or `"profile": "<name>"` in `.bouncer`; `bouncer profile list` shows what's available and which is the default. Profiles can't declare hooks, which belong in `.bouncer` behind the trust prompt.
 
 ### Kirby mode
 

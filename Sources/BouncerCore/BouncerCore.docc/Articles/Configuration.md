@@ -109,8 +109,9 @@ keyed by the file's content, so unchanged files aren't re-parsed. Add `.bouncer-
 
 ### `profile`
 
-Applies a bundled preset as the base layer beneath everything else in this file. `"kirby"` is
-the only one that ships today. See <doc:KirbyMode>.
+Selects a profile, a named preset applied as the base layer beneath everything else. It can be
+`"kirby"` (bundled; see <doc:KirbyMode>) or one of your own. A repo's `profile` wins over the
+global one, and `--profile` wins over both. See <doc:Profiles>.
 
 ## Suppressing findings in code
 
@@ -152,5 +153,5 @@ baseline, so `baseline update` doesn't record it.
 Most settings can also be set per-invocation with a flag, which takes precedence over both
 config layers for that one run: `--severity-threshold`, `--format` (`console`, `table`, `json`, or
 `html`; see <doc:GettingStarted>), `--output`, `--verbosity`,
-`--profile`, and (on `review`) `--coverage-report`/`--coverage-format`. Run `bouncer check --help`
+`--profile`, `--progress`, `--verbose`, and (on `review`) `--coverage-report`/`--coverage-format`. Run `bouncer check --help`
 or `bouncer review --help` for the complete flag list.

@@ -378,18 +378,18 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Bundled `kirby` profile (`--profile kirby`) | | 1.0.0 |
 | ✅ | Baseline (`bouncer baseline update\|clear`) | | 1.0.0 |
 | ✅ | `bouncer configure` with `--set`, `--husky`, `--trust` | | 1.0.0 |
-| ⬜ | Live progress screen on a terminal: bar, current phase and file, elapsed time (`--progress live`) | stderr only | planned 1.2 |
-| ⬜ | Non-interactive progress: one line per phase (`--progress plain`); `auto` picks live, plain, or off for agents | | planned 1.2 |
-| ⬜ | Verbose logs of everything a run does (`--verbose`/`-v`) | config layers, files, analyzers, timings, cache, hooks | planned 1.2 |
-| ⬜ | Concise end-of-run summary: totals by severity, top rules, top files, elapsed time | | planned 1.2 |
-| ⬜ | WSL: the `Open:` link is the Windows URL, so clicking it opens in a Windows browser | | planned 1.2 |
-| ⬜ | HTML report loads lazily, 100 rows at a time, with a compact row encoding | built for millions of findings | planned 1.2 |
-| ⬜ | HTML report: visible column sort state, keyboard-operable headers | | planned 1.2 |
-| ⬜ | HTML report: rule panel to hide noisy rules, with counts and "Copy as `.bouncer`" | | planned 1.2 |
-| ⬜ | Interactive setup (`bouncer configure`): starting point, output, coverage, contested thresholds, where to save | | planned 1.2 |
-| ⬜ | `"profile"` key in `.bouncer` selects a profile | documented before, but ignored | planned 1.2 |
-| ⬜ | User profiles: repo `.bouncer-profiles/` (shareable) and global `~/.bouncer-profiles/` | | planned 1.2 |
-| ⬜ | `bouncer profile list\|show\|create\|set-default\|delete` | | planned 1.2 |
+| ✅ | Live progress screen on a terminal: bar, current phase and file, elapsed time (`--progress live`) | stderr only | 1.2.0 |
+| ✅ | Non-interactive progress: one line per phase (`--progress plain`); `auto` picks live, plain, or off for agents | | 1.2.0 |
+| ✅ | Verbose logs of everything a run does (`--verbose`/`-v`) | config layers, files, analyzers, timings, cache, hooks | 1.2.0 |
+| ✅ | Concise end-of-run summary: totals by severity, top rules, top files, elapsed time | | 1.2.0 |
+| ✅ | WSL: the `Open:` link is the Windows URL, so clicking it opens in a Windows browser | | 1.2.0 |
+| ✅ | HTML report loads lazily, 100 rows at a time, with a compact row encoding | built for millions of findings | 1.2.0 |
+| ✅ | HTML report: visible column sort state, keyboard-operable headers | | 1.2.0 |
+| ✅ | HTML report: rule panel to hide noisy rules, with counts and "Copy as `.bouncer`" | | 1.2.0 |
+| ✅ | Interactive setup (`bouncer configure`): starting point, output, coverage, contested thresholds, where to save | | 1.2.0 |
+| ✅ | `"profile"` key in `.bouncer` selects a profile | documented before, but ignored | 1.2.0 |
+| ✅ | User profiles: repo `.bouncer-profiles/` (shareable) and global `~/.bouncer-profiles/` | | 1.2.0 |
+| ✅ | `bouncer profile list\|show\|create\|set-default\|delete` | | 1.2.0 |
 | ⬜ | Landing page at the site root, with the bouncer mascot | | planned 1.2 |
 
 ## 16. Integrations

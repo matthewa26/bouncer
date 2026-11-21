@@ -32,11 +32,13 @@ public struct ReportRow: Codable, Sendable, Equatable {
     ///   - repoRoot: The repository root.
     /// - Returns: The sorted rows.
     public static func rows(_ findings: [Finding], repoRoot: URL) -> [ReportRow] {
-        let sorted = findings.sorted { lhs, rhs in
-            if lhs.severity != rhs.severity { return lhs.severity > rhs.severity }
-            return (lhs.filePath.path, lhs.line) < (rhs.filePath.path, rhs.line)
+        // Each path is read once up front: `URL.path` inside the comparator dominated sorting millions of findings.
+        let keyed = findings.map { (finding: $0, path: $0.filePath.path) }
+        let sorted = keyed.sorted { lhs, rhs in
+            if lhs.finding.severity != rhs.finding.severity { return lhs.finding.severity > rhs.finding.severity }
+            return (lhs.path, lhs.finding.line) < (rhs.path, rhs.finding.line)
         }
-        return sorted.map { ReportRow($0, repoRoot: repoRoot) }
+        return sorted.map { ReportRow($0.finding, repoRoot: repoRoot) }
     }
 }
 
@@ -54,6 +56,52 @@ public enum ReportSummary {
             return matching == 0 ? nil : counted(matching, severity)
         }
         return "\(count) finding\(count == 1 ? "" : "s"): \(parts.joined(separator: ", "))." + coverage(result)
+    }
+
+    /// Summarizes a result over several lines: the one-line summary, then the rules and files with the most
+    /// findings, then how long the run took.
+    ///
+    /// - Parameters:
+    ///   - result: The analysis result.
+    ///   - repoRoot: The repository root, which file paths are shown relative to.
+    ///   - elapsed: How long the run took, or `nil` to leave the time out.
+    /// - Returns: The lines, without trailing newlines.
+    public static func lines(_ result: AnalysisResult, repoRoot: URL, elapsed: Duration? = nil) -> [String] {
+        let files = result.findings.map { RepoPath.relative($0.filePath, to: repoRoot) }
+        var lines = [line(result)]
+        lines += ranked("Top rules", top(result.findings.map(\.ruleID)))
+        lines += ranked("Top files", top(files))
+        if let elapsed { lines.append("Finished in \(ProgressText.seconds(elapsed)).") }
+        return lines
+    }
+
+    /// Counts how often each name occurs and keeps the most frequent, breaking ties alphabetically.
+    ///
+    /// - Parameters:
+    ///   - names: One name per finding, such as its rule ID.
+    ///   - limit: How many names to keep.
+    /// - Returns: The names and their counts, most frequent first.
+    public static func top(_ names: [String], limit: Int = 5) -> [(name: String, count: Int)] {
+        let counts = Dictionary(names.map { ($0, 1) }, uniquingKeysWith: +)
+        let sorted = counts.sorted { lhs, rhs in
+            lhs.value != rhs.value ? lhs.value > rhs.value : lhs.key < rhs.key
+        }
+        return sorted.prefix(limit).map { (name: $0.key, count: $0.value) }
+    }
+
+    /// Lists ranked names under a heading, with their counts right-aligned.
+    ///
+    /// - Parameters:
+    ///   - title: The heading, such as `Top rules`.
+    ///   - entries: The ranked names.
+    /// - Returns: The heading and one indented line per name, or nothing when there are none.
+    private static func ranked(_ title: String, _ entries: [(name: String, count: Int)]) -> [String] {
+        guard !entries.isEmpty else { return [] }
+        let width = String(entries.map(\.count).max() ?? 0).count
+        let rows = entries.map { entry in
+            "  " + String(repeating: " ", count: width - String(entry.count).count) + "\(entry.count)  \(entry.name)"
+        }
+        return ["\(title):"] + rows
     }
 
     /// Names a count of one severity, such as `2 errors` or `1 info`.

@@ -49,6 +49,8 @@ struct Check: AsyncParsableCommand {
     @Option(help: "Apply a bundled preset, such as kirby, as the base config layer.")
     var profile: String?
 
+    @OptionGroup var progressArguments: ProgressArguments
+
     /// Resolves config, gates hooks, runs the analysis, and exits with the mapped code.
     ///
     /// - Throws: `ExitCode` on completion, or an error if the engine itself fails.
@@ -71,11 +73,27 @@ struct Check: AsyncParsableCommand {
     /// - Throws: `ExitCode` on completion.
     private func runAnalysis(repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?) async throws {
         let runner = try makeRunner(repoRoot: repoRoot, resolution: resolution, hooks: hooks)
-        let options = RunAndExitOptions(
+        var options = RunAndExitOptions(
             updateCheckConfig: resolution.merged.updateCheck, noUpdateCheckFlag: noUpdateCheck,
             isAgentInvocation: isAgentInvocation, format: format, outputPath: output, repoRoot: repoRoot
         )
+        options.progress = progressArguments
+        options.context = verboseContext(repoRoot: repoRoot, provider: runner.fileProvider)
         try await RunAndExit.run(runner, options: options)
+    }
+
+    /// Describes this invocation for the verbose log: its config sources and where its files come from.
+    ///
+    /// - Parameters:
+    ///   - repoRoot: The repository root.
+    ///   - provider: The file provider the run uses.
+    /// - Returns: The log lines.
+    private func verboseContext(repoRoot: URL, provider: TargetFileProvider) -> [String] {
+        var source = stdin ? "--stdin list" : "staged git diff"
+        if !files.isEmpty { source = "--files list of \(files.count)" }
+        let kind = String(describing: type(of: provider))
+        return RunLog.configLines(repoRoot: repoRoot, profile: profile, explicitPath: config)
+            + ["files: \(source) (\(kind))"]
     }
 
     /// Builds the analysis runner for this invocation.

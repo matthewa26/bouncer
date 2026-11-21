@@ -1,8 +1,10 @@
 import ArgumentParser
 import BouncerCore
+import BouncerReporting
 
 extension Severity: ExpressibleByArgument {}
 extension OutputVerbosity: ExpressibleByArgument {}
+extension ProgressMode: ExpressibleByArgument {}
 
 /// The output structure a `Reporter` renders as: console text, a Markdown table, JSON, or an HTML page.
 public enum OutputFormat: String, ExpressibleByArgument {

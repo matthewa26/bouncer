@@ -3,19 +3,20 @@ import Foundation
 /// Tells the user where a written report is and how to open it, including the address a Windows browser or
 /// tool needs when Bouncer runs inside WSL, where a Linux path or a `localhost` URL doesn't reach the file.
 public enum ReportLink {
-    /// Describes a written report file.
+    /// Describes a written report file. Under WSL the `Open:` link is the Windows URL, since the terminal hands
+    /// a clicked link to a Windows browser, which can't open a Linux `file:///home/…` URL.
     ///
     /// - Parameters:
     ///   - file: The report's absolute location.
     ///   - environment: The process environment; `WSL_DISTRO_NAME` marks a WSL session.
-    /// - Returns: Lines naming the file, its `file://` URL, and under WSL, its Windows path and URL.
+    /// - Returns: Lines naming the file and a URL to open it, and under WSL, the file's Windows path.
     public static func lines(for file: URL, environment: [String: String]) -> [String] {
-        var lines = ["Report written to \(file.path)", "Open: \(file.absoluteString)"]
-        if let distro = environment["WSL_DISTRO_NAME"], !distro.isEmpty {
-            let windows = windowsLocation(forLinuxPath: file.path, distro: distro)
-            lines += ["From Windows: \(windows.url)", "Windows path: \(windows.path)"]
+        let written = "Report written to \(file.path)"
+        guard let distro = environment["WSL_DISTRO_NAME"], !distro.isEmpty else {
+            return [written, "Open: \(file.absoluteString)"]
         }
-        return lines
+        let windows = windowsLocation(forLinuxPath: file.path, distro: distro)
+        return [written, "Open: \(windows.url)", "Windows path: \(windows.path)"]
     }
 
     /// Maps a Linux path inside WSL to how Windows reaches it: a drive path for files under `/mnt/<drive>/`,

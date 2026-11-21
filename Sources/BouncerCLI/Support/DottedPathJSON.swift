@@ -13,6 +13,19 @@ enum DottedPathJSON {
         setValue(keys: path.split(separator: ".").map(String.init), value: parseValue(value), in: root)
     }
 
+    /// Sets a string at a dotted path, without inferring a bool or number from it.
+    ///
+    /// For values that must stay strings, such as a profile named `"2024"`.
+    ///
+    /// - Parameters:
+    ///   - path: The dotted key path, such as `"profile"`.
+    ///   - value: The string to store as-is.
+    ///   - root: The JSON dictionary to edit.
+    /// - Returns: The updated dictionary.
+    static func applyString(path: String, value: String, to root: [String: Any]) -> [String: Any] {
+        setValue(keys: path.split(separator: ".").map(String.init), value: value, in: root)
+    }
+
     /// Recursively sets a value at a key path, building intermediate dictionaries as needed.
     ///
     /// - Parameters:

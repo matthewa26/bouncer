@@ -48,6 +48,8 @@ struct Review: AsyncParsableCommand {
     @Flag(help: "Skip the pre-flight update check for this run.")
     var noUpdateCheck = false
 
+    @OptionGroup var progressArguments: ProgressArguments
+
     /// Resolves config, gates hooks, runs the analysis, and exits with the mapped code.
     ///
     /// - Throws: `ExitCode` on completion, or an error if the engine itself fails.
@@ -74,10 +76,13 @@ struct Review: AsyncParsableCommand {
         rootDirectory: URL, repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?
     ) async throws {
         let runner = makeRunner(rootDirectory: rootDirectory, repoRoot: repoRoot, resolution: resolution, hooks: hooks)
-        let options = RunAndExitOptions(
+        var options = RunAndExitOptions(
             updateCheckConfig: resolution.merged.updateCheck, noUpdateCheckFlag: noUpdateCheck,
             isAgentInvocation: format == .json, format: format, outputPath: output, repoRoot: repoRoot
         )
+        options.progress = progressArguments
+        options.context = RunLog.configLines(repoRoot: repoRoot, profile: profile, explicitPath: config)
+            + ["files: every file under \(rootDirectory.path), excluding \(exclude.count) --exclude glob(s)"]
         try await RunAndExit.run(runner, options: options)
     }
 

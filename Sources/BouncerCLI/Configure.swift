@@ -12,7 +12,7 @@ struct Configure: AsyncParsableCommand {
     @Flag(help: "Edit ~/.bouncer instead of the current repo's .bouncer.")
     var global = false
 
-    @Option(parsing: .upToNextOption, help: "A dotted.path=value edit, repeatable. Skips the interactive walkthrough.")
+    @Option(parsing: .upToNextOption, help: "A dotted.path=value edit, repeatable. Skips the setup wizard.")
     var set: [String] = []
 
     @Flag(help: "Append a line invoking 'bouncer check' to .husky/pre-commit.")
@@ -21,7 +21,7 @@ struct Configure: AsyncParsableCommand {
     @Flag(help: "Trust the current repo's declared hooks without the interactive prompt.")
     var trust = false
 
-    /// Applies the requested edit, wiring, or trust action.
+    /// Applies the requested edit, wiring, or trust action, or runs the setup wizard when none is given.
     ///
     /// - Throws: If the target file can't be read, parsed, or written.
     func run() async throws {
@@ -29,7 +29,7 @@ struct Configure: AsyncParsableCommand {
         if trust { try trustCurrentRepoHooks(); return }
         if husky { try wireHusky(); return }
         if !set.isEmpty { try applySets(to: path); return }
-        try runInteractiveWalkthrough(at: path)
+        try runSetupWizard()
     }
 
     /// Resolves which `.bouncer` file this invocation edits.
@@ -45,9 +45,9 @@ struct Configure: AsyncParsableCommand {
     /// - Parameter path: The `.bouncer` file to edit.
     /// - Throws: If the existing file can't be parsed, or the result can't be written.
     private func applySets(to path: URL) throws {
-        var json = try readJSONObject(at: path)
+        var json = try ConfigFileJSON.readObject(at: path)
         for edit in set { json = try apply(edit, to: json) }
-        try write(json, to: path)
+        try ConfigFileJSON.write(json, to: path)
         print("Updated \(path.path).")
     }
 
@@ -67,58 +67,20 @@ struct Configure: AsyncParsableCommand {
         return DottedPathJSON.apply(path: key, value: value, to: json)
     }
 
-    /// Runs a short interactive prompt for the most common settings.
+    /// Runs the setup wizard, which needs a human at a terminal to answer it.
     ///
-    /// - Parameter path: The `.bouncer` file to write.
-    /// - Throws: If the existing file can't be parsed, or the result can't be written.
-    private func runInteractiveWalkthrough(at path: URL) throws {
-        var json = try readJSONObject(at: path)
-        json = promptOutputVerbosity(into: json)
-        json = promptCoverage(into: json)
-        try write(json, to: path)
-        print("Wrote \(path.path).")
-    }
-
-    /// Prompts for `output.verbosity`, leaving the existing value if the answer is blank.
+    /// `--global` makes `~/.bouncer` the save target's default answer.
     ///
-    /// - Parameter json: The JSON object to update.
-    /// - Returns: The updated object.
-    private func promptOutputVerbosity(into json: [String: Any]) -> [String: Any] {
-        print("Default output verbosity [normal/verbose/quiet/condensed]: ", terminator: "")
-        guard let answer = readLine(), !answer.isEmpty else { return json }
-        return DottedPathJSON.apply(path: "output.verbosity", value: answer, to: json)
-    }
-
-    /// Prompts for coverage settings, leaving existing values if the answers are blank.
-    ///
-    /// - Parameter json: The JSON object to update.
-    /// - Returns: The updated object.
-    private func promptCoverage(into json: [String: Any]) -> [String: Any] {
-        print("Enable coverage checking? [y/N]: ", terminator: "")
-        guard readLine()?.lowercased().hasPrefix("y") == true else { return json }
-        var json = DottedPathJSON.apply(path: "coverage.enabled", value: "true", to: json)
-        json = promptCoverageReportPath(into: json)
-        return promptCoverageThreshold(into: json)
-    }
-
-    /// Prompts for the coverage report's path, leaving the existing value if the answer is blank.
-    ///
-    /// - Parameter json: The JSON object to update.
-    /// - Returns: The updated object.
-    private func promptCoverageReportPath(into json: [String: Any]) -> [String: Any] {
-        print("Coverage report path: ", terminator: "")
-        guard let reportPath = readLine(), !reportPath.isEmpty else { return json }
-        return DottedPathJSON.apply(path: "coverage.reportPath", value: reportPath, to: json)
-    }
-
-    /// Prompts for the coverage threshold, defaulting to 80 if the answer is blank.
-    ///
-    /// - Parameter json: The JSON object to update.
-    /// - Returns: The updated object.
-    private func promptCoverageThreshold(into json: [String: Any]) -> [String: Any] {
-        print("Coverage threshold percentage [80]: ", terminator: "")
-        let threshold = readLine().flatMap { $0.isEmpty ? nil : $0 } ?? "80"
-        return DottedPathJSON.apply(path: "coverage.threshold", value: threshold, to: json)
+    /// - Throws: `ValidationError` when standard input isn't a terminal, or a wizard error.
+    private func runSetupWizard() throws {
+        guard Terminal.standardInputIsInteractive else {
+            throw ValidationError(
+                "The setup wizard needs an interactive terminal. Non-interactively, use 'bouncer configure "
+                    + "--set dotted.path=value', such as --set rules.long-function.params.maxLines=25."
+            )
+        }
+        let paths = BouncerPaths.setupPaths(repoRoot: try repoRootOrCurrentDirectory())
+        _ = try SetupWizard(prompt: .standard, paths: paths).run(preferredScope: global ? .global : .repo)
     }
 
     /// Appends a `bouncer check` line to `.husky/pre-commit`.
@@ -150,35 +112,16 @@ struct Configure: AsyncParsableCommand {
 
     /// Records the current repo's declared hooks as trusted.
     ///
+    /// Reads only the repo's own `.bouncer`, so a broken profile reference elsewhere can't block trusting.
+    ///
     /// - Throws: If the repo's `.bouncer` can't be read, or the trust store can't be written.
     private func trustCurrentRepoHooks() throws {
         let repoRoot = try repoRootOrCurrentDirectory()
-        let resolution = try ConfigResolver.resolve(repoRoot: repoRoot, profile: nil, explicitPath: nil)
-        guard let hooks = resolution.rawRepo.hooks else { print("This repo's .bouncer declares no hooks."); return }
+        let rawRepo = try ConfigLoader().read(BouncerPaths.repoConfig(repoRoot: repoRoot))
+        guard let hooks = rawRepo.hooks else { print("This repo's .bouncer declares no hooks."); return }
         let hash = TrustStore.contentHash(of: hooks)
         try TrustStore(path: BouncerPaths.trustStore).trust(repoPath: repoRoot.path, hooksHash: hash)
         print("Trusted the hooks in \(repoRoot.path)/.bouncer.")
-    }
-
-    /// Reads a `.bouncer` file as a JSON object, or an empty object if it doesn't exist.
-    ///
-    /// - Parameter path: The file to read.
-    /// - Returns: The decoded JSON object.
-    /// - Throws: If the file exists but isn't a valid JSON object.
-    private func readJSONObject(at path: URL) throws -> [String: Any] {
-        guard let data = try? Data(contentsOf: path) else { return [:] }
-        return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-    }
-
-    /// Writes a JSON object to a file as pretty-printed, sorted JSON.
-    ///
-    /// - Parameters:
-    ///   - json: The object to write.
-    ///   - path: The destination file.
-    /// - Throws: If the object can't be serialized or the file can't be written.
-    private func write(_ json: [String: Any], to path: URL) throws {
-        let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
-        try data.write(to: path)
     }
 
     /// Finds the current git repo's root, or falls back to the current directory.

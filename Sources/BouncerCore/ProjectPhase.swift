@@ -78,6 +78,32 @@ public struct ProjectPhase: Sendable {
         var parsed: [String: FileFacts] = [:]
         /// Target files as the main pass read them, keyed by repo-relative path, so they aren't read twice.
         var sources: [String: SourceFile] = [:]
+        /// Receives the phase's progress events.
+        var onEvent: AnalysisEventHandler = { _ in }
+    }
+
+    /// Counts where the index's facts came from, for the run log.
+    struct FactsTally: Equatable {
+        /// Files whose facts the main pass had already extracted.
+        var reused = 0
+        /// Files whose facts the cache still held for their current contents.
+        var cached = 0
+        /// Files parsed afresh.
+        var parsed = 0
+
+        /// Counts one file by the first place that had its facts.
+        ///
+        /// - Parameters:
+        ///   - reused: The main pass's facts for it, if any.
+        ///   - cached: The cache's facts for it, if any.
+        mutating func record(reused: FileFacts?, cached: FileFacts?) {
+            if reused != nil { self.reused += 1 } else if cached != nil { self.cached += 1 } else { parsed += 1 }
+        }
+
+        /// The tally as a log note.
+        var note: String {
+            "project index: \(reused) reused from the main pass, \(cached) from the facts cache, \(parsed) parsed"
+        }
     }
 
     /// Indexes the project and returns project findings that land in one of the target files.
@@ -89,13 +115,35 @@ public struct ProjectPhase: Sendable {
     /// - Returns: Project findings in target files.
     /// - Throws: If the index can't be listed or the cache can't be saved.
     func findings(targets: Set<String>, context: AnalysisContext, access: FileAccess) throws -> [Finding] {
-        let facts = try indexProvider.targetFiles().compactMap {
-            try self.facts(for: $0, context: context, access: access)
+        let urls = try AnalysisPhase.listProjectFiles.run(emit: access.onEvent) { try indexProvider.targetFiles() }
+        let facts = try AnalysisPhase.projectIndex.run(total: urls.count, emit: access.onEvent) {
+            try index(urls, context: context, access: access)
         }
+        return AnalysisPhase.projectRules.run(emit: access.onEvent) {
+            analyzer.findings(for: facts, targets: targets, context: context).filter {
+                targets.contains(RepoPath.relative($0.filePath, to: context.repoRoot))
+            }
+        }
+    }
+
+    /// Gathers every listed file's facts and saves them to the cache, noting where they came from.
+    ///
+    /// - Parameters:
+    ///   - urls: The files to index.
+    ///   - context: Repo-wide state.
+    ///   - access: Reads and parses the files.
+    /// - Returns: The indexed facts.
+    /// - Throws: If a file can't be read or parsed, or the cache can't be saved.
+    private func index(_ urls: [URL], context: AnalysisContext, access: FileAccess) throws -> [FileFacts] {
+        var tally = FactsTally()
+        let facts = try urls.compactMap { url in
+            try AnalysisEvent.timingFile(url, emit: access.onEvent) {
+                (try self.facts(for: url, context: context, access: access, tally: &tally), 0)
+            }
+        }
+        access.onEvent(.note(tally.note))
         try store.save(facts)
-        return analyzer.findings(for: facts, targets: targets, context: context).filter {
-            targets.contains(RepoPath.relative($0.filePath, to: context.repoRoot))
-        }
+        return facts
     }
 
     /// Returns one file's facts, from the main pass or the cache when possible, otherwise by parsing it,
@@ -105,13 +153,17 @@ public struct ProjectPhase: Sendable {
     ///   - url: The file.
     ///   - context: Repo-wide state, for the repo root and the project rules' settings.
     ///   - access: Reads and parses the file.
+    ///   - tally: Counts where the facts came from.
     /// - Returns: Its facts, or `nil` for a binary file or a language without module facts.
     /// - Throws: If the file can't be read or parsed.
-    private func facts(for url: URL, context: AnalysisContext, access: FileAccess) throws -> FileFacts? {
+    private func facts(
+        for url: URL, context: AnalysisContext, access: FileAccess, tally: inout FactsTally
+    ) throws -> FileFacts? {
         let path = RepoPath.relative(url, to: context.repoRoot)
         guard let file = try access.sources[path] ?? Self.readText(url, access: access) else { return nil }
         let hash = access.parsed[path]?.contentHash ?? StableHash.hex(file.contents)
         let cached = store.cachedFacts(path: path, contentHash: hash)
+        tally.record(reused: access.parsed[path], cached: cached)
         let fresh = { try access.parse(file).map { FileFacts(path: path, contentHash: hash, module: $0) } }
         guard let base = try access.parsed[path] ?? cached ?? fresh() else { return nil }
         return base.with(clones: analyzer.cloneFacts(for: file, cached: cached?.clones, context: context))

@@ -25,6 +25,15 @@ final class RecursiveFileWalkerTests: XCTestCase {
         XCTAssertEqual(try names(), ["Common/a.swift"])
     }
 
+    func testSkippingAFolderNeverDropsItsSiblings() throws {
+        for path in ["node_modules/x.js", ".hidden/y.js", "a/b.swift", "z/c.swift", "zz/d.swift"] {
+            let url = root.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try "x\n".write(to: url, atomically: true, encoding: .utf8)
+        }
+        XCTAssertEqual(try names(), ["Common/a.swift", "a/b.swift", "z/c.swift", "zz/d.swift"])
+    }
+
     func testSkipsSymlinksToDirectoriesAndBrokenLinksButKeepsLinksToFiles() throws {
         let manager = FileManager.default
         do {

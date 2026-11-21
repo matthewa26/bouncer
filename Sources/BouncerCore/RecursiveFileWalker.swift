@@ -31,33 +31,39 @@ public struct RecursiveFileWalker: TargetFileProvider {
     /// - Throws: Never, but conforms to `TargetFileProvider`'s throwing signature.
     public func targetFiles() throws -> [URL] {
         guard isDirectory(rootDirectory) else { return excludeFilter.excludes(rootDirectory) ? [] : [rootDirectory] }
-        guard let enumerator = makeEnumerator() else { return [] }
         var results: [URL] = []
-        for case let url as URL in enumerator {
-            visit(url, enumerator: enumerator, results: &results)
-        }
+        walk(rootDirectory, into: &results)
         return results
     }
 
-    /// Creates the underlying `FileManager` enumerator.
+    /// Lists one directory and recurses into the subdirectories the walk keeps.
     ///
-    /// - Returns: A directory enumerator rooted at `rootDirectory`.
-    private func makeEnumerator() -> FileManager.DirectoryEnumerator? {
-        FileManager.default.enumerator(
-            at: rootDirectory, includingPropertiesForKeys: [.isDirectoryKey], options: []
-        )
-    }
-
-    /// Handles one enumerated path: skips noisy directories, collects matching files.
+    /// The walk recurses itself rather than using `FileManager`'s enumerator with `skipDescendants()`: on
+    /// Windows, Foundation's enumerator applies a skip to a different directory than the one just listed,
+    /// so skipping `.hidden` could drop `.github` or `src` instead. It lists names by path, because on
+    /// Windows the URL-based listing fails for a whole directory that holds one broken symlink.
     ///
     /// - Parameters:
-    ///   - url: The enumerated path.
-    ///   - enumerator: The active enumerator, used to skip a directory's contents.
+    ///   - directory: The directory to list.
     ///   - results: The accumulated matching files.
-    private func visit(_ url: URL, enumerator: FileManager.DirectoryEnumerator, results: inout [URL]) {
-        if isAlwaysSkippedDirectory(url) || isSkippedHidden(url) {
-            // Only for a folder: after a file, the enumerator would skip the next folder's contents instead.
-            if isDirectory(url) { enumerator.skipDescendants() }
+    private func walk(_ directory: URL, into results: inout [URL]) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        for name in names {
+            visit(directory.appendingPathComponent(name), results: &results)
+        }
+    }
+
+    /// Handles one listed path: skips noisy and hidden directories, walks into the rest, and collects
+    /// matching files.
+    ///
+    /// - Parameters:
+    ///   - url: The listed path.
+    ///   - results: The accumulated matching files.
+    private func visit(_ url: URL, results: inout [URL]) {
+        if isAlwaysSkippedDirectory(url) || isSkippedHidden(url) { return }
+        if isDirectory(url) {
+            // Links to folders aren't followed, so a link can't walk out of the root or loop.
+            if !isSymbolicLink(url) { walk(url, into: &results) }
             return
         }
         guard isReadableFile(url), !excludeFilter.excludes(url), isListedIfInsideCIFolder(url) else { return }
@@ -121,6 +127,14 @@ public struct RecursiveFileWalker: TargetFileProvider {
     /// - Returns: Whether the path is a directory Bouncer never walks into.
     private func isAlwaysSkippedDirectory(_ url: URL) -> Bool {
         isDirectory(url) && Self.alwaysSkippedDirectories.contains(url.lastPathComponent)
+    }
+
+    /// Checks whether a path is itself a symbolic link, without following it.
+    ///
+    /// - Parameter url: The path to check.
+    /// - Returns: Whether the path is a symbolic link.
+    private func isSymbolicLink(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink ?? false
     }
 
     /// Checks whether a path is a directory.

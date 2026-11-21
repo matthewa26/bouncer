@@ -29,6 +29,7 @@ symbol reference: `BouncerCore` documents the engine's extensibility surface, no
 - <doc:GettingStarted>
 - <doc:Configuration>
 - <doc:Profiles>
+- <doc:XcodeAndSwiftPackages>
 - <doc:RuleCatalog>
 - <doc:KirbyMode>
 - <doc:Hooks>

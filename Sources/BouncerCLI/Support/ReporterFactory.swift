@@ -12,10 +12,11 @@ enum ReporterFactory {
     /// - Returns: The matching reporter.
     static func make(format: OutputFormat, repoRoot: URL) -> Reporter {
         switch format {
-        case .console: return ConsoleReporter()
-        case .table: return TableReporter(repoRoot: repoRoot)
-        case .json: return JSONReporter()
-        case .html: return HTMLReporter(repoRoot: repoRoot)
+        case .console: ConsoleReporter()
+        case .table: TableReporter(repoRoot: repoRoot)
+        case .json: JSONReporter()
+        case .html: HTMLReporter(repoRoot: repoRoot)
+        case .xcode: XcodeReporter()
         }
     }
 }

@@ -60,13 +60,14 @@ enum RunAndExit {
         throw ExitCode(outcome.exitCode)
     }
 
-    /// Starts the progress display the run's options ask for.
+    /// Starts the progress display the run's options ask for. Xcode output counts as an agent invocation, so
+    /// `--progress auto` stays out of the build log.
     ///
     /// - Parameter options: The run's options.
     /// - Returns: The running log.
     private static func startLog(_ options: RunAndExitOptions) -> RunLog {
         var invocation = ProgressInvocation()
-        invocation.isAgentInvocation = options.isAgentInvocation
+        invocation.isAgentInvocation = options.isAgentInvocation || options.format == .xcode
         return RunLog.start(options.progress, invocation: invocation, root: options.repoRoot, context: options.context)
     }
 

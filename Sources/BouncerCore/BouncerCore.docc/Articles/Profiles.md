@@ -6,7 +6,8 @@ Named presets you can keep for yourself, share with a team, and pick per run or 
 
 A profile is a set of settings in the same JSON format as `.bouncer`, applied as the base layer
 underneath your global and repo settings. Anything those files set explicitly still wins. Bouncer
-ships one profile, `kirby` (see <doc:KirbyMode>), and you can add your own.
+ships two profiles, `kirby` (see <doc:KirbyMode>) and `owasp` (see <doc:Security>), and you can add
+your own.
 
 ## Where profiles live
 

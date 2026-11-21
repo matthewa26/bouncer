@@ -131,7 +131,7 @@ enum SecretNames {
     private static let tokenQualifiers: Set = [
         "access", "auth", "refresh", "bearer", "session", "id", "api", "csrf", "oauth", "client", "jwt"
     ]
-    private static let describingWords: Set = [
+    static let describingWords: Set = [
         "field", "fields", "label", "prompt", "placeholder", "hint", "policy", "length", "len", "count", "required",
         "valid", "invalid", "expired", "expiry", "expires", "expiration", "changed", "file", "path", "env", "name",
         "type", "kind", "id", "ids", "arn", "url", "uri", "header", "manager", "store", "provider", "service", "dir",
@@ -139,7 +139,7 @@ enum SecretNames {
         "button", "strength", "regex", "pattern", "rules", "format", "prefix", "suffix", "size", "ref", "key", "keys",
         "location", "endpoint", "source", "param", "flag", "option", "mode", "hash", "digest", "fingerprint"
     ]
-    private static let negatingWords: Set = [
+    static let negatingWords: Set = [
         "hash", "hashed", "masked", "redacted", "has", "is", "should", "show", "needs", "validate", "check", "verify",
         "require", "min", "max", "no", "without", "missing", "empty"
     ]

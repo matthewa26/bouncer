@@ -27,6 +27,11 @@ public enum OWASPCategory: String, CaseIterable, Sendable, Codable {
         byRule[ruleID]
     }
 
+    /// Every rule ID mapped to a category, sorted, including rules planned but not built yet.
+    public static var mappedRuleIDs: [String] {
+        byRule.keys.sorted()
+    }
+
     /// Every rule ID Bouncer maps to a category. Rules planned but not built yet are listed too, so a rule
     /// is tagged the moment it lands; an ID with no rule behind it is never looked up.
     static let byRule: [String: OWASPCategory] = Dictionary(

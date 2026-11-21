@@ -31,7 +31,7 @@ public struct PathTraversalRule: Rule {
             + #"query_params|path_params|match_info)\b|\b(?:r|req)\.URL\.Query\(\)|\.(?:Post)?FormValue\(|"#
             + #"\bmux\.Vars\(|\bchi\.URLParam\(|\bc\.(?:Param|Query|PostForm|DefaultQuery|FormFile)\(|"#
             + #"\bctx\.(?:params|query|request\.body)\b|\bsearchParams\.get\(|\bevent\.(?:queryStringParameters|"#
-            + #"pathParameters)\b|\$_(?:GET|POST|REQUEST)\b"#
+            + #"pathParameters)\b|\$_(?:GET|POST|REQUEST)\b|\b(?:request|req)\.getParameter\(|\breq\.parameters\.get\("#
     )
     static let sanitizer = TextMatching.regex(
         #"\bbasename\(|\bfilepath\.Base\(|\bpath\.Base\(|secure_filename\(|lastPathComponent|safe_join\(|"#

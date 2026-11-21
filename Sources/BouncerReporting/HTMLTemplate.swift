@@ -288,7 +288,9 @@ enum HTMLTemplate {
         function findingJSON(i) {
           const r = rows[i], quote = JSON.stringify;
           return '    {\n      "filePath" : ' + quote(filePaths[r[0]]) + ',\n      "line" : ' + r[1]
-            + ',\n      "message" : ' + quote(r[4]) + ',\n      "ruleID" : ' + quote(rules[r[2]])
+            + ',\n      "message" : ' + quote(r[4])
+            + (owasp[r[2]] ? ',\n      "owasp" : ' + quote(owasp[r[2]]) : "")
+            + ',\n      "ruleID" : ' + quote(rules[r[2]])
             + ',\n      "severity" : ' + quote(severities[r[3]]) + "\n    }";
         }
         function jsonParts(limit) {
@@ -350,7 +352,9 @@ enum HTMLTemplate {
           if (tab.dataset.view === "json") showJSONPreview();
         }));
         const categories = [...new Set(owasp.filter(Boolean))].sort();
-        categories.forEach(category => $("category").add(new Option(category, category)));
+        const titles = data.owaspTitles || {};
+        categories.forEach(category => $("category")
+          .add(new Option(titles[category] ? category + " " + titles[category] : category, category)));
         $("category-filter").hidden = categories.length === 0;
         buildRulePanel();
         refresh();

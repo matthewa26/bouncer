@@ -18,7 +18,7 @@ public enum TextRules {
         ]
         let patterns = CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
         return shared + importAndSecurityRules(profile: profile) + robustnessRules(profile: profile) + typeAndStateRules
-            + patterns + supplyChainRules
+            + patterns + supplyChainRules + SecurityRules.all
     }
 
     /// The software supply-chain text rules, which check manifests, scripts, and CI files by name.

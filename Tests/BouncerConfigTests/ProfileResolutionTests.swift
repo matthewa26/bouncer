@@ -128,6 +128,6 @@ final class ProfileResolutionTests: XCTestCase {
         try writeProfile("a", maxLines: 1, in: repo)
         try writeProfile("a", maxLines: 1, in: home)
         let listed = ProfileStore(repoRoot: repo, homeDirectory: home).list().map { "\($0.name):\($0.source.rawValue)" }
-        XCTAssertEqual(listed, ["a:repo", "b:repo", "a:global", "kirby:bundled"])
+        XCTAssertEqual(listed, ["a:repo", "b:repo", "a:global", "kirby:bundled", "owasp:bundled"])
     }
 }

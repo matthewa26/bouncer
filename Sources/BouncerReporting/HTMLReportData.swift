@@ -19,6 +19,11 @@ struct HTMLReportData: Encodable {
     let rules: [String]
     /// The findings in the table's first order: most severe first, then by path and line.
     let rows: [Row]
+    /// Each rule's OWASP Top 10 category (`"A05:2025"`), or `null`, in the same order as `rules`; `nil`, and left
+    /// out of the JSON, when no rule in the report is mapped, so the page hides its category filter.
+    let owasp: [String?]?
+    /// The title of each category in `owasp` (`"A05:2025": "Injection"`), for the filter's labels.
+    let owaspTitles: [String: String]?
 
     /// One finding, encoded as `[fileIndex, line, ruleIndex, severityIndex, message]`.
     struct Row: Encodable, Equatable {
@@ -64,6 +69,18 @@ struct HTMLReportData: Encodable {
         rows = Self.displayOrder(unsorted, files: files.relative)
         (key, coverage, severities) = (repoRoot.path, result.coverage?.overallLineCoveragePercent, Self.names)
         (self.files, filePaths, self.rules) = (files.relative, files.absolute, rules.values)
+        (owasp, owaspTitles) = Self.categories(of: rules.values)
+    }
+
+    /// Looks up each rule's OWASP category, for the page's category filter and the JSON it builds.
+    ///
+    /// - Parameter rules: The report's rule IDs.
+    /// - Returns: Each rule's category ID (or `nil`) and the titles of those used, both `nil` if none is mapped.
+    private static func categories(of rules: [String]) -> ([String?]?, [String: String]?) {
+        let mapped = rules.map { OWASPCategory.category(forRule: $0) }
+        guard mapped.contains(where: { $0 != nil }) else { return (nil, nil) }
+        let titles = Dictionary(mapped.compactMap { $0 }.map { ($0.rawValue, $0.title) }) { first, _ in first }
+        return (mapped.map { $0?.rawValue }, titles)
     }
 
     /// The severity names, most severe first.

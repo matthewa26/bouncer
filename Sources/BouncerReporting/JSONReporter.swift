@@ -8,6 +8,9 @@ private struct FindingDTO: Codable {
     let filePath: String
     let line: Int
     let message: String
+    /// The finding's OWASP Top 10 category (`"A05:2025"`), or `nil`, and left out of the JSON, for a rule that
+    /// isn't mapped to one, so untagged findings serialize exactly as they did before tagging existed.
+    let owasp: String?
 
     /// Creates a DTO from a finding.
     ///
@@ -18,6 +21,7 @@ private struct FindingDTO: Codable {
         filePath = finding.filePath.path
         line = finding.line
         message = finding.message
+        owasp = OWASPCategory.category(forRule: finding.ruleID)?.rawValue
     }
 }
 

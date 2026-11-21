@@ -58,7 +58,9 @@ public enum LanguageProfiles {
             ),
             PatternRuleSpec(
                 id: "python-unsafe-deserialization",
-                pattern: #"\b(pickle|marshal)\.loads?\(|\byaml\.load\((?![^)]*SafeLoader)"#,
+                pattern: #"\b(pickle|marshal)\.loads?\(|\byaml\.load\((?![^)]*SafeLoader)"#
+                    + #"|\byaml\.unsafe_load\(|\b(?:cPickle|dill)\.loads?\(|\bpickle\.Unpickler\(|"#
+                    + #"\bjsonpickle\.decode\("#,
                 message: "Deserializing untrusted data can run arbitrary code; use json or yaml.safe_load."
             ),
             PatternRuleSpec(

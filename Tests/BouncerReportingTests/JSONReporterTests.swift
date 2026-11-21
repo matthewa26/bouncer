@@ -37,3 +37,64 @@ final class JSONReporterTests: XCTestCase {
         XCTAssertNoThrow(try JSONSerialization.jsonObject(with: output.data(using: .utf8)!))
     }
 }
+
+final class JSONReporterOWASPTests: XCTestCase {
+    /// The exact output `--format json` printed for these findings before OWASP tagging existed.
+    private let untaggedBaseline = """
+        {
+          "findings" : [
+            {
+              "filePath" : "/repo/a.swift",
+              "line" : 3,
+              "message" : "Function is too long.",
+              "ruleID" : "long-function",
+              "severity" : "warning"
+            },
+            {
+              "filePath" : "/repo/b.py",
+              "line" : 7,
+              "message" : "Custom check.",
+              "ruleID" : "my-custom-rule",
+              "severity" : "error"
+            }
+          ],
+          "overallLineCoveragePercent" : 75
+        }
+        """
+
+    private func finding(_ ruleID: String, _ path: String, _ line: Int, _ message: String, _ severity: Severity)
+        -> Finding {
+        Finding(ruleID: ruleID, severity: severity, filePath: URL(fileURLWithPath: path), line: line, message: message)
+    }
+
+    func testUnmappedFindingsSerializeExactlyAsBeforeOWASPTagging() {
+        let result = AnalysisResult(findings: [
+            finding("long-function", "/repo/a.swift", 3, "Function is too long.", .warning),
+            finding("my-custom-rule", "/repo/b.py", 7, "Custom check.", .error)
+        ], coverage: CoverageReport(overallLineCoveragePercent: 75))
+        XCTAssertEqual(JSONReporter().report(result, verbosity: .normal), untaggedBaseline)
+    }
+}
+
+extension JSONReporterOWASPTests {
+    func testMappedFindingsCarryTheirOWASPCategory() {
+        let result = AnalysisResult(findings: [
+            finding("sql-string-building", "/repo/c.ts", 2, "SQL built by concatenation.", .warning)
+        ], coverage: nil)
+        let expected = """
+            {
+              "findings" : [
+                {
+                  "filePath" : "/repo/c.ts",
+                  "line" : 2,
+                  "message" : "SQL built by concatenation.",
+                  "owasp" : "A05:2025",
+                  "ruleID" : "sql-string-building",
+                  "severity" : "warning"
+                }
+              ]
+            }
+            """
+        XCTAssertEqual(JSONReporter().report(result, verbosity: .normal), expected)
+    }
+}

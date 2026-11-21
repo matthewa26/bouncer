@@ -1,7 +1,7 @@
 /// Looks up a bundled preset by name, for `--profile`/`"profile"` in `.bouncer`.
 public enum BundledProfiles {
     /// Every bundled preset's name, in listing order.
-    public static let names = ["kirby"]
+    public static let names = ["kirby", "owasp"]
 
     /// Returns a bundled preset's config, or `BouncerConfig.empty` if unnamed or unrecognized.
     ///
@@ -20,6 +20,7 @@ public enum BundledProfiles {
     public static func config(named name: String) -> BouncerConfig? {
         switch name {
         case "kirby": return KirbyProfile.config
+        case "owasp": return OWASPProfile.config
         default: return nil
         }
     }

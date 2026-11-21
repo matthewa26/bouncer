@@ -144,3 +144,28 @@ final class ReportLinkTests: XCTestCase {
         XCTAssertEqual(windows.url, "file:///C:/Users/Me/repo/report.html")
     }
 }
+
+extension TableAndHTMLReporterTests {
+    func testHTMLTagsMappedRulesWithTheirOWASPCategoryForTheFilter() throws {
+        let tagged = AnalysisResult(findings: [
+            finding(.warning, "long-lines", "a.swift", 1, "Long."),
+            finding(.warning, "sql-string-building", "b.ts", 2, "SQL."),
+            finding(.warning, "weak-crypto", "c.go", 3, "MD5.")
+        ], coverage: nil)
+        let data = try reportData(HTMLReporter(repoRoot: root).report(tagged, verbosity: .normal))
+        let rules = try XCTUnwrap(data["rules"] as? [String])
+        let owasp = try XCTUnwrap(data["owasp"] as? [Any])
+        XCTAssertEqual(rules, ["long-lines", "sql-string-building", "weak-crypto"])
+        XCTAssertTrue(owasp[0] is NSNull, "an unmapped rule is null")
+        XCTAssertEqual(owasp[1] as? String, "A05:2025")
+        XCTAssertEqual(owasp[2] as? String, "A04:2025")
+        XCTAssertEqual(data["owaspTitles"] as? [String: String],
+                       ["A05:2025": "Injection", "A04:2025": "Cryptographic Failures"])
+    }
+
+    func testHTMLLeavesOutOWASPDataWhenNoRuleIsMapped() throws {
+        let data = try reportData(HTMLReporter(repoRoot: root).report(result, verbosity: .normal))
+        XCTAssertNil(data["owasp"])
+        XCTAssertNil(data["owaspTitles"])
+    }
+}

@@ -32,6 +32,7 @@ symbol reference: `BouncerCore` documents the engine's extensibility surface, no
 - <doc:XcodeAndSwiftPackages>
 - <doc:RuleCatalog>
 - <doc:KirbyMode>
+- <doc:Security>
 - <doc:Hooks>
 
 ### The Analysis Engine

@@ -37,9 +37,9 @@ These run on every language.
 | `commented-out-code` | A stretch of non-doc comment lines that reads as code, reported at its first line | warning | `minLines` (2) |
 | `redundant-comment` | A one-line comment that only restates the statement below it; off unless configured | warning | none |
 | `trailing-whitespace` | A line ending in a space or tab | warning | none |
-| `secret-looking-pattern` | A line matching a small set of credential-shaped patterns | warning | none |
+| `secret-looking-pattern` | A line matching a small set of credential-shaped patterns (OWASP A04:2025) | warning | none |
 | `inconsistent-indent` | A block indented by a different number of spaces than the file's other blocks, reported once per file (not Go or SQL) | warning | none |
-| `hardcoded-ip` | An IPv4 address in a string literal, except loopback, `0.x`, link-local, multicast and netmasks, documentation ranges, versions, and test files | warning | `allow`: address prefixes to accept (none) |
+| `hardcoded-ip` | An IPv4 address in a string literal, except loopback, `0.x`, link-local, multicast and netmasks, documentation ranges, versions, and test files (OWASP A02:2025) | warning | `allow`: address prefixes to accept (none) |
 | `duplicate-import` (Swift, TS/JS, Python, Go) | A module imported twice in one file | warning | none |
 | `unsorted-imports` (Swift, TS/JS, Python) | An import out of alphabetical order within its group; off unless configured | warning | none |
 | `generic-error-message` | An error built with a message of only generic words (`"Something went wrong"`, `"failed"`, `"invalid input"`), outside tests | warning | none |
@@ -50,22 +50,22 @@ These run on every language.
 | `missing-file-header` | A file that doesn't open with a header comment, or whose header doesn't match `pattern`; off unless configured | warning | `pattern`: a regex the header must contain (none) |
 | `abbreviation` | A declared name using a known abbreviation (`usrMgr`, `btnCnt`), less each language's idioms; off unless configured | warning | `allow`, `deny`: words, as `word` or `word=expansion` |
 | `forbidden-import` (Swift, TS/JS, Python, Go, Java, C/C++) | An import that `deny` forbids for the file's path, or that `allow` leaves out; does nothing until configured | warning | `deny`, `allow`: `"<glob>=<module>,<module>"` entries (a bare module list applies everywhere) |
-| `path-traversal` | Request input (`req.params`, `request.args`, `r.URL.Query()`, …) reaching a path join or file call, on the same line or through a variable assigned within 10 lines | warning | none |
-| `logged-secret` | A log or print call that writes a password, secret, API or private key, auth token, SSN, or card number | warning | none |
-| `empty-catch` (Java, C++, PowerShell, C#/Kotlin/PHP/Dart files) | A `catch` block with nothing but whitespace inside; the parse-tree version covers Swift, TS/JS, Python, and Go | warning | none |
+| `path-traversal` | Request input (`req.params`, `request.args`, `r.URL.Query()`, …) reaching a path join or file call, on the same line or through a variable assigned within 10 lines (OWASP A01:2025) | warning | none |
+| `logged-secret` | A log or print call that writes a password, secret, API or private key, auth token, SSN, or card number (OWASP A09:2025) | warning | none |
+| `empty-catch` (Java, C++, PowerShell, C#/Kotlin/PHP/Dart files) | A `catch` block with nothing but whitespace inside; the parse-tree version covers Swift, TS/JS, Python, and Go (OWASP A10:2025) | warning | none |
 | `null-collection-return` (Swift, TS, Python, Java) | A function declared to return an optional or nullable collection (`-> [T]?`, `T[] \| null`, `Optional[List[T]]`, a Java `List`/`Map`/array) whose own body returns `nil`/`null`/`None` and never an empty one, unless its doc comment says what the null means; off unless configured | warning | none |
 | `shared-mutable-state` (Swift, Go; TS/JS and Python through `languages`) | A Swift global or `static var` outside an actor or global actor, a Go package-level `var` written by a function, a TS/JS module-level `let` reassigned in a file with async code, or a Python `global` in a threaded or asyncio file, with no lock, queue, or atomic in the file | warning | `languages` (`["swift", "go"]`) |
 | `missing-final-newline` | A non-empty file that doesn't end with a newline | warning | none |
 | `crlf-line-endings` | A file using Windows (CRLF) line endings, reported once per file | warning | none |
 | `mixed-indentation` | A file indenting some lines with tabs and others with spaces | warning | none |
 | `consecutive-blank-lines` | A run of blank lines longer than the limit | warning | `maxBlankLines` (2) |
-| `weak-crypto` | MD5, SHA-1, DES, or ECB mode | warning | none |
-| `disabled-tls-verification` | `rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `verify=False`, `InsecureSkipVerify: true`, `curl -k` | warning | none |
-| `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example` hosts, and XML namespaces | warning | none |
-| `sql-string-building` | SQL built by concatenation or interpolation (`"SELECT … " + x`, `${x}`, `\(x)`, f-strings) | warning | none |
-| `unpinned-dependency` | A `package.json`, `Cargo.toml`, or `Package.swift` dependency without a reproducible version: `*`/`latest`/an unbounded `>=` range, a git source without a commit, a tarball URL, a Cargo `git` dependency without `rev`, or a SwiftPM `branch:` | warning | none |
-| `pipe-to-shell` | A download piped straight into a shell or interpreter (`curl … \| sh`, `bash <(curl …)`, `irm … \| iex`) in scripts, Dockerfiles, Makefiles, and YAML; not Markdown | warning | none |
-| `unpinned-ci-action` | A GitHub Actions `uses:` not pinned to a 40-character commit SHA, in `.github/workflows/*.yml` and `action.yml`; off unless configured | info | none |
+| `weak-crypto` | MD5, SHA-1, DES, or ECB mode (OWASP A04:2025) | warning | none |
+| `disabled-tls-verification` | `rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `verify=False`, `InsecureSkipVerify: true`, `curl -k` (OWASP A04:2025) | warning | none |
+| `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example` hosts, and XML namespaces (OWASP A02:2025) | warning | none |
+| `sql-string-building` | SQL built by concatenation or interpolation (`"SELECT … " + x`, `${x}`, `\(x)`, f-strings) (OWASP A05:2025) | warning | none |
+| `unpinned-dependency` | A `package.json`, `Cargo.toml`, or `Package.swift` dependency without a reproducible version: `*`/`latest`/an unbounded `>=` range, a git source without a commit, a tarball URL, a Cargo `git` dependency without `rev`, or a SwiftPM `branch:` (OWASP A03:2025) | warning | none |
+| `pipe-to-shell` | A download piped straight into a shell or interpreter (`curl … \| sh`, `bash <(curl …)`, `irm … \| iex`) in scripts, Dockerfiles, Makefiles, and YAML; not Markdown (OWASP A03:2025) | warning | none |
+| `unpinned-ci-action` | A GitHub Actions `uses:` not pinned to a 40-character commit SHA, in `.github/workflows/*.yml` and `action.yml`; off unless configured (OWASP A03:2025) | info | none |
 
 `unpinned-dependency` reads each manifest when it's checked: `package.json` with `JSONSerialization`
 (`dependencies`, `devDependencies`, and `optionalDependencies`; peers are left to the host), and
@@ -82,6 +82,42 @@ for `pipe-to-shell` and `unpinned-ci-action` only, so their YAML gets no other f
 replacement; use a dedicated tool such as gitleaks or trufflehog for real secret-scanning
 coverage. `duplicate-block` is intra-file only and requires an exact match; it's a deliberately
 cheap approximation of clone detection, not a real one.
+
+## Security rules (OWASP Top 10:2025)
+
+These run on TypeScript/JavaScript, Python, Go, Java, Swift, and Objective-C, as each row says,
+and skip test files. Each is tagged with its OWASP Top 10:2025 category in `--format json` and the
+HTML report; <doc:Security> maps every security rule to its category, and the bundled `owasp`
+profile turns them all on as errors. They favor precision over recall: each looks for the insecure
+value written out, so a setting built elsewhere or passed through a variable is missed.
+
+| Rule ID | Category | Languages | Checks | Default severity |
+|---|---|---|---|---|
+| `ssrf` | A01:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | Request input leading the URL of an outbound request (`fetch`, `axios`, `requests.get`, `urlopen`, `http.Get`, `http.NewRequest`, `new URL(…).openConnection()`, `URLSession` tasks, `NSURL URLWithString:` in a file using `NSURLSession`); a literal host prefix or a nearby allowlist check clears it | warning |
+| `open-redirect` | A01:2025 | TS/JS, Python, Go, Java, Swift | Request input leading a redirect (`res.redirect`, `location.href =`, Flask/Django `redirect`, `HttpResponseRedirect`, `http.Redirect`, `sendRedirect`, `"redirect:" +`, Vapor `redirect(to:)`); a literal path prefix, `is_safe_url`, `url_has_allowed_host_and_scheme`, or a `startsWith("/")` check clears it | warning |
+| `cors-credentials-any-origin` | A01:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | Any-origin CORS (the patterns of `permissive-cors`, plus `origin: true` and Vapor `.originBased`) in a file that also enables credentials (`credentials: true`, `supports_credentials=True`, `AllowCredentials: true`, `Access-Control-Allow-Credentials: true`, …) | warning |
+| `debug-mode-enabled` | A02:2025 | Python, TS/JS | `app.run(debug=True)`, `app.debug = True`, `app.config["DEBUG"] = True`, `DEBUG = True` in a Django `settings*.py` or `settings/` module, Express `app.set("env", "development")` | warning |
+| `permissive-cors` | A02:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | `Access-Control-Allow-Origin: *`, `cors()` with no options, `origin: "*"`, `CORS(app)`, `CORS_ALLOW_ALL_ORIGINS = True`, `allow_origins=["*"]`, Go `AllowedOrigins: []string{"*"}`/`AllowAllOrigins`, a bare `@CrossOrigin`, `allowedOrigins("*")`, Vapor `allowedOrigin: .all`; files that enable credentials get `cors-credentials-any-origin` instead | warning |
+| `insecure-cookie` | A02:2025 | TS/JS, Python, Go, Java, Swift | A cookie set with `secure: false`/`httpOnly: false`, `set_cookie(…, secure=False)`, `SESSION_COOKIE_SECURE = False`, Go `http.Cookie{Secure: false}`, `cookie.setSecure(false)`, Vapor `isSecure: false`; the flag must sit within 8 lines of a cookie | warning |
+| `xml-external-entities` | A02:2025 | TS/JS, Python, Java, Swift, Objective-C | An XML parser with external entities on: libxmljs `noent: true`, lxml `resolve_entities=True`, `IS_SUPPORTING_EXTERNAL_ENTITIES, true`, `setExpandEntityReferences(true)`, the external-entity features set to `true` or `disallow-doctype-decl` to `false`, `shouldResolveExternalEntities = true`/`YES` | warning |
+| `hardcoded-iv` | A04:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A variable named for an IV, nonce, or salt assigned a literal (`iv = b"…"`, `const iv = Buffer.from("…")`, `let iv: [UInt8] = [0x00, …]`, `nonce := []byte("…")`, `byte[] iv = { … }`, `char iv[16] = { 0x01, … }`), or a literal or zero buffer passed as one (`createCipheriv(…, Buffer.alloc(16))`, `new IvParameterSpec("…".getBytes())`, `new IvParameterSpec(new byte[16])`, `AES.new(key, mode, b"…")`) | warning |
+| `short-crypto-key` | A04:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | RSA or DSA keys of 512–1536 bits (`modulusLength: 1024`, `key_size=1024`, `rsa.GenerateKey(rand.Reader, 1024)`, `KeyPairGenerator.initialize(1024)`, `kSecAttrKeySizeInBits: 1024`), and curves of 192 bits or fewer (`secp192r1`, `prime192v1`, `P-192`, `SECP192R1`) | warning |
+| `objc-shell-injection` | A05:2025 | Objective-C | `system`/`popen` with a `stringWithFormat:` or appended command, or a shell `NSTask` given `-c` and a `stringWithFormat:` command | warning |
+| `template-injection` | A05:2025 | Python, TS/JS, Go | Request input, or a string built on the spot, compiled as a template: `render_template_string`, `jinja2.Template`, `from_string`, `ejs.render`, `pug.render`/`compile`, `Handlebars.compile`, `_.template`, `template.New(…).Parse`, `template.HTML` | warning |
+| `nosql-injection` | A05:2025 | TS/JS, Python, Go, Java | `$where` built by concatenation, interpolation, or formatting, and `req.body`/`req.query`/`request.json` handed straight to a MongoDB query (`find({ email: req.body.email })`), in files that mention Mongo; `String(…)`/`str(…)` casts and `express-mongo-sanitize` clear it | warning |
+| `jwt-verification-disabled` | A07:2025 | Python, TS/JS, Go, Java | `jwt.decode(…, verify=False)`, `"verify_signature": False`, `"verify_exp": False`, the `none` algorithm allowed, `ignoreExpiration: true`, Go `jwt.SigningMethodNone`/`UnsafeAllowNoneSignatureType`, JJWT `parseClaimsJwt`/`parseUnsecuredClaims`/`unsecured()` | warning |
+| `timing-unsafe-comparison` | A07:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A password, secret, HMAC, signature, API key, or token compared with `==`/`===`/`!=` against its expected, stored, provided, computed, or environment value, in a file about authentication or crypto | warning |
+| `unsafe-deserialization` | A08:2025 | Java, TS/JS, Swift, Objective-C | `new ObjectInputStream(…)` in a file calling `readObject` without an `ObjectInputFilter`, `XMLDecoder`, Jackson `enableDefaultTyping`, `node-serialize` `unserialize`, `NSKeyedUnarchiver.unarchiveObject(with:)`/`unarchiveTopLevelObjectWithData`, `NSUnarchiver`, `requiresSecureCoding = false`; Python is `python-unsafe-deserialization` | warning |
+| `unlogged-security-failure` | A09:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A `catch`/`except`/`if err != nil` handler on a verify, authenticate, authorize, login, signature, permission, password, JWT, or token call that neither logs, rethrows, returns, responds, nor passes the error on | warning |
+| `fail-open` | A10:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A handler on the same kind of security check that lets the request through: `return true`/`True`/`YES`, `next()` with no error, `return { valid: true }`, `return .allow`, or `authorized = true` | warning |
+
+`unlogged-security-failure` is a proxy, not a proof: a handler counts as dealing with the
+failure when it logs, reports, prints, throws, returns anything, `continue`s or `break`s, sends a
+response, calls `next(err)`, `done`, a completion, or an error handler, writes to stderr, or stores
+the error, and an empty handler is left to `empty-catch`. A Swift `catch … where` and handlers for
+not-found errors, `KeyError`, or `IndexError` are skipped as expected misses. The code a `catch` or
+`except` guards is read from the nearest `try` within 40 lines; an error branch or promise `.catch`
+guards the three lines above it.
 
 ## Code quality
 
@@ -145,7 +181,7 @@ envy, temporary field) and the doc-completeness rules aren't mapped for Objectiv
 | `cognitive-complexity` | SonarSource-style cognitive complexity, which penalizes nesting | warning | `max` (15) |
 | `nesting-depth` | How deeply `if`/loop/`switch`/`catch` structures nest in a function | warning | `maxDepth` (4) |
 | `nested-ternary` | A ternary inside another ternary | warning | none |
-| `empty-catch` | A `catch` with no statements and no explanatory comment | warning | none |
+| `empty-catch` | A `catch` with no statements and no explanatory comment (OWASP A10:2025) | warning | none |
 | `unreachable-code` | The first statement after `return`/`throw`/`break`/`continue` in a block | warning | none |
 | `magic-number` | A numeric literal other than 0, 1, or 2 that nothing names | warning | none |
 | `force-unwrap` (Swift) | A force unwrap, `x!` | warning | none |
@@ -307,23 +343,23 @@ mistake in that language, layered on top of the shared rules above:
 | Language | Rule ID | Checks |
 |---|---|---|
 | bash/zsh | `shell-unquoted-variable` | An unquoted `$variable` expansion |
-| bash/zsh | `shell-eval-usage` | `eval` usage |
+| bash/zsh | `shell-eval-usage` | `eval` usage (OWASP A05:2025) |
 | bash/zsh | `shell-debug-trace` | `set -x` tracing left on |
-| Python | `python-bare-except` | A bare `except:` clause |
+| Python | `python-bare-except` | A bare `except:` clause (OWASP A10:2025) |
 | Python | `python-mutable-default-arg` | A mutable (`[]`/`{}`) default argument |
 | Python | `python-debug-print` | A `print(...)` statement |
-| Python | `python-eval-exec` | `eval(...)`/`exec(...)` |
-| Python | `python-unsafe-deserialization` | `pickle`/`marshal` loads, or `yaml.load` without `SafeLoader` |
-| Python | `python-shell-injection` | `subprocess` with `shell=True`, or `os.system` |
+| Python | `python-eval-exec` | `eval(...)`/`exec(...)` (OWASP A05:2025) |
+| Python | `python-unsafe-deserialization` | `pickle`/`marshal`/`cPickle`/`dill` loads, `pickle.Unpickler`, `jsonpickle.decode`, `yaml.unsafe_load`, or `yaml.load` without `SafeLoader` (OWASP A08:2025) |
+| Python | `python-shell-injection` | `subprocess` with `shell=True`, or `os.system` (OWASP A05:2025) |
 | Python | `skipped-test` | `@skip`/`@unittest.skip`/`pytest.mark.skip` |
 | TypeScript/JavaScript | `js-console-log` | `console.log`/`debugger` left in |
 | TypeScript/JavaScript | `js-loose-equality` | `==`/`!=` instead of `===`/`!==` |
 | TypeScript/JavaScript | `ts-ignore-without-reason` | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no explanation |
 | TypeScript/JavaScript | `ts-double-cast` | `as unknown as T` |
 | TypeScript/JavaScript | `js-var` | `var` instead of `let`/`const` |
-| TypeScript/JavaScript | `js-eval` | `eval(...)` or `new Function(...)` |
-| TypeScript/JavaScript | `js-raw-html` | `innerHTML`/`outerHTML` assignment, `insertAdjacentHTML`, `dangerouslySetInnerHTML` |
-| TypeScript/JavaScript | `js-shell-injection` | `exec`/`execSync` with a template string containing `${…}` |
+| TypeScript/JavaScript | `js-eval` | `eval(...)` or `new Function(...)` (OWASP A05:2025) |
+| TypeScript/JavaScript | `js-raw-html` | `innerHTML`/`outerHTML` assignment, `insertAdjacentHTML`, `dangerouslySetInnerHTML` (OWASP A05:2025) |
+| TypeScript/JavaScript | `js-shell-injection` | `exec`/`execSync` with a template string containing `${…}` (OWASP A05:2025) |
 | TypeScript/JavaScript | `skipped-test` | `it/test/describe.skip` or `.only`, `xit`/`xdescribe`, `fit`/`fdescribe` |
 | TypeScript | `ts-prefer-union-type` | A plain `enum` whose members are all string literals or all implicitly numbered, not merged with a `namespace` or iterated; use a string-literal union; off unless configured |
 | Swift | `swift-fatal-error` | `fatalError(...)`; `libraryOnly: true` limits it, and `swift-precondition`, to library code |
@@ -331,45 +367,45 @@ mistake in that language, layered on top of the shared rules above:
 | Swift | `fire-and-forget-task` | `Task { }`/`Task.detached { }` started as a statement with no cancellation check; off unless configured |
 | Swift | `swift-unchecked-sendable` | `@unchecked Sendable` or `nonisolated(unsafe)` |
 | Swift | `swift-debug-print` | A `print`/`debugPrint`/`dump`/`NSLog` statement |
-| Swift | `swift-discarded-try` | A `try?` whose result is thrown away |
+| Swift | `swift-discarded-try` | A `try?` whose result is thrown away (OWASP A10:2025) |
 | Swift | `swift-main-sync` | `DispatchQueue.main.sync`, which deadlocks on the main thread |
 | Swift | `swift-semaphore-wait` | Blocking `semaphore.wait()` |
 | Swift | `skipped-test` | `XCTSkip` or a `.disabled(...)` trait |
 | Objective-C | `objc-debug-log` | An `NSLog(...)` call, which writes to the system log in release builds |
-| Objective-C | `c-gets-usage`, `c-unsafe-string-function`, `c-debug-print` | The C checks, since Objective-C is a superset of C |
+| Objective-C | `c-gets-usage`, `c-unsafe-string-function`, `c-debug-print` | The C checks, since Objective-C is a superset of C (OWASP A05:2025 for `c-gets-usage` and `c-unsafe-string-function`) |
 | Objective-C | `skipped-test` | `XCTSkip`/`XCTSkipIf`/`XCTSkipUnless` |
-| C | `c-gets-usage` | `gets(...)`, which can't bound its input |
-| C | `c-unsafe-string-function` | `strcpy`/`strcat`/`sprintf` |
-| PowerShell | `powershell-invoke-expression` | `Invoke-Expression`/`iex` usage |
-| PowerShell | `powershell-plaintext-password` | `-AsPlainText` password conversion |
+| C | `c-gets-usage` | `gets(...)`, which can't bound its input (OWASP A05:2025) |
+| C | `c-unsafe-string-function` | `strcpy`/`strcat`/`sprintf` (OWASP A05:2025) |
+| PowerShell | `powershell-invoke-expression` | `Invoke-Expression`/`iex` usage (OWASP A05:2025) |
+| PowerShell | `powershell-plaintext-password` | `-AsPlainText` password conversion (OWASP A07:2025) |
 | C++ | `cpp-raw-new-delete` | Raw `new`/`delete` instead of a smart pointer |
 | C++ | `cpp-using-namespace-std` | File-scope `using namespace std;` |
-| Java | `java-generic-exception-catch` | Catching `Exception`/`Throwable` broadly |
+| Java | `java-generic-exception-catch` | Catching `Exception`/`Throwable` broadly (OWASP A10:2025) |
 | Java | `java-print-stack-trace` | `.printStackTrace()` instead of a logger |
 | Java | `java-system-out` | `System.out`/`System.err` printing |
 | Java | `skipped-test` | `@Disabled`/`@Ignore` |
 | Go | `go-discarded-return-value` | A return value discarded with `_ =` |
 | Go | `go-panic-usage` | `panic()` usage |
 | Go | `go-debug-print` | A `fmt.Print`/`Println`/`Printf` statement |
-| Go | `go-shell-injection` | `exec.Command("sh", "-c", …)` |
+| Go | `go-shell-injection` | `exec.Command("sh", "-c", …)` (OWASP A05:2025) |
 | Go | `skipped-test` | `t.Skip`/`t.Skipf`/`t.SkipNow` |
 | SQL | `sql-select-star` | `SELECT *` instead of named columns |
-| SQL | `sql-missing-where` | `UPDATE`/`DELETE` with no `WHERE` clause |
-| Swift | `swift-shell-injection` | A `Process` running a shell with `-c` and an interpolated command string |
-| TypeScript/JavaScript | `insecure-random` | `Math.random()` feeding a token, ID, secret, password, nonce, salt, or session value |
-| Python | `insecure-random` | The `random` module feeding a token, ID, secret, or password |
-| Go | `insecure-random` | `math/rand` feeding a token, ID, or secret |
+| SQL | `sql-missing-where` | `UPDATE`/`DELETE` with no `WHERE` clause (OWASP A05:2025) |
+| Swift | `swift-shell-injection` | A `Process` running a shell with `-c` and an interpolated command string (OWASP A05:2025) |
+| TypeScript/JavaScript | `insecure-random` | `Math.random()` feeding a token, ID, secret, password, nonce, salt, or session value (OWASP A04:2025) |
+| Python | `insecure-random` | The `random` module feeding a token, ID, secret, or password (OWASP A04:2025) |
+| Go | `insecure-random` | `math/rand` feeding a token, ID, or secret (OWASP A04:2025) |
 | Go | `go-unwrapped-error` | `if err != nil { return err }` with no wrapping context; off unless configured |
 | Go | `go-unmanaged-goroutine` | `go` in a function with no context, WaitGroup, errgroup, or channel |
 | C | `c-debug-print` | `printf`/`fprintf(stderr, …)` of a `DEBUG`/`DBG`/`XXX`/`debug:`/`"here"` message |
 | C++ | `cpp-debug-print` | The same, plus `std::cout`/`cerr`/`clog <<` a debug marker |
 | PowerShell | `powershell-debug-leftover` | `Set-PSDebug -Trace`, `$DebugPreference = 'Continue'`, `Wait-Debugger`, `Set-PSBreakpoint`, `Write-Host "DEBUG…"` |
-| Rust | `rust-unwrap` | `.unwrap()` or `.expect(…)` outside test code |
+| Rust | `rust-unwrap` | `.unwrap()` or `.expect(…)` outside test code (OWASP A10:2025) |
 | Rust | `rust-unsafe-without-safety-comment` | An `unsafe` block, `unsafe fn`, or `unsafe impl` with no `// SAFETY:` comment (or `# Safety` doc section on an `unsafe fn`) |
 | Rust | `rust-todo-macro` | `todo!()` or `unimplemented!()`, test code included |
 | Rust | `rust-debug-print` | `dbg!` anywhere; `println!`/`print!`/`eprintln!`/`eprint!` outside tests and programs |
 | Rust | `rust-panic` | `panic!` outside tests and programs |
-| Rust | `rust-shell-injection` | `Command::new("sh")` (or `bash`, `cmd`, …) given `-c`/`/C` and a command built with `format!` or `+` |
+| Rust | `rust-shell-injection` | `Command::new("sh")` (or `bash`, `cmd`, …) given `-c`/`/C` and a command built with `format!` or `+` (OWASP A05:2025) |
 | Rust | `disabled-tls-verification` | `.danger_accept_invalid_certs(true)`/`.danger_accept_invalid_hostnames(true)`, or rustls's `dangerous().set_certificate_verifier(…)` |
 | Rust | `sql-string-building` | `format!("SELECT …{}…")` and the other SQL verbs |
 | Rust | `skipped-test` | `#[ignore]` |
@@ -403,7 +439,9 @@ httpmock) turns off the network check. `generic-error-message` needs a plain lit
 five words, all generic. `path-traversal` is approximate: it follows request input only on the
 same line or through an assignment within the 10 lines above, and `basename`,
 `filepath.Base`, `secure_filename`, `lastPathComponent`, `safe_join`, `parseInt`, `int(`,
-`Atoi`, and `sanitize…` clear it. `logged-secret` reads identifiers and interpolations, never
+`Atoi`, and `sanitize…` clear it. Its request sources include Java's `request.getParameter(` and
+Vapor's `req.parameters.get(`, and `ssrf`, `open-redirect`, and `template-injection` follow the same
+sources. `logged-secret` reads identifiers and interpolations, never
 words inside strings; names ending in a describing word (`passwordField`, `tokenCount`),
 presence or length checks, and lines that redact or mask are skipped. `forbidden-import`
 matches a module, anything under it (`lodash/fp`, `UIKit.UIView`), or a trailing-`*` prefix.
@@ -487,7 +525,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `unused-dependency` | A SwiftPM, `package.json`, or `go.mod` dependency no code imports | warning | `ignore` (none) |
 | `inconsistent-terminology` | A module mixing synonym verbs (`fetchX`, `getY`, `loadZ`); off unless configured | warning | `groups`, `ignoreNames` |
 | `missing-readme` | A SwiftPM target, `package.json` package, or Go module without a README; off unless configured | warning | `includeTests` (false) |
-| `missing-lockfile` | A `package.json` with dependencies and no npm, pnpm, Yarn, or Bun lockfile at or above it; a binary crate's or workspace's `Cargo.toml` without `Cargo.lock`; the root `Package.swift` with remote dependencies and no `Package.resolved` (only with `swiftPackages`), reported at line 1 | warning | `swiftPackages` (false) |
+| `missing-lockfile` | A `package.json` with dependencies and no npm, pnpm, Yarn, or Bun lockfile at or above it; a binary crate's or workspace's `Cargo.toml` without `Cargo.lock`; the root `Package.swift` with remote dependencies and no `Package.resolved` (only with `swiftPackages`), reported at line 1 (OWASP A03:2025) | warning | `swiftPackages` (false) |
 
 `layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
 or any later one, never an earlier one, and files matching no layer are unconstrained. For

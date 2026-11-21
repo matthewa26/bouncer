@@ -44,7 +44,7 @@ public struct ProjectRules: ProjectAnalyzer {
         MainSequenceDistanceRule(), DataClumpRule(), RepeatedSwitchRule(), SingleImplementationRule(),
         UnusedDependencyRule(), InconsistentTerminologyRule(), MissingReadmeRule(), LiskovSubstitutionRule(),
         InterfaceSegregationRule(), SingleOverrideSubclassRule(), InappropriateIntimacyRule(),
-        DependencyInversionRule(), AlternativeInterfacesRule()
+        DependencyInversionRule(), AlternativeInterfacesRule(), MissingLockfileRule()
     ]
 
     /// Fingerprints a file for `duplicate-code`.

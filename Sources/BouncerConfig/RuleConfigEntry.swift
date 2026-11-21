@@ -18,13 +18,17 @@ public struct RuleConfigEntry: Codable, Sendable, Equatable {
         self.params = params
     }
 
+    /// The severity of a rule whose entry doesn't set one, for the rules that don't default to `warning`.
+    public static let defaultSeverities: [String: Severity] = ["unpinned-ci-action": .info]
+
     /// Converts this JSON entry into the `RuleSettings` a `Rule` reads from.
     ///
+    /// - Parameter defaultSeverity: The severity to use when the entry doesn't set one.
     /// - Returns: The equivalent, fully-resolved settings.
-    public func resolved() -> RuleSettings {
+    public func resolved(defaultSeverity: Severity = .warning) -> RuleSettings {
         let values = (params ?? [:]).mapValues { $0.coreValue }
         return RuleSettings(
-            enabled: enabled ?? true, severity: severity ?? .warning, parameters: RuleParameters(values: values)
+            enabled: enabled ?? true, severity: severity ?? defaultSeverity, parameters: RuleParameters(values: values)
         )
     }
 

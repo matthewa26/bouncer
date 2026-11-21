@@ -252,10 +252,10 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 
 | ✓ | Check | Scope | Since |
 |---|---|---|---|
-| ⬜ | Unpinned dependency: `*`, `latest`, open ranges, git deps without a rev (`unpinned-dependency`: `package.json`, `Cargo.toml`, `Package.swift`) | X | planned 1.4 |
-| ⬜ | Manifest without a lockfile (`missing-lockfile`) | X | planned 1.4 |
-| ⬜ | Download piped into a shell, `curl … \| sh` (`pipe-to-shell`) | F | planned 1.4 |
-| ⬜ | GitHub Action referenced by tag instead of commit SHA (`unpinned-ci-action`, opt-in) | F | planned 1.4 |
+| ✅ | Unpinned dependency: `*`, `latest`, open ranges, git deps without a rev (`unpinned-dependency`: `package.json`, `Cargo.toml`, `Package.swift`) | X | 1.4.0 |
+| ✅ | Manifest without a lockfile (`missing-lockfile`) | X | 1.4.0 |
+| ✅ | Download piped into a shell, `curl … \| sh` (`pipe-to-shell`) | F | 1.4.0 |
+| ✅ | GitHub Action referenced by tag instead of commit SHA (`unpinned-ci-action`, opt-in) | F | 1.4.0 |
 
 ### A04 Cryptographic Failures
 

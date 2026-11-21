@@ -56,6 +56,7 @@ symbol reference: `BouncerCore` documents the engine's extensibility surface, no
 - ``TargetFileProvider``
 - ``FileContentsProvider``
 - ``RecursiveFileWalker``
+- ``HiddenCIFiles``
 - ``ExplicitFileListProvider``
 
 ### Findings and Severity

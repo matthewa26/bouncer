@@ -203,6 +203,7 @@ jobs:
       - name: Install with sh
         if: matrix.shell == 'sh'
         run: |
+          # bouncer:disable-next-line pipe-to-shell -- smoke-tests the published one-line installer
           curl -fsSL "$INSTALLER_URL" | sh
           "$HOME/.local/bin/bouncer" --version | tee version.txt
           grep -qF "${EXPECTED_VERSION#v}" version.txt
@@ -210,6 +211,7 @@ jobs:
         if: matrix.shell == 'pwsh'
         shell: pwsh
         run: |
+          # bouncer:disable-next-line pipe-to-shell -- smoke-tests the published one-line installer
           irm $env:INSTALLER_URL | iex
           $version = & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
           $version
@@ -218,6 +220,7 @@ jobs:
         if: matrix.shell == 'powershell'
         shell: powershell
         run: |
+          # bouncer:disable-next-line pipe-to-shell -- smoke-tests the published one-line installer
           irm $env:INSTALLER_URL | iex
           $version = & "$env:LOCALAPPDATA\Programs\bouncer\bouncer.exe" --version
           $version

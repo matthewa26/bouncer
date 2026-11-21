@@ -63,6 +63,20 @@ These run on every language.
 | `disabled-tls-verification` | `rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `verify=False`, `InsecureSkipVerify: true`, `curl -k` | warning | none |
 | `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example` hosts, and XML namespaces | warning | none |
 | `sql-string-building` | SQL built by concatenation or interpolation (`"SELECT … " + x`, `${x}`, `\(x)`, f-strings) | warning | none |
+| `unpinned-dependency` | A `package.json`, `Cargo.toml`, or `Package.swift` dependency without a reproducible version: `*`/`latest`/an unbounded `>=` range, a git source without a commit, a tarball URL, a Cargo `git` dependency without `rev`, or a SwiftPM `branch:` | warning | none |
+| `pipe-to-shell` | A download piped straight into a shell or interpreter (`curl … \| sh`, `bash <(curl …)`, `irm … \| iex`) in scripts, Dockerfiles, Makefiles, and YAML; not Markdown | warning | none |
+| `unpinned-ci-action` | A GitHub Actions `uses:` not pinned to a 40-character commit SHA, in `.github/workflows/*.yml` and `action.yml`; off unless configured | info | none |
+
+`unpinned-dependency` reads each manifest when it's checked: `package.json` with `JSONSerialization`
+(`dependencies`, `devDependencies`, and `optionalDependencies`; peers are left to the host), and
+`Cargo.toml` and `Package.swift` line by line. Ordinary ranges such as `^1.2.3` are fine, since the
+lockfile pins them. A Cargo `tag` is accepted, as the conventional pin for an unreleased crate whose
+commit `Cargo.lock` records; `branch` or no ref is flagged. Cargo dotted keys (`foo.git = …`) and
+multi-line inline tables aren't read. `pipe-to-shell` skips comment lines and fetches without a concrete
+source (`curl <url> | sh` in help text); silence a deliberate one with
+`# bouncer:disable-line pipe-to-shell`. `review` walks the workflows and actions inside `.github`
+for `pipe-to-shell` and `unpinned-ci-action` only, so their YAML gets no other findings; a workflow
+`check` is given directly gets every rule.
 
 `secret-looking-pattern` is a narrow check for obvious mistakes, not a secrets-scanner
 replacement; use a dedicated tool such as gitleaks or trufflehog for real secret-scanning
@@ -473,6 +487,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `unused-dependency` | A SwiftPM, `package.json`, or `go.mod` dependency no code imports | warning | `ignore` (none) |
 | `inconsistent-terminology` | A module mixing synonym verbs (`fetchX`, `getY`, `loadZ`); off unless configured | warning | `groups`, `ignoreNames` |
 | `missing-readme` | A SwiftPM target, `package.json` package, or Go module without a README; off unless configured | warning | `includeTests` (false) |
+| `missing-lockfile` | A `package.json` with dependencies and no npm, pnpm, Yarn, or Bun lockfile at or above it; a binary crate's or workspace's `Cargo.toml` without `Cargo.lock`; the root `Package.swift` with remote dependencies and no `Package.resolved` (only with `swiftPackages`), reported at line 1 | warning | `swiftPackages` (false) |
 
 `layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
 or any later one, never an earlier one, and files matching no layer are unconstrained. For

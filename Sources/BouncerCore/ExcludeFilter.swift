@@ -78,4 +78,12 @@ public struct ExcludingFileProvider: TargetFileProvider {
     public func targetFiles() throws -> [URL] {
         try base.targetFiles().filter { !filter.excludes($0) }
     }
+
+    /// Passes the base provider's rule scope through.
+    ///
+    /// - Parameter url: One of the files.
+    /// - Returns: Whatever the base provider limits the file's rules to.
+    public func ruleScope(for url: URL) -> Set<String>? {
+        base.ruleScope(for: url)
+    }
 }

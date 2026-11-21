@@ -84,7 +84,9 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
     ///
     /// - Returns: Every configured rule's resolved settings.
     public func resolvedRuleSettings() -> [String: RuleSettings] {
-        (rules ?? [:]).mapValues { $0.resolved() }
+        Dictionary(uniqueKeysWithValues: (rules ?? [:]).map { id, entry in
+            (id, entry.resolved(defaultSeverity: RuleConfigEntry.defaultSeverities[id] ?? .warning))
+        })
     }
 
     /// Merges two optional sections, keeping whichever side is present when only one is.

@@ -4,7 +4,9 @@ import Foundation
 ///
 /// Skips a small set of conventionally-noisy directories (`.git`,
 /// `node_modules`, build output) plus anything matching a configured exclude
-/// glob. This isn't a full `.gitignore` engine, just a practical default.
+/// glob. This isn't a full `.gitignore` engine, just a practical default. Hidden files and folders are
+/// skipped too, except the CI workflows and actions inside a `.github` folder, which only the rules in
+/// `HiddenCIFiles` report in.
 public struct RecursiveFileWalker: TargetFileProvider {
     private static let alwaysSkippedDirectories: Set<String> = [
         ".git", "node_modules", ".build", "dist", "build", ".venv", "__pycache__", ".git-baseline"
@@ -42,7 +44,7 @@ public struct RecursiveFileWalker: TargetFileProvider {
     /// - Returns: A directory enumerator rooted at `rootDirectory`.
     private func makeEnumerator() -> FileManager.DirectoryEnumerator? {
         FileManager.default.enumerator(
-            at: rootDirectory, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+            at: rootDirectory, includingPropertiesForKeys: [.isDirectoryKey], options: []
         )
     }
 
@@ -53,12 +55,53 @@ public struct RecursiveFileWalker: TargetFileProvider {
     ///   - enumerator: The active enumerator, used to skip a directory's contents.
     ///   - results: The accumulated matching files.
     private func visit(_ url: URL, enumerator: FileManager.DirectoryEnumerator, results: inout [URL]) {
-        if isAlwaysSkippedDirectory(url) {
-            enumerator.skipDescendants()
+        if isAlwaysSkippedDirectory(url) || isSkippedHidden(url) {
+            // Only for a folder: after a file, the enumerator would skip the next folder's contents instead.
+            if isDirectory(url) { enumerator.skipDescendants() }
             return
         }
-        guard isReadableFile(url), !excludeFilter.excludes(url) else { return }
+        guard isReadableFile(url), !excludeFilter.excludes(url), isListedIfInsideCIFolder(url) else { return }
         results.append(url)
+    }
+
+    /// Limits rules in a walked `.github` CI file to the supply-chain rules.
+    ///
+    /// - Parameter url: One of the walked files.
+    /// - Returns: `HiddenCIFiles.ruleIDs` for a file inside a `.github` folder, otherwise `nil`.
+    public func ruleScope(for url: URL) -> Set<String>? {
+        HiddenCIFiles.isInside(relativeComponents(of: url)) ? HiddenCIFiles.ruleIDs : nil
+    }
+
+    /// Checks whether a path is hidden (its name starts with a dot) and isn't a `.github` folder.
+    ///
+    /// - Parameter url: The enumerated path.
+    /// - Returns: Whether the walk leaves it out, with everything inside it.
+    private func isSkippedHidden(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        return name.hasPrefix(".") && !(name == HiddenCIFiles.folder && isDirectory(url))
+    }
+
+    /// Checks that a file inside a `.github` folder is a workflow or action; any other file passes.
+    ///
+    /// - Parameter url: The enumerated file.
+    /// - Returns: Whether the file may be listed.
+    private func isListedIfInsideCIFolder(_ url: URL) -> Bool {
+        let components = relativeComponents(of: url)
+        return !HiddenCIFiles.isInside(components) || HiddenCIFiles.isCIFile(components)
+    }
+
+    /// Splits a walked path into its components below the walk's root, matching the root with or without
+    /// its symlinks resolved, since the enumerator may report either form. Paths without a `.github`
+    /// folder anywhere return early, so the common case costs no file-system lookups.
+    ///
+    /// - Parameter url: A path under the root.
+    /// - Returns: Its components below the root, or none if it isn't under it or has no `.github` folder.
+    private func relativeComponents(of url: URL) -> [String] {
+        guard url.path.contains("/\(HiddenCIFiles.folder)/") else { return [] }
+        let file = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let base = rootDirectory.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        guard file.starts(with: base) else { return [] }
+        return Array(file.dropFirst(base.count))
     }
 
     /// Checks whether a path leads to a file, following symlinks, so links to directories (which the

@@ -18,8 +18,11 @@ public enum TextRules {
         ]
         let patterns = CustomRuleFactory.makeRules(from: UniversalPatterns.specs + profile.extraPatternRules)
         return shared + importAndSecurityRules(profile: profile) + robustnessRules(profile: profile) + typeAndStateRules
-            + patterns
+            + patterns + supplyChainRules
     }
+
+    /// The software supply-chain text rules, which check manifests, scripts, and CI files by name.
+    private static let supplyChainRules: [Rule] = [UnpinnedDependencyRule(), PipeToShellRule(), UnpinnedCIActionRule()]
 
     /// The return-type, enum-style, and shared-state text rules, which need no profile.
     private static let typeAndStateRules: [Rule] = [

@@ -117,9 +117,20 @@ public struct AnalysisEngine: Sendable {
     private func analyzeOne(_ url: URL) throws -> AnalyzedFile? {
         try AnalysisEvent.timingFile(url, emit: onEvent) { () throws -> (value: AnalyzedFile?, findings: Int) in
             guard let file = try loadTextFile(url) else { return (nil, 0) }
-            let analysis = try analyze(file)
+            let analysis = scoped(try analyze(file), to: fileProvider.ruleScope(for: url))
             return (AnalyzedFile(file: file, analysis: analysis), analysis.findings.count)
         }
+    }
+
+    /// Keeps only the findings of the rules a file is listed for, when its provider limits them.
+    ///
+    /// - Parameters:
+    ///   - analysis: The file's analysis.
+    ///   - rules: The rule IDs allowed to report in the file, or `nil` for every rule.
+    /// - Returns: The analysis with other rules' findings dropped.
+    private func scoped(_ analysis: FileAnalysis, to rules: Set<String>?) -> FileAnalysis {
+        guard let rules else { return analysis }
+        return FileAnalysis(findings: analysis.findings.filter { rules.contains($0.ruleID) }, facts: analysis.facts)
     }
 
     /// Keeps the main pass's findings that the baseline doesn't accept, noting how many it did.

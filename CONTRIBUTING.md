@@ -3,12 +3,15 @@
 Thanks for helping. Changes land through pull requests against `main`:
 
 1. Fork the repository and create a branch.
-2. Make your change, with tests for any new rule or behavior.
+2. Make your change, with tests for any new rule or behavior. If it adds or ships a feature, update its row in
+   [ROADMAP.md](ROADMAP.md), the source of truth for feature status. A shipped row is ✅ with the first release
+   that has it; an unshipped row is ⬜ with `planned <version>` or `backlog`.
 3. Check it locally:
    ```sh
    swift build
    swift test
    .build/debug/bouncer review .   # Bouncer checks itself; this must report no errors
+   sh Scripts/check-roadmap.sh     # every roadmap row says when it ships
    ```
 4. Open a pull request. CI runs on macOS, Linux, and Windows and must pass. For a first-time
    contributor, a maintainer approves the CI run before it starts.

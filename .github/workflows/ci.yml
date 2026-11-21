@@ -36,6 +36,13 @@ jobs:
           swift-build: 6.4.2-RELEASE
       - run: swift build
 
+  # ROADMAP.md is the source of truth for feature status, so every row must say when it ships.
+  roadmap:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh Scripts/check-roadmap.sh
+
   # Runs install.ps1 against fake release assets served from file:// URLs, so the installer's
   # download, checksum, extract, and install logic is tested on every change, under sh and
   # both PowerShell editions, without needing a published release.

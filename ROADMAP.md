@@ -1,6 +1,7 @@
 # Roadmap
 
-Every check below is meant to become part of Bouncer eventually. ✅ = Bouncer implements it today. ⬜ = not implemented yet.
+This file is the source of truth for what Bouncer does and since when. ✅ = shipped; ⬜ = not shipped yet.
+The **Since** column gives the earliest release with the feature. For ⬜ rows it says `planned <version>` when the work is scheduled, or `backlog` when it isn't. A change that ships a feature flips its row to ✅ with the release version in the same commit.
 The **Scope** column says what analysis a check needs:
 - **F**: one file at a time. Fits Bouncer's current rule model.
 - **X**: cross-file. Needs a repo-wide index, which Bouncer doesn't have yet.
@@ -20,271 +21,404 @@ The **Scope** column says what analysis a check needs:
 
 ### 0.1 TypeScript type safety
 
-| ✓ | Check | Scope | Notes |
-|---|---|---|---|
-| ✅ | Explicit `any` (`explicit-any`) | F | |
-| ✅ | Non-null assertion `x!` (`non-null-assertion`) | F | |
-| ✅ | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no reason (`ts-ignore-without-reason`) | F | |
-| ✅ | Double cast `as unknown as T` (`ts-double-cast`) | F | |
-| ✅ | `var` (`js-var`) | F | |
-| ⬜ | Floating promise (missing `await`/`.catch`) | T | Needs type information; see section 10 |
-| ✅ | `enum` where a union type would do (`ts-prefer-union-type`, opt-in) | F | TypeScript plain enums of string literals or implicit numbers |
-| ✅ | Unused exports (`unused-export` for TS/JS named exports; opt-in `unused-public-symbol` for Swift `public` API) | X | Swift matches by name; matching by symbol through the compiler's index store (`IndexStoreDB`) is deferred until there's demand |
+| ✓ | Check | Scope | Notes | Since |
+|---|---|---|---|---|
+| ✅ | Explicit `any` (`explicit-any`) | F | | 1.0.0 |
+| ✅ | Non-null assertion `x!` (`non-null-assertion`) | F | | 1.0.0 |
+| ✅ | `@ts-ignore`/`@ts-nocheck`/`@ts-expect-error` with no reason (`ts-ignore-without-reason`) | F | | 1.0.0 |
+| ✅ | Double cast `as unknown as T` (`ts-double-cast`) | F | | 1.0.0 |
+| ✅ | `var` (`js-var`) | F | | 1.0.0 |
+| ⬜ | Floating promise (missing `await`/`.catch`) | T | Needs type information; see section 10 | backlog |
+| ✅ | `enum` where a union type would do (`ts-prefer-union-type`, opt-in) | F | TypeScript plain enums of string literals or implicit numbers | 1.0.0 |
+| ✅ | Unused exports (`unused-export` for TS/JS named exports; opt-in `unused-public-symbol` for Swift `public` API) | X | Swift matches by name; matching by symbol through the compiler's index store (`IndexStoreDB`) is deferred until there's demand | 1.0.0 |
 
 ---
 
 ## 1. Size and length
 
-| ✓ | Check | Scope | Notes |
-|---|---|---|---|
-| ✅ | Long function (`long-function`) | F | |
-| ✅ | Long file (`file-length`) | F | |
-| ✅ | Long line (`long-lines`) | F | |
-| ✅ | Long parameter list (`long-parameter-list`) | F | Default 5, Kirby 3. Swift, TS, JS, Python, Go |
-| ✅ | Large class: line count per type (`large-type`) | F | Default 400 logical lines; `god-class` counts members |
-| ✅ | Too many methods per type (`too-many-methods`); Swift, TS, JS, Python | F | |
-| ✅ | Too many fields / stored properties per type (`too-many-fields`); Swift, TS, JS | F | |
-| ✅ | Too many types per file (`too-many-types`) | F | |
-| ✅ | Too many return statements per function (`too-many-returns`) | F | Default 4, Kirby 3. Swift, TS, JS, Python, Go |
-| ✅ | Long lambda/closure body (`long-closure`) | F | Default 20 |
-| ✅ | Long boolean expression (number of `&&`/`\|\|` operands) (`long-boolean-expression`) | F | Default 4 |
-| ✅ | Long method chain (train wreck) (`long-message-chain`) | F | |
-| ✅ | Too many local variables (`too-many-locals`) | F | Default 10 |
-| ✅ | Too many generic parameters (`too-many-generic-parameters`) | F | Default 4; Swift, TS, JS, Go |
+| ✓ | Check | Scope | Notes | Since |
+|---|---|---|---|---|
+| ✅ | Long function (`long-function`) | F | | 1.0.0 |
+| ✅ | Long file (`file-length`) | F | | 1.0.0 |
+| ✅ | Long line (`long-lines`) | F | | 1.0.0 |
+| ✅ | Long parameter list (`long-parameter-list`) | F | Default 5, Kirby 3. Swift, TS, JS, Python, Go | 1.0.0 |
+| ✅ | Large class: line count per type (`large-type`) | F | Default 400 logical lines; `god-class` counts members | 1.0.0 |
+| ✅ | Too many methods per type (`too-many-methods`); Swift, TS, JS, Python | F | | 1.0.0 |
+| ✅ | Too many fields / stored properties per type (`too-many-fields`); Swift, TS, JS | F | | 1.0.0 |
+| ✅ | Too many types per file (`too-many-types`) | F | | 1.0.0 |
+| ✅ | Too many return statements per function (`too-many-returns`) | F | Default 4, Kirby 3. Swift, TS, JS, Python, Go | 1.0.0 |
+| ✅ | Long lambda/closure body (`long-closure`) | F | Default 20 | 1.0.0 |
+| ✅ | Long boolean expression (number of `&&`/`\|\|` operands) (`long-boolean-expression`) | F | Default 4 | 1.0.0 |
+| ✅ | Long method chain (train wreck) (`long-message-chain`) | F | | 1.0.0 |
+| ✅ | Too many local variables (`too-many-locals`) | F | Default 10 | 1.0.0 |
+| ✅ | Too many generic parameters (`too-many-generic-parameters`) | F | Default 4; Swift, TS, JS, Go | 1.0.0 |
 
 ## 2. Complexity
 
-| ✓ | Check | Scope | Notes |
-|---|---|---|---|
-| ✅ | Cyclomatic complexity | F | Exact for Swift, heuristic elsewhere |
-| ✅ | Deep nesting by indentation (`deep-nesting`) | F | |
-| ✅ | Cognitive complexity, SonarSource-style (`cognitive-complexity`) | F | Default 15, Kirby 8. Swift, TS, JS, Python, Go |
-| ✅ | Nesting by control-flow depth, not indentation (`nesting-depth`) | T | Default 4, Kirby 3. Swift, TS, JS, Python, Go |
-| ✅ | NPath complexity (`npath-complexity`, opt-in) | F | Number of acyclic execution paths; default 200 |
-| ✅ | Halstead volume / difficulty / effort (`halstead-complexity`, opt-in) | F | Defaults 1000 / 30 / 30000 |
-| ✅ | Maintainability Index (`maintainability-index`) | F | Combines Halstead, cyclomatic and LOC; Visual Studio 0–100 scale, minimum 20 |
-| ✅ | Nested ternaries (`nested-ternary`) | F | Swift, TS, JS, Python |
-| ✅ | Arrow code: deep `if` pyramids; suggest guard clauses (`arrow-code`) | F | Default depth 2 |
-| ✅ | `else` after `return`/`throw` (`else-after-return`) | F | |
-| ✅ | Too many `break`/`continue` in a loop (`too-many-loop-jumps`) | F | Default 3 |
-| ✅ | Recursion without an obvious base case (`recursion-without-base-case`) | T | Direct self-calls only |
+| ✓ | Check | Scope | Notes | Since |
+|---|---|---|---|---|
+| ✅ | Cyclomatic complexity | F | Exact for Swift, heuristic elsewhere | 1.0.0 |
+| ✅ | Deep nesting by indentation (`deep-nesting`) | F | | 1.0.0 |
+| ✅ | Cognitive complexity, SonarSource-style (`cognitive-complexity`) | F | Default 15, Kirby 8. Swift, TS, JS, Python, Go | 1.0.0 |
+| ✅ | Nesting by control-flow depth, not indentation (`nesting-depth`) | T | Default 4, Kirby 3. Swift, TS, JS, Python, Go | 1.0.0 |
+| ✅ | NPath complexity (`npath-complexity`, opt-in) | F | Number of acyclic execution paths; default 200 | 1.0.0 |
+| ✅ | Halstead volume / difficulty / effort (`halstead-complexity`, opt-in) | F | Defaults 1000 / 30 / 30000 | 1.0.0 |
+| ✅ | Maintainability Index (`maintainability-index`) | F | Combines Halstead, cyclomatic and LOC; Visual Studio 0–100 scale, minimum 20 | 1.0.0 |
+| ✅ | Nested ternaries (`nested-ternary`) | F | Swift, TS, JS, Python | 1.0.0 |
+| ✅ | Arrow code: deep `if` pyramids; suggest guard clauses (`arrow-code`) | F | Default depth 2 | 1.0.0 |
+| ✅ | `else` after `return`/`throw` (`else-after-return`) | F | | 1.0.0 |
+| ✅ | Too many `break`/`continue` in a loop (`too-many-loop-jumps`) | F | Default 3 | 1.0.0 |
+| ✅ | Recursion without an obvious base case (`recursion-without-base-case`) | T | Direct self-calls only | 1.0.0 |
 
 ## 3. Classic code smells (Fowler, *Refactoring*)
 
 ### Bloaters
-| ✓ | Smell | Scope | How to detect |
-|---|---|---|---|
-| ✅ | Large class / god class | F | `god-class` (Swift, TS, JS, Python) |
-| ✅ | Long method | F | `long-function` |
-| ✅ | Long parameter list | F | `long-parameter-list` |
-| ✅ | Primitive obsession (`primitive-obsession`, opt-in) | T | ≥ 4 required string/number params, or ID/money/date/URL-named params and fields typed as plain strings or numbers; explicit annotations only |
-| ✅ | Data clumps (`data-clump`) | X | The same 3+ params or fields (name and type) in 4+ functions/types across files |
+| ✓ | Smell | Scope | How to detect | Since |
+|---|---|---|---|---|
+| ✅ | Large class / god class | F | `god-class` (Swift, TS, JS, Python) | 1.0.0 |
+| ✅ | Long method | F | `long-function` | 1.0.0 |
+| ✅ | Long parameter list | F | `long-parameter-list` | 1.0.0 |
+| ✅ | Primitive obsession (`primitive-obsession`, opt-in) | T | ≥ 4 required string/number params, or ID/money/date/URL-named params and fields typed as plain strings or numbers; explicit annotations only | 1.0.0 |
+| ✅ | Data clumps (`data-clump`) | X | The same 3+ params or fields (name and type) in 4+ functions/types across files | 1.0.0 |
 
 ### Object-orientation abusers
-| ✓ | Smell | Scope | How to detect |
-|---|---|---|---|
-| ✅ | Switch statements on a type tag | F | `switch-on-type-smell` |
-| ✅ | Repeated switches on the same discriminator (`repeated-switch`) | X | The same subject with shared cases in 3+ files |
-| ✅ | Type-checking chains (`type-check-chain`) | F | Replace with polymorphism |
-| ✅ | Temporary field (`temporary-field`) | T | A private, unset mutable field one method alone assigns first and then reads; the set-in-one, read-in-a-later-one variant isn't checked |
-| ✅ | Refused bequest (`refused-bequest`) | X/T | A subclass overrides methods to throw or no-op |
-| ✅ | Alternative classes with different interfaces (`alternative-interfaces`, opt-in) | X | 3+ methods with matching parameter and return types under different names in unrelated types; shape stands in for purpose |
+| ✓ | Smell | Scope | How to detect | Since |
+|---|---|---|---|---|
+| ✅ | Switch statements on a type tag | F | `switch-on-type-smell` | 1.0.0 |
+| ✅ | Repeated switches on the same discriminator (`repeated-switch`) | X | The same subject with shared cases in 3+ files | 1.0.0 |
+| ✅ | Type-checking chains (`type-check-chain`) | F | Replace with polymorphism | 1.0.0 |
+| ✅ | Temporary field (`temporary-field`) | T | A private, unset mutable field one method alone assigns first and then reads; the set-in-one, read-in-a-later-one variant isn't checked | 1.0.0 |
+| ✅ | Refused bequest (`refused-bequest`) | X/T | A subclass overrides methods to throw or no-op | 1.0.0 |
+| ✅ | Alternative classes with different interfaces (`alternative-interfaces`, opt-in) | X | 3+ methods with matching parameter and return types under different names in unrelated types; shape stands in for purpose | 1.0.0 |
 
 ### Change preventers
-| ✓ | Smell | Scope | How to detect |
-|---|---|---|---|
-| ✅ | Divergent change (`divergent-change`, opt-in) | X + git | A file's commits fall into 3+ reasons, approximated by co-changed modules that share no module or import |
-| ✅ | Shotgun surgery (`shotgun-surgery`, opt-in) | X + git | The file's median commit also changes 6+ hand-written files across 3+ modules |
-| ✅ | Parallel inheritance hierarchies (`parallel-inheritance`) | X | Subtypes pairing up by name stem |
+| ✓ | Smell | Scope | How to detect | Since |
+|---|---|---|---|---|
+| ✅ | Divergent change (`divergent-change`, opt-in) | X + git | A file's commits fall into 3+ reasons, approximated by co-changed modules that share no module or import | 1.0.0 |
+| ✅ | Shotgun surgery (`shotgun-surgery`, opt-in) | X + git | The file's median commit also changes 6+ hand-written files across 3+ modules | 1.0.0 |
+| ✅ | Parallel inheritance hierarchies (`parallel-inheritance`) | X | Subtypes pairing up by name stem | 1.0.0 |
 
 ### Dispensables
-| ✓ | Smell | Scope | How to detect |
-|---|---|---|---|
-| ✅ | Duplicate code within a file (exact match) | F | `duplicate-block` |
-| ✅ | Duplicate code across files | X | `duplicate-code`: token-based clone detection with winnowing |
-| ✅ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) (`duplicate-code`) | F/X | Renamed copies and copies with an inserted, deleted, or changed line; near-duplicates are reported with an estimated similarity (`maxGap`, `minSimilarity`) |
-| ✅ | Dead code: unused private functions, vars, params, imports | F/T | `unused-private-symbol`, `unused-import`, opt-in `unused-parameter`; per file, by name |
-| ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS, Python, Go |
-| ✅ | Speculative generality: protocol/interface with one implementation (opt-in `single-implementation-interface`), unused params (`unused-parameter`); hooks aren't checked | X | Matches your "no single-implementation interfaces" principle |
-| ✅ | Lazy class: a type that does almost nothing (`lazy-class`, opt-in) | F | No fields and one branch-free method |
-| ✅ | Data class: only fields, no behavior (`data-class`); classes only, not structs | F | |
-| ✅ | Commented-out code | F | `commented-out-code` |
-| ✅ | Excessive or redundant comments (restating the code) | F | Opt-in `redundant-comment`; comment density isn't checked |
-| ✅ | TODO/FIXME/HACK density | F | `todo-density` |
+| ✓ | Smell | Scope | How to detect | Since |
+|---|---|---|---|---|
+| ✅ | Duplicate code within a file (exact match) | F | `duplicate-block` | 1.0.0 |
+| ✅ | Duplicate code across files | X | `duplicate-code`: token-based clone detection with winnowing | 1.0.0 |
+| ✅ | Near-duplicates (Type-2/3 clones: renamed identifiers, small edits) (`duplicate-code`) | F/X | Renamed copies and copies with an inserted, deleted, or changed line; near-duplicates are reported with an estimated similarity (`maxGap`, `minSimilarity`) | 1.0.0 |
+| ✅ | Dead code: unused private functions, vars, params, imports | F/T | `unused-private-symbol`, `unused-import`, opt-in `unused-parameter`; per file, by name | 1.0.0 |
+| ✅ | Unreachable code after `return`/`throw`/`break` (`unreachable-code`) | F | Swift, TS, JS, Python, Go | 1.0.0 |
+| ✅ | Speculative generality: protocol/interface with one implementation (opt-in `single-implementation-interface`), unused params (`unused-parameter`); hooks aren't checked | X | Matches your "no single-implementation interfaces" principle | 1.0.0 |
+| ✅ | Lazy class: a type that does almost nothing (`lazy-class`, opt-in) | F | No fields and one branch-free method | 1.0.0 |
+| ✅ | Data class: only fields, no behavior (`data-class`); classes only, not structs | F | | 1.0.0 |
+| ✅ | Commented-out code | F | `commented-out-code` | 1.0.0 |
+| ✅ | Excessive or redundant comments (restating the code) | F | Opt-in `redundant-comment`; comment density isn't checked | 1.0.0 |
+| ✅ | TODO/FIXME/HACK density | F | `todo-density` | 1.0.0 |
 
 ### Couplers
-| ✓ | Smell | Scope | How to detect |
-|---|---|---|---|
-| ✅ | High coupling, measured by import count | F | `high-coupling` (a proxy only) |
-| ✅ | Feature envy (`feature-envy`, opt-in) | T | ≥ 5 data reads of one parameter or local, over twice the method's own member uses; objects told apart by name |
-| ✅ | Inappropriate intimacy (`inappropriate-intimacy`) | X | Two types each read 2+ of the other's stored fields or `_names`, through values whose type is written or constructed |
-| ✅ | Message chains / Law of Demeter (`long-message-chain`) | F | |
-| ✅ | Middle man: a type that mostly just delegates (`middle-man`) | F | ≥ 3 and > half of methods forward |
-| ✅ | Global mutable state (`global-mutable-state`) | F | |
+| ✓ | Smell | Scope | How to detect | Since |
+|---|---|---|---|---|
+| ✅ | High coupling, measured by import count | F | `high-coupling` (a proxy only) | 1.0.0 |
+| ✅ | Feature envy (`feature-envy`, opt-in) | T | ≥ 5 data reads of one parameter or local, over twice the method's own member uses; objects told apart by name | 1.0.0 |
+| ✅ | Inappropriate intimacy (`inappropriate-intimacy`) | X | Two types each read 2+ of the other's stored fields or `_names`, through values whose type is written or constructed | 1.0.0 |
+| ✅ | Message chains / Law of Demeter (`long-message-chain`) | F | | 1.0.0 |
+| ✅ | Middle man: a type that mostly just delegates (`middle-man`) | F | ≥ 3 and > half of methods forward | 1.0.0 |
+| ✅ | Global mutable state (`global-mutable-state`) | F | | 1.0.0 |
 
 ## 4. Object-oriented design metrics (Chidamber–Kemerer and others)
 
-| ✓ | Metric | Scope | Typical limit |
-|---|---|---|---|
-| ✅ | WMC: weighted methods per class (sum of complexity) (`weighted-methods`) | F | Default ≤ 50 |
-| ✅ | LCOM4: lack of cohesion of methods (`lack-of-cohesion`) | F | 1 is cohesive; more means the type splits into that many groups. Default ≤ 2, Kirby 1. Swift, TS, JS, Python |
-| ✅ | LCOM1–3 and LCOM-HS variants (`lack-of-cohesion`'s `variant`) | F | |
-| ✅ | TCC/LCC: tight/loose class cohesion (`class-cohesion`, opt-in) | F | Default TCC ≥ 0.33 |
-| ✅ | CBO: coupling between objects (types referenced) (`coupling-between-objects`, opt-in) | T | ≤ 10; distinct type names in annotations, heritage, constructor calls, and static access, minus built-ins |
-| ✅ | RFC: response for a class (`response-for-class`, opt-in) | T | ≤ 50; methods plus distinct callees, by name |
-| ✅ | DIT: depth of inheritance tree (`deep-inheritance`) | X | Default 4, project classes only |
-| ✅ | NOC: number of children (opt-in `many-subclasses`) | X | Default ≤ 10 |
-| ✅ | Fan-in / fan-out per module (`hub-module`, `high-fan-out`) | X | |
-| ✅ | Instability I = Ce / (Ca + Ce), via the Stable Dependencies Principle (`unstable-dependency`) | X | |
-| ✅ | Abstractness A and distance from the main sequence \|A + I − 1\| (opt-in `main-sequence-distance`) | X | Default ≤ 0.7 |
-| ✅ | ATFD (access to foreign data) for god-class detection (`god-class` with `formula: lanza-marinescu`) | T | WMC ≥ 47, ATFD ≥ 6, TCC < 1/3; ATFD counts other objects' properties and getters read, per object name |
+| ✓ | Metric | Scope | Typical limit | Since |
+|---|---|---|---|---|
+| ✅ | WMC: weighted methods per class (sum of complexity) (`weighted-methods`) | F | Default ≤ 50 | 1.0.0 |
+| ✅ | LCOM4: lack of cohesion of methods (`lack-of-cohesion`) | F | 1 is cohesive; more means the type splits into that many groups. Default ≤ 2, Kirby 1. Swift, TS, JS, Python | 1.0.0 |
+| ✅ | LCOM1–3 and LCOM-HS variants (`lack-of-cohesion`'s `variant`) | F | | 1.0.0 |
+| ✅ | TCC/LCC: tight/loose class cohesion (`class-cohesion`, opt-in) | F | Default TCC ≥ 0.33 | 1.0.0 |
+| ✅ | CBO: coupling between objects (types referenced) (`coupling-between-objects`, opt-in) | T | ≤ 10; distinct type names in annotations, heritage, constructor calls, and static access, minus built-ins | 1.0.0 |
+| ✅ | RFC: response for a class (`response-for-class`, opt-in) | T | ≤ 50; methods plus distinct callees, by name | 1.0.0 |
+| ✅ | DIT: depth of inheritance tree (`deep-inheritance`) | X | Default 4, project classes only | 1.0.0 |
+| ✅ | NOC: number of children (opt-in `many-subclasses`) | X | Default ≤ 10 | 1.0.0 |
+| ✅ | Fan-in / fan-out per module (`hub-module`, `high-fan-out`) | X | | 1.0.0 |
+| ✅ | Instability I = Ce / (Ca + Ce), via the Stable Dependencies Principle (`unstable-dependency`) | X | | 1.0.0 |
+| ✅ | Abstractness A and distance from the main sequence \|A + I − 1\| (opt-in `main-sequence-distance`) | X | Default ≤ 0.7 | 1.0.0 |
+| ✅ | ATFD (access to foreign data) for god-class detection (`god-class` with `formula: lanza-marinescu`) | T | WMC ≥ 47, ATFD ≥ 6, TCC < 1/3; ATFD counts other objects' properties and getters read, per object name | 1.0.0 |
 
 ## 5. SOLID and design principles
 
-| ✓ | Principle | Detectable proxy | Scope |
-|---|---|---|---|
-| ✅ | Single Responsibility | LCOM4 > 1 (`lack-of-cohesion`), god class, many unrelated imports | F |
-| ✅ | Open/Closed | Type-switches and `is`/`instanceof` chains (`switch-on-type-smell`); the same switch repeated across files (`repeated-switch`) | F |
-| ✅ | Liskov Substitution | Requirements implemented only to throw or trap; overrides opening with an argument check the parent lacks (`liskov-substitution`; inherited refusals are `refused-bequest`'s) | X/T |
-| ✅ | Interface Segregation | A 5+ requirement protocol, interface, or abstract class a conformer stubs 3+ and half of (`interface-segregation`) | X |
-| ✅ | Dependency Inversion | A type keeps an instance it built of a class implementing a project abstraction, or of a `…Service`/`…Client`/`…Repository`, that no initializer takes (`dependency-inversion`, opt-in) | T |
-| ✅ | DRY | Clone detection: `duplicate-block` within a file, `duplicate-code` across files (exact, renamed, and near-duplicates) | X |
-| ✅ | YAGNI | Unused params (`unused-parameter`), single-implementation abstractions (`single-implementation-interface`), dead code (`unused-private-symbol`, `unused-export`); unused config keys aren't checked | X |
-| ✅ | Law of Demeter | Message chains reaching past the first object (`law-of-demeter`, opt-in) | F |
-| ✅ | Composition over inheritance | Deep DIT (`deep-inheritance`); a fieldless subclass overriding exactly one method (`single-override-subclass`, opt-in) | X |
-| ✅ | Tell, don't ask | An `if` that reads another object's state and sets that same state in its body (`tell-dont-ask`, opt-in) | T |
-| ✅ | Command–query separation | A method that changes its own fields and returns a computed value, minus fluent, status-returning, `mutating`, override, caching, and `pop`/`next`-style methods (`command-query-separation`, opt-in) | T |
+| ✓ | Principle | Detectable proxy | Scope | Since |
+|---|---|---|---|---|
+| ✅ | Single Responsibility | LCOM4 > 1 (`lack-of-cohesion`), god class, many unrelated imports | F | 1.0.0 |
+| ✅ | Open/Closed | Type-switches and `is`/`instanceof` chains (`switch-on-type-smell`); the same switch repeated across files (`repeated-switch`) | F | 1.0.0 |
+| ✅ | Liskov Substitution | Requirements implemented only to throw or trap; overrides opening with an argument check the parent lacks (`liskov-substitution`; inherited refusals are `refused-bequest`'s) | X/T | 1.0.0 |
+| ✅ | Interface Segregation | A 5+ requirement protocol, interface, or abstract class a conformer stubs 3+ and half of (`interface-segregation`) | X | 1.0.0 |
+| ✅ | Dependency Inversion | A type keeps an instance it built of a class implementing a project abstraction, or of a `…Service`/`…Client`/`…Repository`, that no initializer takes (`dependency-inversion`, opt-in) | T | 1.0.0 |
+| ✅ | DRY | Clone detection: `duplicate-block` within a file, `duplicate-code` across files (exact, renamed, and near-duplicates) | X | 1.0.0 |
+| ✅ | YAGNI | Unused params (`unused-parameter`), single-implementation abstractions (`single-implementation-interface`), dead code (`unused-private-symbol`, `unused-export`); unused config keys aren't checked | X | 1.0.0 |
+| ✅ | Law of Demeter | Message chains reaching past the first object (`law-of-demeter`, opt-in) | F | 1.0.0 |
+| ✅ | Composition over inheritance | Deep DIT (`deep-inheritance`); a fieldless subclass overriding exactly one method (`single-override-subclass`, opt-in) | X | 1.0.0 |
+| ✅ | Tell, don't ask | An `if` that reads another object's state and sets that same state in its body (`tell-dont-ask`, opt-in) | T | 1.0.0 |
+| ✅ | Command–query separation | A method that changes its own fields and returns a computed value, minus fluent, status-returning, `mutating`, override, caching, and `pop`/`next`-style methods (`command-query-separation`, opt-in) | T | 1.0.0 |
 
 ## 6. Architecture and dependencies
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Cyclic dependencies between files, modules, and targets (`import-cycle`) | X |
-| ✅ | Layering rules declared as ordered path globs (`layer-violation`) | X |
-| ✅ | Forbidden imports per path (custom allow/deny list) (`forbidden-import`) | F |
-| ✅ | Hub modules (`hub-module`) | X |
-| ✅ | Unused dependencies in the package manifest (`unused-dependency`: SwiftPM, package.json, go.mod; not Python) | X |
-| ✅ | Public API surface growth (new public symbols in a diff) (opt-in `public-api-growth`, in `check`) | X + git |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Cyclic dependencies between files, modules, and targets (`import-cycle`) | X | 1.0.0 |
+| ✅ | Layering rules declared as ordered path globs (`layer-violation`) | X | 1.0.0 |
+| ✅ | Forbidden imports per path (custom allow/deny list) (`forbidden-import`) | F | 1.0.0 |
+| ✅ | Hub modules (`hub-module`) | X | 1.0.0 |
+| ✅ | Unused dependencies in the package manifest (`unused-dependency`: SwiftPM, package.json, go.mod; not Python) | X | 1.0.0 |
+| ✅ | Public API surface growth (new public symbols in a diff) (opt-in `public-api-growth`, in `check`) | X + git | 1.0.0 |
 
 ## 7. Naming and readability
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Naming convention (case style per language) | F |
-| ✅ | Identifier too short, except loop indices and conventional names (`short-identifier`); Swift, TS, JS | F |
-| ✅ | Identifier too long (`long-identifier`) | F |
-| ✅ | Boolean names without `is`/`has`/`should` (`boolean-name-prefix`, opt-in) | F |
-| ✅ | Negated boolean names (`negated-boolean-name`); Swift, TS, JS | F |
-| ✅ | Hungarian notation (`hungarian-notation`); Swift, TS, JS | F |
-| ✅ | Type-in-name suffixes (`userList`, `nameString`) (`type-in-name`) | F |
-| ✅ | Abbreviations not in an allowlist (`abbreviation`, opt-in) | F |
-| ✅ | Magic numbers (`magic-number`); Swift, TS, JS, Python, Go | F |
-| ✅ | Magic strings: literals repeated in a file (`duplicated-string-literal`); Swift, TS, JS | F |
-| ✅ | Boolean parameters (flag arguments) (`boolean-parameter`); Swift, TS, JS, Python, Go. Initializers are exempt | F |
-| ✅ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) (opt-in `inconsistent-terminology`) | X |
-| ✅ | Inconsistent file name vs. primary type name (`file-name-mismatch`; Swift, TS, JS) | F |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Naming convention (case style per language) | F | 1.0.0 |
+| ✅ | Identifier too short, except loop indices and conventional names (`short-identifier`); Swift, TS, JS | F | 1.0.0 |
+| ✅ | Identifier too long (`long-identifier`) | F | 1.0.0 |
+| ✅ | Boolean names without `is`/`has`/`should` (`boolean-name-prefix`, opt-in) | F | 1.0.0 |
+| ✅ | Negated boolean names (`negated-boolean-name`); Swift, TS, JS | F | 1.0.0 |
+| ✅ | Hungarian notation (`hungarian-notation`); Swift, TS, JS | F | 1.0.0 |
+| ✅ | Type-in-name suffixes (`userList`, `nameString`) (`type-in-name`) | F | 1.0.0 |
+| ✅ | Abbreviations not in an allowlist (`abbreviation`, opt-in) | F | 1.0.0 |
+| ✅ | Magic numbers (`magic-number`); Swift, TS, JS, Python, Go | F | 1.0.0 |
+| ✅ | Magic strings: literals repeated in a file (`duplicated-string-literal`); Swift, TS, JS | F | 1.0.0 |
+| ✅ | Boolean parameters (flag arguments) (`boolean-parameter`); Swift, TS, JS, Python, Go. Initializers are exempt | F | 1.0.0 |
+| ✅ | Inconsistent terminology (`fetch`/`get`/`load` mixed in one module) (opt-in `inconsistent-terminology`) | X | 1.0.0 |
+| ✅ | Inconsistent file name vs. primary type name (`file-name-mismatch`; Swift, TS, JS) | F | 1.0.0 |
 
 ## 8. Documentation
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Missing doc comment, by visibility scope | F |
-| ✅ | Doc doesn't list every parameter, return value, or throw (`incomplete-documentation`) | F |
-| ✅ | Stale doc: parameter names don't match the signature (`stale-documentation`) | F |
-| ✅ | Missing file/module header (`missing-file-header`, opt-in) | F |
-| ✅ | Missing README per package or target (opt-in `missing-readme`) | X |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Missing doc comment, by visibility scope | F | 1.0.0 |
+| ✅ | Doc doesn't list every parameter, return value, or throw (`incomplete-documentation`) | F | 1.0.0 |
+| ✅ | Stale doc: parameter names don't match the signature (`stale-documentation`) | F | 1.0.0 |
+| ✅ | Missing file/module header (`missing-file-header`, opt-in) | F | 1.0.0 |
+| ✅ | Missing README per package or target (opt-in `missing-readme`) | X | 1.0.0 |
 
 ## 9. Error handling and robustness
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Python bare `except:` | F |
-| ✅ | Java broad `catch (Exception)` | F |
-| ✅ | Go `panic()` and discarded returns | F |
-| ✅ | Empty catch block (`empty-catch`); Swift, TS, JS, Python (an `except` that only `pass`es) | F |
-| ✅ | Empty catch block in the remaining languages (`empty-catch`, text-based: Java, C++, PowerShell, C#/Kotlin/PHP/Dart) | F |
-| ✅ | Swift `try!`, force-unwrap `!`, `as!`, implicitly unwrapped optionals (`force-try`, `force-unwrap`, `force-cast`, `implicitly-unwrapped-optional`) | F |
-| ✅ | Swift `fatalError` (`swift-fatal-error`) | F |
-| ✅ | Swift `precondition` (`swift-precondition`, opt-in), and limiting either to library (non-app) code (`libraryOnly`) | F |
-| ✅ | Swift `try?` that silently discards errors (`swift-discarded-try`) | F |
-| ✅ | Go `if err != nil { return err }` with no wrapping context (`go-unwrapped-error`, opt-in) | F |
-| ✅ | Returning `null`/`nil` where an empty collection would do (`null-collection-return`, opt-in; Swift, TS, Python, Java) | T |
-| ✅ | Error message without context (`generic-error-message`) | F |
-| ✅ | Resource leaks: file or handle opened with no `defer`/`with`/`using` (`resource-leak`) | F/T |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Python bare `except:` | F | 1.0.0 |
+| ✅ | Java broad `catch (Exception)` | F | 1.0.0 |
+| ✅ | Go `panic()` and discarded returns | F | 1.0.0 |
+| ✅ | Empty catch block (`empty-catch`); Swift, TS, JS, Python (an `except` that only `pass`es) | F | 1.0.0 |
+| ✅ | Empty catch block in the remaining languages (`empty-catch`, text-based: Java, C++, PowerShell, C#/Kotlin/PHP/Dart) | F | 1.0.0 |
+| ✅ | Swift `try!`, force-unwrap `!`, `as!`, implicitly unwrapped optionals (`force-try`, `force-unwrap`, `force-cast`, `implicitly-unwrapped-optional`) | F | 1.0.0 |
+| ✅ | Swift `fatalError` (`swift-fatal-error`) | F | 1.0.0 |
+| ✅ | Swift `precondition` (`swift-precondition`, opt-in), and limiting either to library (non-app) code (`libraryOnly`) | F | 1.0.0 |
+| ✅ | Swift `try?` that silently discards errors (`swift-discarded-try`) | F | 1.0.0 |
+| ✅ | Go `if err != nil { return err }` with no wrapping context (`go-unwrapped-error`, opt-in) | F | 1.0.0 |
+| ✅ | Returning `null`/`nil` where an empty collection would do (`null-collection-return`, opt-in; Swift, TS, Python, Java) | T | 1.0.0 |
+| ✅ | Error message without context (`generic-error-message`) | F | 1.0.0 |
+| ✅ | Resource leaks: file or handle opened with no `defer`/`with`/`using` (`resource-leak`) | F/T | 1.0.0 |
 
 ## 10. Concurrency
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` (`swift-unchecked-sendable`) | F |
-| ✅ | `DispatchQueue.main.sync` and `semaphore.wait()` (`swift-main-sync`, `swift-semaphore-wait`) | F |
-| ✅ | Mutable shared state without a lock or actor (`shared-mutable-state`; Swift and Go by default, TS/JS and Python via `languages`) | T |
-| ✅ | Fire-and-forget `Task {}` with no cancellation handling (`fire-and-forget-task`, opt-in) | F |
-| ✅ | Go goroutine without context or a `WaitGroup` (`go-unmanaged-goroutine`) | F |
-| ⬜ | JS floating promise (missing `await`/`.catch`) | T |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Swift `@unchecked Sendable` and `nonisolated(unsafe)` (`swift-unchecked-sendable`) | F | 1.0.0 |
+| ✅ | `DispatchQueue.main.sync` and `semaphore.wait()` (`swift-main-sync`, `swift-semaphore-wait`) | F | 1.0.0 |
+| ✅ | Mutable shared state without a lock or actor (`shared-mutable-state`; Swift and Go by default, TS/JS and Python via `languages`) | T | 1.0.0 |
+| ✅ | Fire-and-forget `Task {}` with no cancellation handling (`fire-and-forget-task`, opt-in) | F | 1.0.0 |
+| ✅ | Go goroutine without context or a `WaitGroup` (`go-unmanaged-goroutine`) | F | 1.0.0 |
+| ⬜ | JS floating promise (missing `await`/`.catch`) | T | backlog |
 
-## 11. Security
+## 11. Security (OWASP Top 10:2025)
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Secret-looking strings | F |
-| ✅ | Shell `eval`; PowerShell `iex`; plaintext password conversion | F |
-| ✅ | C `gets`, `strcpy`/`strcat`/`sprintf` | F |
-| ✅ | SQL `UPDATE`/`DELETE` without `WHERE` | F |
-| ✅ | SQL built by string concatenation or interpolation (`sql-string-building`); every language | F |
-| ✅ | Shell command built from variables (`python-shell-injection`, `js-shell-injection`, `go-shell-injection`) | F |
-| ✅ | Swift `Process` launched through a shell with interpolated input (`swift-shell-injection`; literal interpolation only) | T |
-| ✅ | Weak crypto: MD5, SHA-1, DES, ECB (`weak-crypto`); every language | F |
-| ✅ | `Math.random` used for tokens or IDs (`insecure-random`; also Python `random`, Go `math/rand`) | T |
-| ✅ | `http://` in non-local code (`insecure-http-url`); every language | F |
-| ✅ | Hardcoded IP addresses (`hardcoded-ip`; IPv4 in strings) | F |
-| ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F |
-| ✅ | Path traversal: user input joined into a file path (`path-traversal`; same line or a 10-line assignment window) | T |
-| ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F |
-| ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F |
-| ✅ | Python `eval`/`exec` (`python-eval-exec`) | F |
-| ✅ | Logging of secrets or PII (`logged-secret`) | T |
+Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule appears under the one category it is mapped to in reports. Static, mostly per-file checks can't prove an application secure: categories that are about runtime behavior or design are only partly detectable, and the table says so instead of shipping a rule that only looks like coverage.
+
+### A01 Broken Access Control (partial: static checks see only data flow into URLs and redirects)
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Path traversal: user input joined into a file path (`path-traversal`; same line or a 10-line assignment window) | T | 1.0.0 |
+| ⬜ | Server-side request forgery: user input in a fetched URL (`ssrf`) | T | planned 1.4 |
+| ⬜ | Open redirect: user input in a redirect target (`open-redirect`) | T | planned 1.4 |
+| ⬜ | CORS allowing any origin with credentials (`cors-credentials-any-origin`) | F | planned 1.4 |
+
+### A02 Security Misconfiguration
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | `http://` in non-local code (`insecure-http-url`); every language | F | 1.0.0 |
+| ✅ | Hardcoded IP addresses (`hardcoded-ip`; IPv4 in strings) | F | 1.0.0 |
+| ⬜ | Debug mode enabled in app config (`debug-mode-enabled`: Flask, Django, Express) | F | planned 1.4 |
+| ⬜ | CORS allowing any origin (`permissive-cors`) | F | planned 1.4 |
+| ⬜ | Cookies set without `Secure`/`HttpOnly`/`SameSite` (`insecure-cookie`) | F | planned 1.4 |
+| ⬜ | XML parser with external entities enabled (`xml-external-entities`) | F | planned 1.4 |
+
+### A03 Software Supply Chain Failures
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ⬜ | Unpinned dependency: `*`, `latest`, open ranges, git deps without a rev (`unpinned-dependency`: `package.json`, `Cargo.toml`, `Package.swift`) | X | planned 1.4 |
+| ⬜ | Manifest without a lockfile (`missing-lockfile`) | X | planned 1.4 |
+| ⬜ | Download piped into a shell, `curl … \| sh` (`pipe-to-shell`) | F | planned 1.4 |
+| ⬜ | GitHub Action referenced by tag instead of commit SHA (`unpinned-ci-action`, opt-in) | F | planned 1.4 |
+
+### A04 Cryptographic Failures
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Secret-looking strings | F | 1.0.0 |
+| ✅ | Weak crypto: MD5, SHA-1, DES, ECB (`weak-crypto`); every language | F | 1.0.0 |
+| ✅ | `Math.random` used for tokens or IDs (`insecure-random`; also Python `random`, Go `math/rand`) | T | 1.0.0 |
+| ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F | 1.0.0 |
+| ⬜ | Hardcoded IV, nonce or salt (`hardcoded-iv`) | F | planned 1.4 |
+| ⬜ | RSA keys under 2048 bits, EC curves under 256 bits (`short-crypto-key`) | F | planned 1.4 |
+
+### A05 Injection
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Shell `eval`; PowerShell `iex`; plaintext password conversion | F | 1.0.0 |
+| ✅ | C `gets`, `strcpy`/`strcat`/`sprintf` | F | 1.0.0 |
+| ✅ | SQL `UPDATE`/`DELETE` without `WHERE` | F | 1.0.0 |
+| ✅ | SQL built by string concatenation or interpolation (`sql-string-building`); every language | F | 1.0.0 |
+| ✅ | Shell command built from variables (`python-shell-injection`, `js-shell-injection`, `go-shell-injection`) | F | 1.0.0 |
+| ✅ | Swift `Process` launched through a shell with interpolated input (`swift-shell-injection`; literal interpolation only) | T | 1.0.0 |
+| ✅ | JS `eval`/`new Function` (`js-eval`) and `innerHTML`/`dangerouslySetInnerHTML` (`js-raw-html`) | F | 1.0.0 |
+| ✅ | Python `eval`/`exec` (`python-eval-exec`) | F | 1.0.0 |
+| ⬜ | Rust shell command built from formatted input (`rust-shell-injection`) | F | planned 1.4 |
+| ⬜ | Objective-C `NSTask`/`system` with formatted input (`objc-shell-injection`) | F | planned 1.4 |
+| ⬜ | Template injection: user input rendered as a template (`template-injection`) | T | planned 1.4 |
+| ⬜ | NoSQL injection: `$where` or query objects built from input (`nosql-injection`) | F | planned 1.4 |
+
+### A06 Insecure Design (not statically checkable)
+
+Insecure design is about missing threat modeling and controls, which no syntax pattern reveals. Bouncer doesn't claim coverage here.
+
+### A07 Authentication Failures (partial)
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ⬜ | JWT with `alg: none` or signature verification disabled (`jwt-verification-disabled`) | F | planned 1.4 |
+| ⬜ | Secret or token compared with `==` instead of a constant-time comparison (`timing-unsafe-comparison`) | F | planned 1.4 |
+
+### A08 Software or Data Integrity Failures
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F | 1.0.0 |
+| ⬜ | Unsafe deserialization in every language (`unsafe-deserialization`: Java `ObjectInputStream`, YAML `load`, `NSKeyedUnarchiver` without secure coding) | F | planned 1.4 |
+
+### A09 Security Logging & Alerting Failures
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Logging of secrets or PII (`logged-secret`) | T | 1.0.0 |
+| ⬜ | Security failure caught and swallowed without logging (`unlogged-security-failure`; a proxy on auth and security paths) | T | planned 1.4 |
+
+### A10 Mishandling of Exceptional Conditions
+
+The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swallowed errors) are mapped to A10 in reports.
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ⬜ | Fail-open: a catch block that returns success or grants access (`fail-open`) | T | planned 1.4 |
+| ⬜ | Rust `unwrap()`/`expect()` outside tests (`rust-unwrap`) | F | planned 1.4 |
+
+### Reporting
+
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ⬜ | OWASP category on every security finding (JSON `owasp` field, HTML filter, rule catalog) | F | planned 1.4 |
+| ⬜ | Bundled `owasp` profile: every security rule as an error | F | planned 1.4 |
 
 ## 12. Testing
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Line coverage threshold | X (report) |
-| ⬜ | Branch coverage threshold | X (report) |
-| ⬜ | Coverage on changed lines only (diff coverage) | X + git |
-| ✅ | Source file with no matching test file (`missing-test-file`, opt-in) | X |
-| ✅ | Test with no assertions (`test-without-assertions`) | F |
-| ✅ | Disabled, skipped, or focused tests (`skipped-test`); TS/JS, Swift, Python, Go, Java | F |
-| ✅ | Sleeps or real network or clock calls in tests (`test-sleep`, `test-network-call`; opt-in `test-real-clock`) | F |
-| ✅ | Test function too long or with too many assertions (`oversized-test`) | F |
-| ⬜ | Mutation score (would need an external tool) | X |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Line coverage threshold | X (report) | 1.0.0 |
+| ⬜ | Branch coverage threshold | X (report) | backlog |
+| ⬜ | Coverage on changed lines only (diff coverage) | X + git | backlog |
+| ✅ | Source file with no matching test file (`missing-test-file`, opt-in) | X | 1.0.0 |
+| ✅ | Test with no assertions (`test-without-assertions`) | F | 1.0.0 |
+| ✅ | Disabled, skipped, or focused tests (`skipped-test`); TS/JS, Swift, Python, Go, Java | F | 1.0.0 |
+| ✅ | Sleeps or real network or clock calls in tests (`test-sleep`, `test-network-call`; opt-in `test-real-clock`) | F | 1.0.0 |
+| ✅ | Test function too long or with too many assertions (`oversized-test`) | F | 1.0.0 |
+| ⬜ | Mutation score (would need an external tool) | X | backlog |
 
 ## 13. Formatting and hygiene
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Trailing whitespace | F |
-| ✅ | Missing newline at end of file (`missing-final-newline`) | F |
-| ✅ | Mixed tabs and spaces (`mixed-indentation`) | F |
-| ✅ | Inconsistent indent width (`inconsistent-indent`) | F |
-| ✅ | CRLF line endings (`crlf-line-endings`) | F |
-| ✅ | Multiple consecutive blank lines (`consecutive-blank-lines`) | F |
-| ✅ | Unsorted or duplicate imports (`duplicate-import`; opt-in `unsorted-imports`, not Go) | F |
-| ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F |
-| ✅ | Shell `set -x` left on (`shell-debug-trace`) | F |
-| ✅ | Debug leftovers in C, C++, and PowerShell (`c-debug-print`, `cpp-debug-print`, `powershell-debug-leftover`; explicit debug markers only) | F |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Trailing whitespace | F | 1.0.0 |
+| ✅ | Missing newline at end of file (`missing-final-newline`) | F | 1.0.0 |
+| ✅ | Mixed tabs and spaces (`mixed-indentation`) | F | 1.0.0 |
+| ✅ | Inconsistent indent width (`inconsistent-indent`) | F | 1.0.0 |
+| ✅ | CRLF line endings (`crlf-line-endings`) | F | 1.0.0 |
+| ✅ | Multiple consecutive blank lines (`consecutive-blank-lines`) | F | 1.0.0 |
+| ✅ | Unsorted or duplicate imports (`duplicate-import`; opt-in `unsorted-imports`, not Go) | F | 1.0.0 |
+| ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F | 1.0.0 |
+| ✅ | Shell `set -x` left on (`shell-debug-trace`) | F | 1.0.0 |
+| ✅ | Debug leftovers in C, C++, and PowerShell (`c-debug-print`, `cpp-debug-print`, `powershell-debug-leftover`; explicit debug markers only) | F | 1.0.0 |
 
 ## 14. Process and churn (git-aware)
 
-| ✓ | Check | Scope |
-|---|---|---|
-| ✅ | Hotspots: high churn × high complexity (`hotspot`) | X + git |
-| ✅ | Bus factor / single-author files (`single-author-file`, opt-in) | X + git |
-| ✅ | Change coupling: files that always change together (`change-coupling`) | X + git |
-| ✅ | Oversized commits or diffs (`oversized-change`, staged diff) | git |
-| ✅ | Complexity or size increased vs. the base branch (`complexity-ratchet`) | X + git |
+| ✓ | Check | Scope | Since |
+|---|---|---|---|
+| ✅ | Hotspots: high churn × high complexity (`hotspot`) | X + git | 1.0.0 |
+| ✅ | Bus factor / single-author files (`single-author-file`, opt-in) | X + git | 1.0.0 |
+| ✅ | Change coupling: files that always change together (`change-coupling`) | X + git | 1.0.0 |
+| ✅ | Oversized commits or diffs (`oversized-change`, staged diff) | git | 1.0.0 |
+| ✅ | Complexity or size increased vs. the base branch (`complexity-ratchet`) | X + git | 1.0.0 |
 
 ---
+
+## 15. Tooling and user experience
+
+| ✓ | Feature | Notes | Since |
+|---|---|---|---|
+| ✅ | Console and JSON reports (`--format console\|json`) | | 1.0.0 |
+| ✅ | Markdown table and HTML reports (`--format table\|html`), `--output` to write any report to a file | | 1.1.0 |
+| ✅ | WSL: Windows path and URL printed for a written report | | 1.1.0 |
+| ✅ | License and notice files skipped when picking files to check | | 1.1.0 |
+| ✅ | Bundled `kirby` profile (`--profile kirby`) | | 1.0.0 |
+| ✅ | Baseline (`bouncer baseline update\|clear`) | | 1.0.0 |
+| ✅ | `bouncer configure` with `--set`, `--husky`, `--trust` | | 1.0.0 |
+| ⬜ | Live progress screen on a terminal: bar, current phase and file, elapsed time (`--progress live`) | stderr only | planned 1.2 |
+| ⬜ | Non-interactive progress: one line per phase (`--progress plain`); `auto` picks live, plain, or off for agents | | planned 1.2 |
+| ⬜ | Verbose logs of everything a run does (`--verbose`/`-v`) | config layers, files, analyzers, timings, cache, hooks | planned 1.2 |
+| ⬜ | Concise end-of-run summary: totals by severity, top rules, top files, elapsed time | | planned 1.2 |
+| ⬜ | WSL: the `Open:` link is the Windows URL, so clicking it opens in a Windows browser | | planned 1.2 |
+| ⬜ | HTML report loads lazily, 100 rows at a time, with a compact row encoding | built for millions of findings | planned 1.2 |
+| ⬜ | HTML report: visible column sort state, keyboard-operable headers | | planned 1.2 |
+| ⬜ | HTML report: rule panel to hide noisy rules, with counts and "Copy as `.bouncer`" | | planned 1.2 |
+| ⬜ | Interactive setup (`bouncer configure`): starting point, output, coverage, contested thresholds, where to save | | planned 1.2 |
+| ⬜ | `"profile"` key in `.bouncer` selects a profile | documented before, but ignored | planned 1.2 |
+| ⬜ | User profiles: repo `.bouncer-profiles/` (shareable) and global `~/.bouncer-profiles/` | | planned 1.2 |
+| ⬜ | `bouncer profile list\|show\|create\|set-default\|delete` | | planned 1.2 |
+| ⬜ | Landing page at the site root, with the bouncer mascot | | planned 1.2 |
+
+## 16. Integrations
+
+| ✓ | Feature | Notes | Since |
+|---|---|---|---|
+| ✅ | Husky pre-commit hook (`bouncer configure --husky`) | | 1.0.0 |
+| ✅ | Agent self-check (`bouncer check --files`/`--stdin`) | | 1.0.0 |
+| ✅ | Xcode coverage from `.xcresult` (`xcrun xccov`) | macOS | 1.0.0 |
+| ⬜ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | planned 1.3 |
+| ⬜ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | planned 1.3 |
+| ⬜ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | planned 1.3 |
+| ⬜ | Token-efficient agent output (`--format agent`, `--limit`, `--rule`, `--group-by`, `--changed-since`) | design workshop first | planned 1.5 |
+| ⬜ | MCP server (`bouncer mcp`): summary-first tools, paged drill-down, next fix batch, verify | design workshop first | planned 1.5 |
+| ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.5 |
+| ⬜ | Symbol-level Swift analysis from the compiler's index store | deferred until there's demand | backlog |
+
+## 17. Languages
+
+| ✓ | Language | Analysis | Since |
+|---|---|---|---|
+| ✅ | Swift | SwiftSyntax | 1.0.0 |
+| ✅ | TypeScript (including TSX) | tree-sitter | 1.0.0 |
+| ✅ | JavaScript (including JSX) | tree-sitter | 1.0.0 |
+| ✅ | Python | tree-sitter | 1.0.0 |
+| ✅ | Go | tree-sitter | 1.0.0 |
+| ✅ | zsh, bash, PowerShell, C, C++, Java, SQL, and any other file | heuristic | 1.0.0 |
+| ⬜ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | planned 1.3 |
+| ⬜ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | planned 1.4 |
 
 ## Notes on the current implementation
 

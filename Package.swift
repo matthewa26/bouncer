@@ -119,7 +119,10 @@ let package = Package(
         .testTarget(name: "BouncerReportingTests", dependencies: ["BouncerReporting"]),
         .testTarget(name: "BouncerGitTests", dependencies: ["BouncerGit"]),
         .testTarget(name: "BouncerHooksTests", dependencies: ["BouncerHooks"]),
-        .testTarget(name: "BouncerProjectTests", dependencies: ["BouncerProject"]),
+        .testTarget(
+            name: "BouncerProjectTests",
+            dependencies: ["BouncerProject", "BouncerSwiftAnalyzer", "BouncerHeuristicAnalyzer", "BouncerConfig"]
+        ),
         .testTarget(name: "BouncerUpdateCheckTests", dependencies: ["BouncerUpdateCheck"]),
         .testTarget(name: "BouncerXcodeTests", dependencies: ["BouncerXcode"])
     ]

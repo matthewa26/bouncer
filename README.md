@@ -45,6 +45,7 @@ bouncer review . --group-by rule       # group agent or console output by rule i
 bouncer review . --progress plain      # one progress line per phase (auto: a live bar on a terminal)
 bouncer review . --verbose             # log everything the run does to stderr
 bouncer review . --changed-since main  # only files changed since a git ref, plus untracked files
+bouncer review . --full                # analyze every file, not just those changed since the saved run
 bouncer configure                      # guided setup: thresholds, coverage, where to save
 bouncer profile create strict          # save a named profile, then pick it with --profile strict
 bouncer profile set-default strict     # use a profile by default in this repo
@@ -91,7 +92,7 @@ Settings live in a JSON `.bouncer` file: `~/.bouncer` for global defaults, `<rep
 }
 ```
 
-Every built-in rule can be enabled, disabled, re-severitied, and parameterized this way. Project rules, which look across files (such as `import-cycle`), cache each file's imports in `.bouncer-cache/` at the repo root; add it to your `.gitignore`. `--profile kirby` applies a strict, opinionated preset as the base layer beneath your own config (see below).
+Every built-in rule can be enabled, disabled, re-severitied, and parameterized this way. Project rules, which look across files (such as `import-cycle`), cache each file's imports in `.bouncer-cache/` at the repo root; add it to your `.gitignore`. `review` also saves its result there (`last-run.json`), so the next `review` analyzes only the files that changed since; `--full` forces a fresh run, and `"output": { "saveRun": false }` or `--no-save-run` turns saving off. `--profile kirby` applies a strict, opinionated preset as the base layer beneath your own config (see below).
 
 Profiles are named presets in the same format. Keep your own in `~/.bouncer-profiles/<name>.json`, or share one with your team by committing it to `<repo>/.bouncer-profiles/<name>.json`. Select one with `--profile <name>` or `"profile": "<name>"` in `.bouncer`; `bouncer profile list` shows what's available and which is the default. Profiles can't declare hooks, which belong in `.bouncer` behind the trust prompt.
 

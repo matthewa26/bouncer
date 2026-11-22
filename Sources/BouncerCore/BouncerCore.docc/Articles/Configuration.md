@@ -55,6 +55,11 @@ Controls console rendering. `verbosity` is one of `verbose`, `normal`, `quiet`, 
 (the summary line alone), and `--format json` and `--format html` always hold the complete
 findings regardless of this setting, since machine consumers want completeness.
 
+`saveRun` (default `true`) makes `review` save its result to `.bouncer-cache/last-run.json` at the
+repo root, so the next `review` analyzes only the files whose contents changed since; see
+<doc:GettingStarted>. Set it to `false` to turn saved runs off; `--no-save-run` does the same for
+one run.
+
 ### `coverage`
 
 Bouncer never runs your test suite. It only parses a coverage report that already exists on
@@ -153,5 +158,6 @@ baseline, so `baseline update` doesn't record it.
 Most settings can also be set per-invocation with a flag, which takes precedence over both
 config layers for that one run: `--severity-threshold`, `--format` (`console`, `table`, `json`, or
 `html`; see <doc:GettingStarted>), `--output`, `--verbosity`,
-`--profile`, `--progress`, `--verbose`, and (on `review`) `--coverage-report`/`--coverage-format`. Run `bouncer check --help`
+`--profile`, `--progress`, `--verbose`, and (on `review`) `--coverage-report`/`--coverage-format`
+and `--full`/`--from-last-run`/`--no-save-run`. Run `bouncer check --help`
 or `bouncer review --help` for the complete flag list.

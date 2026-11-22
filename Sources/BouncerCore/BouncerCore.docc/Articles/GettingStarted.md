@@ -65,6 +65,26 @@ bouncer review Sources --changed-since HEAD~3
 `--format json` is worth knowing about even outside of CI: it's the structured output a coding
 agent should ask for when it wants findings it can act on, rather than parsing console text.
 
+### Saved runs
+
+Every `review` saves its result to `.bouncer-cache/last-run.json` at the repo root, and the next
+`review` of the same directory starts from it: it reads every file, but analyzes only the ones whose
+contents changed since, plus new ones, and drops deleted ones. Project rules, the baseline, and
+suppression comments run in full each time, so the findings are the same as a fresh run's. Files under
+a changed `Package.swift`, `Cargo.toml`, or entry point (`main.swift`, `@main`, `main.rs`, `lib.rs`)
+are analyzed again too, since some rules look at those. A different Bouncer build, config, profile, or
+reviewed directory makes the run start fresh; `--progress plain` or `--verbose` says how many files
+were reused, or why the saved run wasn't used.
+
+```sh
+bouncer review .                  # incremental once a run is saved
+bouncer review . --full           # analyze every file; the result is still saved
+bouncer review . --no-save-run    # neither start from nor save a run (or set output.saveRun: false)
+```
+
+`--from-last-run` asks for the incremental run explicitly, and still reads the saved run when saving
+is turned off.
+
 ## Reports
 
 `check` and `review` print their findings to the terminal by default. `--format` picks another

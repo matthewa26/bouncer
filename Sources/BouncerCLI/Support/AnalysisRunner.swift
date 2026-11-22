@@ -3,6 +3,7 @@ import BouncerCore
 import BouncerReporting
 import BouncerConfig
 import BouncerHooks
+import BouncerProject
 
 /// Runs one full analysis: hooks, the engine, and reporting, shared by `check` and `review`.
 struct AnalysisRunner {
@@ -23,6 +24,8 @@ struct AnalysisRunner {
     var changeRules: ChangeAnalyzer? = nil
     /// Receives the run's progress events, from the hooks, the engine, and reporting.
     var onEvent: AnalysisEventHandler = { _ in }
+    /// `review`'s saved last run, which this run starts from and saves to, or `nil` for neither.
+    var savedRun: SavedRunSession? = nil
 
     /// What one run produced.
     struct Outcome {
@@ -48,7 +51,7 @@ struct AnalysisRunner {
     func run() async throws -> Outcome {
         let start = ContinuousClock.now
         try runHooks(.preCheckHooks, hooks?.preCheck) { try HookExecutor.runPreCheck(hooks, repoRoot: repoRoot) }
-        let result = try makeEngine().run()
+        let result = try analyze()
         let selected = report.selection.apply(to: result, repoRoot: repoRoot)
         let output = AnalysisPhase.report.run(emit: onEvent) { render(selected, since: start) }
         runHooks(.postCheckHooks, hooks?.postCheck) { HookExecutor.runPostCheck(hooks, repoRoot: repoRoot) }
@@ -100,6 +103,19 @@ struct AnalysisRunner {
             commands.forEach { onEvent(.note("hook: \($0)")) }
             try body()
         }
+    }
+
+    /// Runs the engine, starting from the saved last run and saving this one when there's a saved-run session.
+    ///
+    /// - Returns: The analysis result.
+    /// - Throws: An error from the engine.
+    private func analyze() throws -> AnalysisResult {
+        var engine = makeEngine()
+        guard let savedRun else { return try engine.run() }
+        engine.priorRun = savedRun.prior()
+        let recorded = try engine.runRecordingFiles()
+        savedRun.save(recorded, repoRoot: repoRoot, emit: onEvent)
+        return recorded.result
     }
 
     /// Builds the analysis engine from this runner's resolved dependencies, reporting to `onEvent`.

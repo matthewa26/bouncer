@@ -1,4 +1,5 @@
 import XCTest
+import Foundation
 import BouncerCore
 @testable import BouncerConfig
 
@@ -32,5 +33,14 @@ final class BouncerConfigMergeTests: XCTestCase {
         let resolved = merged.resolvedRuleSettings()["long-function"]
         XCTAssertEqual(resolved?.severity, .error)
         XCTAssertEqual(resolved?.parameters.int("maxLines", default: 0), 50)
+    }
+
+    func testSaveRunDecodesAndSurvivesAMergeThatDoesNotSetIt() throws {
+        let repo = try JSONDecoder().decode(BouncerConfig.self, from: Data(#"{"output": {"saveRun": false}}"#.utf8))
+        XCTAssertEqual(repo.output?.saveRun, false)
+        let merged = repo.merging(BouncerConfig(output: OutputConfig(verbosity: .quiet)))
+        XCTAssertEqual(merged.output?.saveRun, false)
+        XCTAssertEqual(merged.output?.verbosity, .quiet)
+        XCTAssertNil(BouncerConfig.empty.output?.saveRun)
     }
 }

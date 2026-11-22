@@ -78,6 +78,8 @@ public struct ProjectPhase: Sendable {
         var parsed: [String: FileFacts] = [:]
         /// Target files as the main pass read them, keyed by repo-relative path, so they aren't read twice.
         var sources: [String: SourceFile] = [:]
+        /// Target files' content hashes from the main pass, keyed by repo-relative path, so they aren't hashed twice.
+        var hashes: [String: String] = [:]
         /// Receives the phase's progress events.
         var onEvent: AnalysisEventHandler = { _ in }
     }
@@ -161,7 +163,7 @@ public struct ProjectPhase: Sendable {
     ) throws -> FileFacts? {
         let path = RepoPath.relative(url, to: context.repoRoot)
         guard let file = try access.sources[path] ?? Self.readText(url, access: access) else { return nil }
-        let hash = access.parsed[path]?.contentHash ?? StableHash.hex(file.contents)
+        let hash = access.parsed[path]?.contentHash ?? access.hashes[path] ?? StableHash.hex(file.contents)
         let cached = store.cachedFacts(path: path, contentHash: hash)
         tally.record(reused: access.parsed[path], cached: cached)
         let fresh = { try access.parse(file).map { FileFacts(path: path, contentHash: hash, module: $0) } }

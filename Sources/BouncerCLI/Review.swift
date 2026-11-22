@@ -3,6 +3,7 @@ import Foundation
 import BouncerCore
 import BouncerConfig
 import BouncerGit
+import BouncerProject
 
 /// Recursively audits a directory, independent of git state.
 ///
@@ -53,6 +54,16 @@ struct Review: AsyncParsableCommand {
 
     @OptionGroup var progressArguments: ProgressArguments
     @OptionGroup var reportArguments: ReportArguments
+
+    @OptionGroup var savedRunArguments: SavedRunArguments
+
+    /// Rejects `--from-last-run` with `--changed-since`, since a narrowed run doesn't use the saved run.
+    ///
+    /// - Throws: `ValidationError` when both are given.
+    func validate() throws {
+        guard changedSince != nil, savedRunArguments.fromLastRun else { return }
+        throw ValidationError("--from-last-run can't be combined with --changed-since.")
+    }
 
     /// Resolves config, gates hooks, runs the analysis, and exits with the mapped code.
     ///
@@ -119,7 +130,22 @@ struct Review: AsyncParsableCommand {
             coverageConfig: resolvedCoverageConfig(resolution.merged.coverage), format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
             severityThreshold: severityThreshold, useBaseline: true, report: reportArguments,
-            projectIndex: files.index
+            projectIndex: files.index, savedRun: savedRunSession(repoRoot: repoRoot, config: resolution.merged)
+        )
+    }
+
+    /// Works out what this run does with the saved last run, from its flags and `output.saveRun`.
+    ///
+    /// A `--changed-since` run analyzes only some files, so it neither starts from nor replaces the saved run.
+    ///
+    /// - Parameters:
+    ///   - repoRoot: The repository root, where `.bouncer-cache/` lives.
+    ///   - config: The merged config.
+    /// - Returns: The session, or `nil` when the run neither starts from nor saves a run.
+    private func savedRunSession(repoRoot: URL, config: BouncerConfig) -> SavedRunSession? {
+        guard changedSince == nil else { return nil }
+        return SavedRunSession.make(
+            arguments: savedRunArguments, config: config, rootDirectory: URL(fileURLWithPath: path), repoRoot: repoRoot
         )
     }
 

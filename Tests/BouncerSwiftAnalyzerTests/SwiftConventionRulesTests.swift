@@ -84,4 +84,11 @@ final class SwiftConventionRulesTests: XCTestCase {
         let contents = "let a = \"loading\"\nlet b = \"loading\"\nlet c = \"loading\"\nlet d = \"\\(a) x\"\nlet e = \"\\(a) x\"\nlet f = \"\\(a) x\"\n"
         XCTAssertEqual(try lines(of: "duplicated-string-literal", in: contents), [1])
     }
+
+    func testOrdersRepeatedStringsOnTheSameLineByText() throws {
+        let line = "f(\"zebra-value\", \"apple-value\")\n"
+        let messages = try findings(line + line + line).filter { $0.ruleID == "duplicated-string-literal" }.map(\.message)
+        XCTAssertEqual(messages.count, 2)
+        XCTAssertTrue(messages[0].contains("apple-value"))
+    }
 }

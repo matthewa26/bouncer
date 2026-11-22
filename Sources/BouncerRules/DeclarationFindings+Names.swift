@@ -110,7 +110,8 @@ extension DeclarationFindings {
     /// - Parameters:
     ///   - summary: The declarations collected from the file's syntax tree.
     ///   - settings: The rule's settings, for `minOccurrences` and `minLength`.
-    /// - Returns: Each repeated literal's first occurrence and count, in source order.
+    /// - Returns: Each repeated literal's first occurrence and count, in source order, then by text when two start
+    ///   on the same line, so the order never depends on dictionary iteration.
     private static func repeatedStrings(
         _ summary: DeclarationSummary, settings: RuleSettings
     ) -> [(first: CollectedString, count: Int)] {
@@ -119,6 +120,6 @@ extension DeclarationFindings {
         let groups = Dictionary(grouping: summary.stringLiterals.filter { $0.text.count >= minLength }, by: \.text)
         return groups.values.filter { $0.count >= minOccurrences }
             .compactMap { group in group.min { $0.line < $1.line }.map { ($0, group.count) } }
-            .sorted { $0.first.line < $1.first.line }
+            .sorted { ($0.first.line, $0.first.text) < ($1.first.line, $1.first.text) }
     }
 }

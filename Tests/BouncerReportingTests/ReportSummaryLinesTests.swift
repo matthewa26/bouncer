@@ -31,8 +31,31 @@ final class ReportSummaryLinesTests: XCTestCase {
             "Top files:",
             "  2  Sources/A.swift",
             "  1  Sources/B.swift",
+            "long-function is 67% of findings; disable it or baseline it to focus on the rest.",
             "Finished in 41.2s."
         ])
+    }
+
+    func testDominantRuleHintNeedsMoreThanHalfOfTheFindings() {
+        let half = AnalysisResult(findings: [
+            finding("duplicate-block", "A.swift"), finding("duplicate-block", "B.swift"),
+            finding("magic-number", "A.swift"), finding("long-lines", "A.swift")
+        ], coverage: nil)
+        XCTAssertNil(ReportSummary.dominantRuleHint(half))
+        let most = AnalysisResult(findings: half.findings + [finding("duplicate-block", "C.swift")], coverage: nil)
+        XCTAssertEqual(
+            ReportSummary.dominantRuleHint(most),
+            "duplicate-block is 60% of findings; disable it or baseline it to focus on the rest."
+        )
+    }
+
+    func testDominantRuleHintRoundsThePercentAndSkipsASingleRuleRun() {
+        let findings = (0..<7).map { finding("duplicate-block", "\($0).swift") }
+            + (0..<5).map { finding("magic-number", "\($0).swift") }
+        let hint = ReportSummary.dominantRuleHint(AnalysisResult(findings: findings, coverage: nil))
+        XCTAssertEqual(hint?.hasPrefix("duplicate-block is 58% of findings"), true)
+        let single = AnalysisResult(findings: [finding("r", "A.swift"), finding("r", "B.swift")], coverage: nil)
+        XCTAssertNil(ReportSummary.dominantRuleHint(single))
     }
 
     func testLinesForACleanRunAreTheOneLineSummary() {

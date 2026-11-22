@@ -70,6 +70,7 @@ shape, and `--output <file>` writes it to a file instead of printing it:
   It filters by text and severity, sorts by any column, and has a **Rules** panel to hide noisy rules
   (remembered per repository) and copy them as `.bouncer` settings that switch them off. Its **JSON**
   view previews the first findings, with buttons to copy or download the same data as `--format json`.
+- `agent`: findings in as few tokens as possible, for a coding agent. See below.
 
 ```sh
 bouncer review . --format html                       # writes .bouncer-cache/report.html
@@ -83,6 +84,31 @@ browser, the `Open:` link is the Windows address, so clicking it in Windows Term
 `file://wsl.localhost/<distro>/…` for files in the Linux filesystem, or `file:///C:/…` for files
 under `/mnt/c`. A `Windows path:` line gives the same location for Explorer. `.bouncer-cache/` is git-ignored, so the default HTML
 report never gets committed.
+
+### Using Bouncer from an agent
+
+`--format agent` lists each file once, with paths relative to the repository root, and one
+`LINE RULE MESSAGE` line per finding under it. A message that repeats the last one for its rule is left
+out, and a footer says how many findings are shown out of how many, and which `--offset` gets the next
+page. `--group-by rule` lists a header per rule instead, with `PATH:LINE MESSAGE` lines.
+
+Filters and paging work with every format, after the baseline and suppressions apply:
+
+- `--rule ID` and `--path GLOB` (relative to the repository root, such as `'Sources/**'`), both
+  repeatable, and `--min-severity info|warning|error`.
+- `--limit N` and `--offset N`, over findings sorted by file, line, and rule.
+- `--summary`, to print only the summary: totals by severity, top rules and files, and the time. In
+  JSON it's an object with no `findings`.
+
+The exit code still follows `--severity-threshold`, over every finding the filters keep, not just the
+page shown. When one rule has more than half of all findings, the summary names it, so you can disable
+or baseline it and look at the rest.
+
+```sh
+bouncer review . --summary
+bouncer review . --format agent --rule force-unwrap --limit 20
+bouncer check --files Sources/App.swift --format agent
+```
 
 ## Watching a run
 

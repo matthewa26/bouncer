@@ -60,14 +60,14 @@ enum RunAndExit {
         throw ExitCode(outcome.exitCode)
     }
 
-    /// Starts the progress display the run's options ask for. Xcode output counts as an agent invocation, so
-    /// `--progress auto` stays out of the build log.
+    /// Starts the progress display the run's options ask for. Xcode and agent output count as an agent
+    /// invocation, so `--progress auto` stays out of the build log and the agent's context.
     ///
     /// - Parameter options: The run's options.
     /// - Returns: The running log.
     private static func startLog(_ options: RunAndExitOptions) -> RunLog {
         var invocation = ProgressInvocation()
-        invocation.isAgentInvocation = options.isAgentInvocation || options.format == .xcode
+        invocation.isAgentInvocation = options.isAgentInvocation || [.xcode, .agent].contains(options.format)
         return RunLog.start(options.progress, invocation: invocation, root: options.repoRoot, context: options.context)
     }
 
@@ -87,9 +87,9 @@ enum RunAndExit {
 
     /// Builds the multi-line summary printed to stderr after the report, for a person watching the run.
     ///
-    /// It's left out for agent invocations and at `quiet` or `condensed` verbosity, and for a report printed to
-    /// the terminal unless stderr is a terminal too. A report written to a file already has its one-line
-    /// summary on stdout, so only the rest follows.
+    /// It's left out for agent invocations, at `quiet` or `condensed` verbosity, and under `--summary`, which
+    /// printed it already; and for a report printed to the terminal unless stderr is a terminal too. A report
+    /// written to a file already has its one-line summary on stdout, so only the rest follows.
     ///
     /// - Parameters:
     ///   - outcome: What the run produced.
@@ -100,10 +100,13 @@ enum RunAndExit {
     private static func summaryDetails(
         _ outcome: AnalysisRunner.Outcome, runner: AnalysisRunner, options: RunAndExitOptions, elapsed: Duration
     ) -> [String] {
-        guard !options.isAgentInvocation, [.normal, .verbose].contains(runner.verbosity) else { return [] }
+        guard !options.isAgentInvocation, !runner.report.summary, [.normal, .verbose].contains(runner.verbosity) else {
+            return []
+        }
         let toFile = ReportDelivery.destination(options) != nil
-        guard toFile || (Terminal.standardErrorIsInteractive && options.format != .json) else { return [] }
-        let lines = ReportSummary.lines(outcome.result, repoRoot: runner.repoRoot, elapsed: elapsed)
+        let forPerson = Terminal.standardErrorIsInteractive && ![.json, .agent].contains(options.format)
+        guard toFile || forPerson else { return [] }
+        let lines = ReportSummary.lines(outcome.reported, repoRoot: runner.repoRoot, elapsed: elapsed)
         return toFile ? Array(lines.dropFirst()) : lines
     }
 }

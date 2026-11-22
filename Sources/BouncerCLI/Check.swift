@@ -50,6 +50,7 @@ struct Check: AsyncParsableCommand {
     var profile: String?
 
     @OptionGroup var progressArguments: ProgressArguments
+    @OptionGroup var reportArguments: ReportArguments
 
     /// Resolves config, gates hooks, runs the analysis, and exits with the mapped code.
     ///
@@ -110,7 +111,7 @@ struct Check: AsyncParsableCommand {
             mergedConfig: resolution.merged,
             hooks: hooks, coverageConfig: coverage ? resolution.merged.coverage : nil, format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
-            severityThreshold: severityThreshold, useBaseline: !noBaseline,
+            severityThreshold: severityThreshold, useBaseline: !noBaseline, report: reportArguments,
             projectIndex: ProjectPassFactory.checkIndex(repoRoot: repoRoot, config: resolution.merged),
             changeRules: ProjectPassFactory.changeRules(checksStagedDiff: !isAgentInvocation, config: resolution.merged)
         )

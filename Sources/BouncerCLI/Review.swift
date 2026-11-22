@@ -49,6 +49,7 @@ struct Review: AsyncParsableCommand {
     var noUpdateCheck = false
 
     @OptionGroup var progressArguments: ProgressArguments
+    @OptionGroup var reportArguments: ReportArguments
 
     /// Resolves config, gates hooks, runs the analysis, and exits with the mapped code.
     ///
@@ -103,7 +104,7 @@ struct Review: AsyncParsableCommand {
             repoRoot: repoRoot, fileProvider: fileProvider, mergedConfig: resolution.merged, hooks: hooks,
             coverageConfig: resolvedCoverageConfig(resolution.merged.coverage), format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
-            severityThreshold: severityThreshold, useBaseline: true, projectIndex: fileProvider
+            severityThreshold: severityThreshold, useBaseline: true, report: reportArguments, projectIndex: fileProvider
         )
     }
 

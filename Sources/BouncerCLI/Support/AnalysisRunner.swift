@@ -15,6 +15,8 @@ struct AnalysisRunner {
     let verbosity: OutputVerbosity
     let severityThreshold: Severity
     let useBaseline: Bool
+    /// Which findings the report shows and how: filters, paging, grouping, and summary-only output.
+    var report = ReportArguments()
     /// The files the project pass indexes, or `nil` to skip project rules.
     var projectIndex: TargetFileProvider? = nil
     /// `check`'s change rules (oversized diff, complexity ratchet), or `nil` to skip them.
@@ -30,23 +32,59 @@ struct AnalysisRunner {
         let output: String
         /// The report's one-line summary.
         let summary: String
-        /// The analysis result the report was rendered from.
+        /// The full analysis result, before the report's filters and paging.
         let result: AnalysisResult
+        /// The findings that passed the report's filters, unpaged: what the exit code and summary count.
+        let reported: AnalysisResult
     }
 
     /// Runs pre-check hooks, analysis, and post-check hooks, and renders the result.
     ///
-    /// - Returns: The exit code, the rendered report, its one-line summary, and the result behind them.
+    /// The report's filters apply to the exit code too, but its paging doesn't: a page that happens to hold no
+    /// error still fails the run when the filtered findings do.
+    ///
+    /// - Returns: The exit code, the rendered report, its one-line summary, and the results behind them.
     /// - Throws: `HookExecutor.PreCheckFailure` if a `preCheck` hook fails, or an error from the engine itself.
     func run() async throws -> Outcome {
+        let start = ContinuousClock.now
         try runHooks(.preCheckHooks, hooks?.preCheck) { try HookExecutor.runPreCheck(hooks, repoRoot: repoRoot) }
         let result = try makeEngine().run()
-        let output = AnalysisPhase.report.run(emit: onEvent) {
-            ReporterFactory.make(format: format, repoRoot: repoRoot).report(result, verbosity: verbosity)
-        }
+        let selected = report.selection.apply(to: result, repoRoot: repoRoot)
+        let output = AnalysisPhase.report.run(emit: onEvent) { render(selected, since: start) }
         runHooks(.postCheckHooks, hooks?.postCheck) { HookExecutor.runPostCheck(hooks, repoRoot: repoRoot) }
-        let exitCode = ExitCodeMapper.exitCode(for: result, threshold: severityThreshold)
-        return Outcome(exitCode: exitCode, output: output, summary: ReportSummary.line(result), result: result)
+        return outcome(result, selected: selected, output: output)
+    }
+
+    /// Bundles what a run produced, with the exit code mapped from the filtered findings.
+    ///
+    /// - Parameters:
+    ///   - result: The full analysis result.
+    ///   - selected: The findings the report's filters kept, and the page shown.
+    ///   - output: The rendered report.
+    /// - Returns: The run's outcome.
+    private func outcome(_ result: AnalysisResult, selected: SelectedFindings, output: String) -> Outcome {
+        let reported = selected.matching
+        let exitCode = ExitCodeMapper.exitCode(for: reported, threshold: severityThreshold)
+        let summary = ReportSummary.line(reported)
+        return Outcome(exitCode: exitCode, output: output, summary: summary, result: result, reported: reported)
+    }
+
+    /// Renders the selected findings in the requested format, or only their summary under `--summary`.
+    ///
+    /// - Parameters:
+    ///   - selected: The filtered findings and the page of them to show.
+    ///   - start: When the run started, for the summary's time.
+    /// - Returns: The rendered report.
+    private func render(_ selected: SelectedFindings, since start: ContinuousClock.Instant) -> String {
+        let elapsed = ContinuousClock.now - start
+        guard report.summary else {
+            let reporter = ReporterFactory.make(
+                format: format, repoRoot: repoRoot, grouping: report.groupBy, selection: selected
+            )
+            return reporter.report(selected.page, verbosity: verbosity)
+        }
+        if format == .json { return JSONReporter().summary(selected.matching, repoRoot: repoRoot, elapsed: elapsed) }
+        return ReportSummary.lines(selected.matching, repoRoot: repoRoot, elapsed: elapsed).joined(separator: "\n")
     }
 
     /// Runs one set of hooks as a step of the run, noting each command, when there are any.

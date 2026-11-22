@@ -59,7 +59,7 @@ public enum ReportSummary {
     }
 
     /// Summarizes a result over several lines: the one-line summary, then the rules and files with the most
-    /// findings, then how long the run took.
+    /// findings, a hint when one rule dominates, then how long the run took.
     ///
     /// - Parameters:
     ///   - result: The analysis result.
@@ -71,6 +71,7 @@ public enum ReportSummary {
         var lines = [line(result)]
         lines += ranked("Top rules", top(result.findings.map(\.ruleID)))
         lines += ranked("Top files", top(files))
+        lines += dominantRuleHint(result).map { [$0] } ?? []
         if let elapsed { lines.append("Finished in \(ProgressText.seconds(elapsed)).") }
         return lines
     }
@@ -88,6 +89,22 @@ public enum ReportSummary {
         }
         return sorted.prefix(limit).map { (name: $0.key, count: $0.value) }
     }
+
+    /// Suggests setting aside a rule that has more than half of all findings, so the rest can be seen.
+    ///
+    /// - Parameter result: The analysis result.
+    /// - Returns: A line such as `duplicate-block is 58% of findings; disable it or baseline it to focus on the
+    ///   rest.`, or `nil` when no rule has more than half, or every finding is from that one rule.
+    public static func dominantRuleHint(_ result: AnalysisResult) -> String? {
+        let total = result.findings.count
+        guard let leader = top(result.findings.map(\.ruleID), limit: 1).first,
+              leader.count * 2 > total, leader.count < total else { return nil }
+        let percent = Int((Double(leader.count) * percentScale / Double(total)).rounded())
+        return "\(leader.name) is \(percent)% of findings; disable it or baseline it to focus on the rest."
+    }
+
+    /// What a fraction is multiplied by to give a percentage.
+    private static let percentScale = 100.0
 
     /// Lists ranked names under a heading, with their counts right-aligned.
     ///

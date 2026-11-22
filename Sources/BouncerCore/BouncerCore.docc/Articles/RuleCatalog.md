@@ -33,7 +33,7 @@ These run on every language.
 | `deep-nesting` | A line's indentation depth | warning | `maxDepth` (16), `indentWidth` (4) |
 | `long-lines` | A line's character count | warning | `maxLength` (120) |
 | `todo-density` | TODO/FIXME/HACK marker density across a file | warning | `maxPerHundredLines` (5) |
-| `duplicate-block` | A repeated block of lines within the same file | warning | `windowSize` (6) |
+| `duplicate-block` | A repeated block of lines within the same file, reported once per copied region | warning | `windowSize` (6) |
 | `commented-out-code` | A stretch of non-doc comment lines that reads as code, reported at its first line | warning | `minLines` (2) |
 | `redundant-comment` | A one-line comment that only restates the statement below it; off unless configured | warning | none |
 | `trailing-whitespace` | A line ending in a space or tab | warning | none |

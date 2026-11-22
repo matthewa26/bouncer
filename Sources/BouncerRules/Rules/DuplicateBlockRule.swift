@@ -14,40 +14,73 @@ public struct DuplicateBlockRule: Rule {
     /// Creates the rule. Duplication detection is language-agnostic, so no profile is needed.
     public init() {}
 
-    /// Flags the second and later occurrences of any repeated block of lines.
+    /// Flags each repeated region once: consecutive repeated windows that copy consecutive earlier windows
+    /// merge into one finding, so a copied 20-line block is one finding, not one per line.
     ///
     /// - Parameters:
     ///   - file: The file to scan.
     ///   - context: Repo-wide state, including this rule's `windowSize` parameter.
-    /// - Returns: One finding per repeated block occurrence.
+    /// - Returns: One finding per repeated region, at its first line.
     public func evaluate(file: SourceFile, context: AnalysisContext) -> [Finding] {
         let settings = context.settings(for: id)
         let windowSize = settings.parameters.int("windowSize", default: 6)
         guard settings.enabled, file.lines.count >= windowSize * 2 else { return [] }
-        var seen: [String: Int] = [:]
-        return (0...(file.lines.count - windowSize)).compactMap { start in
-            finding(atWindowStart: start, size: windowSize, file: file, seen: &seen, severity: settings.severity)
+        return regions(repeatedWindows(size: windowSize, file: file)).map { region in
+            finding(for: region, size: windowSize, file: file, severity: settings.severity)
         }
     }
 
-    /// Checks one window position and records a finding if it repeats an earlier one.
+    /// A run of repeated windows: where the copy starts, where the original starts, and how many windows long.
+    private struct Region {
+        let start: Int
+        let source: Int
+        var windows = 1
+    }
+
+    /// Lists every window that repeats an earlier one, with where it first appeared.
     ///
     /// - Parameters:
-    ///   - start: The window's starting line index.
     ///   - size: The window's length in lines.
     ///   - file: The file being scanned.
-    ///   - seen: Previously seen window contents, keyed by normalized text.
+    /// - Returns: `(start, source)` line indexes, in file order.
+    private func repeatedWindows(size: Int, file: SourceFile) -> [(start: Int, source: Int)] {
+        var seen: [String: Int] = [:]
+        return (0...(file.lines.count - size)).compactMap { start in
+            let key = normalizedWindow(start: start, size: size, file: file)
+            guard !key.isEmpty else { return nil }
+            defer { seen[key] = seen[key] ?? start }
+            return seen[key].map { (start, $0) }
+        }
+    }
+
+    /// Merges repeated windows into regions where both the copy and the original advance one line at a time.
+    ///
+    /// - Parameter windows: The repeated windows, in file order.
+    /// - Returns: The merged regions.
+    private func regions(_ windows: [(start: Int, source: Int)]) -> [Region] {
+        windows.reduce(into: []) { regions, window in
+            if let last = regions.last, window.start == last.start + last.windows,
+               window.source == last.source + last.windows {
+                regions[regions.count - 1].windows += 1
+            } else {
+                regions.append(Region(start: window.start, source: window.source))
+            }
+        }
+    }
+
+    /// Reports one repeated region.
+    ///
+    /// - Parameters:
+    ///   - region: The region.
+    ///   - size: The window's length in lines.
+    ///   - file: The file being scanned.
     ///   - severity: The severity to report at.
-    /// - Returns: A finding, or `nil` if this window hasn't been seen before.
-    private func finding(
-        atWindowStart start: Int, size: Int, file: SourceFile, seen: inout [String: Int], severity: Severity
-    ) -> Finding? {
-        let key = normalizedWindow(start: start, size: size, file: file)
-        guard !key.isEmpty else { return nil }
-        defer { seen[key] = seen[key] ?? start }
-        guard let firstSeenAt = seen[key] else { return nil }
-        let message = "Duplicates the \(size)-line block starting at line \(firstSeenAt + 1)."
-        return Finding(ruleID: id, severity: severity, filePath: file.path, line: start + 1, message: message)
+    /// - Returns: A finding at the region's first line, naming both line ranges.
+    private func finding(for region: Region, size: Int, file: SourceFile, severity: Severity) -> Finding {
+        let length = region.windows + size - 1
+        let message = "Lines \(region.start + 1)-\(region.start + length) duplicate lines "
+            + "\(region.source + 1)-\(region.source + length)."
+        return Finding(ruleID: id, severity: severity, filePath: file.path, line: region.start + 1, message: message)
     }
 
     /// Builds a normalized key for a window of lines, for exact-match comparison.

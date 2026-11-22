@@ -52,6 +52,25 @@ final class HeuristicRulesTests: XCTestCase {
         XCTAssertEqual(findings.first?.line, 5)
     }
 
+    func testDuplicateBlockReportsACopiedRegionOnce() {
+        let block = (1...10).map { "line\($0)" }.joined(separator: "\n") + "\n"
+        let findings = DuplicateBlockRule().evaluate(
+            file: file(block + "x\n" + block),
+            context: context(ruleID: DuplicateBlockRule.ruleID, params: ["windowSize": .int(4)])
+        )
+        XCTAssertEqual(findings.map(\.line), [12])
+        XCTAssertEqual(findings.first?.message, "Lines 12-21 duplicate lines 1-10.")
+    }
+
+    func testDuplicateBlockReportsSeparateCopiesSeparately() {
+        let block = "a\nb\nc\nd\n"
+        let findings = DuplicateBlockRule().evaluate(
+            file: file(block + "x\n" + block + "y\n" + block),
+            context: context(ruleID: DuplicateBlockRule.ruleID, params: ["windowSize": .int(4)])
+        )
+        XCTAssertEqual(findings.map(\.line), [6, 11])
+    }
+
     func testDuplicateBlockDoesNotFlagDistinctContent() {
         let findings = DuplicateBlockRule().evaluate(
             file: file("a\nb\nc\nd\ne\nf\ng\nh\n"),

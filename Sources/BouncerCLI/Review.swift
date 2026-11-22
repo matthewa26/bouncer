@@ -42,6 +42,9 @@ struct Review: AsyncParsableCommand {
     @Option(parsing: .upToNextOption, help: "Glob patterns, relative to the analyzed directory, to exclude.")
     var exclude: [String] = []
 
+    @Option(help: "Analyze only files changed since this git revision, plus untracked files.")
+    var changedSince: String?
+
     @Flag(help: "Run this repo's hooks without an interactive trust prompt.")
     var allowHooks = false
 
@@ -62,49 +65,61 @@ struct Review: AsyncParsableCommand {
             repoConfig: resolution.rawRepo, globalHooks: resolution.rawGlobal.hooks,
             mergedHooks: resolution.merged.hooks, repoRoot: repoRoot, allowHooksFlag: allowHooks
         )
-        try await runAnalysis(rootDirectory: rootDirectory, repoRoot: repoRoot, resolution: resolution, hooks: hooks)
+        let files = try selectFiles(rootDirectory, config: resolution.merged)
+        try await runAnalysis(files: files, repoRoot: repoRoot, resolution: resolution, hooks: hooks)
+    }
+
+    /// Chooses the files to analyze and index, from the reviewed directory, `--exclude`, and `--changed-since`.
+    ///
+    /// - Parameters:
+    ///   - rootDirectory: The directory being analyzed.
+    ///   - config: The merged config, for its `exclude` globs.
+    /// - Returns: The file selection.
+    /// - Throws: `ExitCode(2)` if `--changed-since` can't list the changed files.
+    private func selectFiles(_ rootDirectory: URL, config: BouncerConfig) throws -> ReviewFileSelection {
+        let excludeGlobs = exclude + (config.exclude ?? [])
+        return try ReviewFileSelection.resolve(rootDirectory: rootDirectory, excludeGlobs: excludeGlobs, changedSince: changedSince)
     }
 
     /// Runs the analysis and update check, then exits with the mapped code.
     ///
     /// - Parameters:
-    ///   - rootDirectory: The directory being analyzed.
+    ///   - files: The files to analyze and to index for project rules.
     ///   - repoRoot: The context root used for baseline and rule reporting.
     ///   - resolution: The resolved config layers.
     ///   - hooks: The trust-gated hooks to run.
     /// - Throws: `ExitCode` on completion.
     private func runAnalysis(
-        rootDirectory: URL, repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?
+        files: ReviewFileSelection, repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?
     ) async throws {
-        let runner = makeRunner(rootDirectory: rootDirectory, repoRoot: repoRoot, resolution: resolution, hooks: hooks)
+        let runner = makeRunner(files: files, repoRoot: repoRoot, resolution: resolution, hooks: hooks)
         var options = RunAndExitOptions(
             updateCheckConfig: resolution.merged.updateCheck, noUpdateCheckFlag: noUpdateCheck,
             isAgentInvocation: format == .json, format: format, outputPath: output, repoRoot: repoRoot
         )
         options.progress = progressArguments
         options.context = RunLog.configLines(repoRoot: repoRoot, profile: profile, explicitPath: config)
-            + ["files: every file under \(rootDirectory.path), excluding \(exclude.count) --exclude glob(s)"]
+            + [files.logLine]
         try await RunAndExit.run(runner, options: options)
     }
 
-    /// Builds the analysis runner for this invocation, from the same arguments as `runAnalysis`.
+    /// Builds the analysis runner for this invocation.
     ///
     /// - Parameters:
-    ///   - rootDirectory: The directory being analyzed.
+    ///   - files: The files to analyze and to index for project rules.
     ///   - repoRoot: The context root used for baseline and rule reporting.
     ///   - resolution: The resolved config layers.
     ///   - hooks: The trust-gated hooks to run.
     /// - Returns: A configured analysis runner.
     private func makeRunner(
-        rootDirectory: URL, repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?
+        files: ReviewFileSelection, repoRoot: URL, resolution: ConfigResolution, hooks: HooksConfig?
     ) -> AnalysisRunner {
-        let excludeGlobs = exclude + (resolution.merged.exclude ?? [])
-        let fileProvider = RecursiveFileWalker(rootDirectory: rootDirectory, excludeGlobs: excludeGlobs)
-        return AnalysisRunner(
-            repoRoot: repoRoot, fileProvider: fileProvider, mergedConfig: resolution.merged, hooks: hooks,
+        AnalysisRunner(
+            repoRoot: repoRoot, fileProvider: files.targets, mergedConfig: resolution.merged, hooks: hooks,
             coverageConfig: resolvedCoverageConfig(resolution.merged.coverage), format: format,
             verbosity: verbosity ?? resolution.merged.output?.verbosity ?? .normal,
-            severityThreshold: severityThreshold, useBaseline: true, report: reportArguments, projectIndex: fileProvider
+            severityThreshold: severityThreshold, useBaseline: true, report: reportArguments,
+            projectIndex: files.index
         )
     }
 

@@ -406,7 +406,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Token-efficient agent output (`--format agent`, `--group-by file\|rule`) | grouped, relative paths, repeated messages dropped | 1.3.0 |
 | ✅ | Report filters and paging (`--rule`, `--path`, `--min-severity`, `--limit`, `--offset`); exit code follows the filtered set | | 1.3.0 |
 | ✅ | Summary-only output (`--summary`), with a hint when one rule is over half the findings | | 1.3.0 |
-| ⬜ | Review only files changed since a git ref (`review --changed-since REF`) | | planned 1.3 |
+| ✅ | Review only files changed since a git ref (`review --changed-since REF`) | project rules still see the whole graph | 1.3.0 |
 | ⬜ | MCP server (`bouncer mcp`): summary-first tools, paged drill-down, next fix batch, verify | design workshop first | planned 1.3 |
 | ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.3 |
 | ⬜ | Symbol-level Swift analysis from the compiler's index store | deferred until there's demand | backlog |

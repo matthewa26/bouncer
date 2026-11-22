@@ -66,8 +66,34 @@ public struct RecursiveFileWalker: TargetFileProvider {
             if !isSymbolicLink(url) { walk(url, into: &results) }
             return
         }
-        guard isReadableFile(url), !excludeFilter.excludes(url), isListedIfInsideCIFolder(url) else { return }
-        results.append(url)
+        if isListedFile(url) { results.append(url) }
+    }
+
+    /// Checks whether the walk would list a file, for a provider that finds candidate files some other way,
+    /// such as from git, and must leave out exactly what the walk does: files in skipped or hidden folders,
+    /// hidden files, excluded files, and files in a `.github` folder that aren't CI files.
+    ///
+    /// - Parameter url: A candidate file, expressed under the walk's root (not resolved through symlinks).
+    /// - Returns: Whether the file lies under the root and the walk would list it.
+    public func admits(_ url: URL) -> Bool {
+        let base = rootDirectory.standardizedFileURL.pathComponents
+        let components = url.standardizedFileURL.pathComponents
+        guard components.starts(with: base) else { return false }
+        var current = rootDirectory
+        for name in components.dropFirst(base.count) {
+            current.appendPathComponent(name)
+            if isAlwaysSkippedDirectory(current) || isSkippedHidden(current) { return false }
+        }
+        return isListedFile(url)
+    }
+
+    /// Checks the walk's per-file conditions: an existing, non-excluded file that, inside a `.github` folder,
+    /// is a CI file.
+    ///
+    /// - Parameter url: The file to check.
+    /// - Returns: Whether the walk lists the file once it reaches it.
+    private func isListedFile(_ url: URL) -> Bool {
+        isReadableFile(url) && !excludeFilter.excludes(url) && isListedIfInsideCIFolder(url)
     }
 
     /// Limits rules in a walked `.github` CI file to the supply-chain rules.

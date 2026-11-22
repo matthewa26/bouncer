@@ -25,7 +25,27 @@ public struct GitStagedFilesProvider: TargetFileProvider {
     }
 }
 
-/// An error running a git command this provider depends on.
-public enum GitError: Error {
+/// An error running a git command a file provider depends on.
+public enum GitError: Error, Equatable, CustomStringConvertible, LocalizedError {
+    /// git isn't on `PATH`, or a query exited non-zero.
     case commandFailed
+    /// The directory, whose path this carries, isn't inside a git repository.
+    case notARepository(String)
+    /// The revision, as given, doesn't name a commit in the repository.
+    case unknownRevision(String)
+
+    /// A human-readable explanation, shown by the CLI when the error ends a command.
+    public var description: String {
+        switch self {
+        case .commandFailed:
+            return "A git command failed; check that git is installed and on PATH."
+        case .notARepository(let path):
+            return "\(path) isn't inside a git repository, which --changed-since needs."
+        case .unknownRevision(let revision):
+            return "Unknown revision \"\(revision)\": it doesn't name a commit in this repository."
+        }
+    }
+
+    /// The same text as `description`, for `localizedDescription`.
+    public var errorDescription: String? { description }
 }

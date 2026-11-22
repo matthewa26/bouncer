@@ -44,6 +44,7 @@ bouncer review . --rule force-unwrap --path 'Sources/**' --min-severity warning 
 bouncer review . --group-by rule       # group agent or console output by rule instead of file
 bouncer review . --progress plain      # one progress line per phase (auto: a live bar on a terminal)
 bouncer review . --verbose             # log everything the run does to stderr
+bouncer review . --changed-since main  # only files changed since a git ref, plus untracked files
 bouncer configure                      # guided setup: thresholds, coverage, where to save
 bouncer profile create strict          # save a named profile, then pick it with --profile strict
 bouncer profile set-default strict     # use a profile by default in this repo

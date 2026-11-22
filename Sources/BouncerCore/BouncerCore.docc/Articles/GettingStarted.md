@@ -52,6 +52,16 @@ bouncer review .
 bouncer review . --format json
 ```
 
+On a large repo, `--changed-since` narrows a review to what a branch or session touched: files that
+differ from a git ref (committed since, staged, or unstaged) plus untracked files git doesn't ignore,
+under the reviewed directory and minus the usual excludes. Project rules such as `unused-export` still
+index every file, so they see the whole module graph, but only report findings in the changed files.
+
+```sh
+bouncer review . --changed-since main
+bouncer review Sources --changed-since HEAD~3
+```
+
 `--format json` is worth knowing about even outside of CI: it's the structured output a coding
 agent should ask for when it wants findings it can act on, rather than parsing console text.
 

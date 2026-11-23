@@ -61,6 +61,11 @@ let package = Package(
             cSettings: [.headerSearchPath("src")]
         ),
         .target(
+            name: "CTreeSitterPHP",
+            exclude: ["LICENSE", "NOTICE.md"],
+            cSettings: [.headerSearchPath("php/src")]
+        ),
+        .target(
             name: "BouncerTreeSitterAnalyzer",
             dependencies: [
                 "BouncerCore",
@@ -71,6 +76,7 @@ let package = Package(
                 "CTreeSitterJavaScript",
                 "CTreeSitterObjC",
                 "CTreeSitterRust",
+                "CTreeSitterPHP",
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterGo", package: "tree-sitter-go")
             ]

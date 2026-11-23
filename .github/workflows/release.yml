@@ -7,7 +7,8 @@ name: release
 # - Windows: an x86_64 zip of bouncer.exe plus the Swift runtime DLLs it loads.
 # - SwiftPM: bouncer.artifactbundle.zip, the macOS and Linux binaries as one binary artifact for the
 #   bouncer-plugin package (github.com/matthewa26/bouncer-plugin), whose Package.swift pins its URL and checksum.
-# Plus SHA256SUMS, which install.ps1 verifies every download against.
+# Plus SHA256SUMS, which install.ps1 verifies every download against. The homebrew job then
+# publishes Formula/bouncer.rb to github.com/matthewa26/homebrew-tap.
 #
 # The Swift version is pinned so the Static Linux SDK matches its toolchain exactly; bump
 # SWIFT_VERSION and STATIC_SDK_CHECKSUM together (checksums are listed at swift.org/install).
@@ -134,6 +135,44 @@ jobs:
             echo '```'
             echo "Bundle: $url"
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Publishes the formula for this release to the Homebrew tap. Writing to another repo needs a token this
+  # workflow's own doesn't have: HOMEBREW_TAP_TOKEN, a fine-grained token with Contents read and write on
+  # the tap. Without it the job prints the formula instead, to commit by hand.
+  homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAP: ${{ github.repository_owner }}/homebrew-tap
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: source
+      - name: Write the formula
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS
+          sh source/Scripts/make-homebrew-formula.sh "$GITHUB_REF_NAME" SHA256SUMS "$GITHUB_REPOSITORY" > bouncer.rb
+          cat bouncer.rb
+      - name: Push it to the tap
+        if: env.TAP_TOKEN != ''
+        run: |
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/${TAP}.git" tap
+          mkdir -p tap/Formula && cp bouncer.rb tap/Formula/bouncer.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/bouncer.rb
+          git diff --cached --quiet && { echo "The tap already has this formula."; exit 0; }
+          git commit -m "bouncer ${GITHUB_REF_NAME#v}"
+          git push
+      - name: Say how to publish it by hand
+        if: env.TAP_TOKEN == ''
+        run: |
+          echo "### Homebrew formula not pushed" >> "$GITHUB_STEP_SUMMARY"
+          echo "HOMEBREW_TAP_TOKEN isn't set. Commit the formula printed above as Formula/bouncer.rb in $TAP." \
+            >> "$GITHUB_STEP_SUMMARY"
 
   # Puts this release on the Pages site, which the installer downloads from by default. The
   # site is deployed only by docs.yml, from main (Pages refuses deploys from a tag), so this

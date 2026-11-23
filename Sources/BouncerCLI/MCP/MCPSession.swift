@@ -27,6 +27,8 @@ actor MCPSession {
     private var version = 0
     /// The last ordering of every finding a `findings` call cut pages from.
     private var orderCache: (version: Int, grouping: ReportGrouping, findings: [Finding])?
+    /// The repo-relative paths of files `verify` re-checked this session, most recent first.
+    private(set) var verified: [String] = []
 
     /// Creates a session with no result yet.
     ///
@@ -169,6 +171,13 @@ actor MCPSession {
         let files = ScopedFileList(files: urls, walker: plan.walker)
         let outcome = await BlockingWork.run { try plan.runner(files: files).analyzeRecordingFiles().files }
         return try ToolError.wrapping("Can't analyze the files") { try outcome.get() }
+    }
+
+    /// Notes files `verify` re-checked, so `next_batch` favors them.
+    ///
+    /// - Parameter paths: Their repo-relative paths.
+    func noteVerified(_ paths: [String]) {
+        verified = paths + verified.filter { !paths.contains($0) }
     }
 
     /// Every finding of a result in the order pages are cut from, reusing the last ordering while the result

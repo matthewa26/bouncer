@@ -14,9 +14,10 @@ struct MCPCommand: AsyncParsableCommand {
 
     /// How the server teaches an agent the loop.
     private static let instructions = """
-        Bouncer checks code quality. Loop: scan (then status until it finishes) -> findings (filter by rule, \
-        path, or severity; page with cursor) -> edit the code -> verify the files you edited -> repeat. \
-        explain_rule says how to fix a rule's findings; check runs the pre-commit check on the staged diff.
+        Bouncer checks code quality. Loop: scan (then status until it finishes) -> next_batch (the one file \
+        and rule to fix next, with code) -> edit the code -> verify the files you edited -> repeat. findings \
+        lists any slice (filter by rule, path, or severity; page with cursor). explain_rule says how to fix a \
+        rule's findings; check runs the pre-commit check on the staged diff.
         """
 
     @Argument(help: "The directory to scan by default.")

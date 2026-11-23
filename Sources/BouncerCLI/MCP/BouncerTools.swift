@@ -12,6 +12,7 @@ struct BouncerTools: MCPToolHandler {
         "scan": { session, arguments in try await session.scan(ScanOptions(arguments)) },
         "status": { session, _ in try await session.status() },
         "findings": { session, arguments in try await session.findings(arguments) },
+        "next_batch": { session, arguments in try await session.nextBatch(arguments) },
         "verify": { session, arguments in try await session.verify(arguments) },
         "check": { session, arguments in try await session.check(arguments) },
         "explain_rule": { _, arguments in try RuleExplainer.explain(arguments) }

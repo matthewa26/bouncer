@@ -44,6 +44,12 @@ func add(_ value: Int) -> Int {
     return fourth + 49_979_687
 }
 SWIFT
+for name in One Two Three; do
+    printf '/// Scales.\n///\n/// - Parameter value: The value.\n/// - Returns: It, scaled.\n' >> Sources/Many.swift
+    printf 'func scale%s(_ value: Int) -> Int {\n' "$name" >> Sources/Many.swift
+    printf '    let first = value + 7_919\n    let second = first * 104_729\n' >> Sources/Many.swift
+    printf '    let third = second - 15_485_863\n    return third + 32_452_843 * 49_979_687\n}\n' >> Sources/Many.swift
+done
 for name in Alpha Beta Gamma Delta Epsilon; do
     printf '/// Reads.\n///\n/// - Parameter value: The value.\n/// - Returns: It.\n' > "Sources/$name.swift"
     printf 'func read%s(_ value: Int?) -> Int {\n    value!\n}\n' "$name" >> "Sources/$name.swift"
@@ -103,7 +109,7 @@ expect("scan" in init["result"].get("instructions", ""), "initialize teaches the
 send("notifications/initialized", notification=True)
 
 tools = {tool["name"]: tool for tool in send("tools/list")["result"]["tools"]}
-names = {"scan", "status", "findings", "verify", "check", "explain_rule"}
+names = {"scan", "status", "findings", "next_batch", "verify", "check", "explain_rule"}
 expect(set(tools) == names, "tools/list: %s" % sorted(tools))
 expect("cursor" in tools["findings"]["inputSchema"]["properties"], "findings takes a cursor")
 
@@ -127,6 +133,20 @@ expect(not error and len(text) <= 220 and "Showing" in text, "the cursor fetches
 
 text, error = call("findings", {"rule": ["force-unwrap"], "severity": "error"})
 expect("Sources/Unwrap.swift" in text and "magic-number" not in text, "findings filters by rule and severity")
+
+text, error = call("next_batch")
+lines = text.split("\n")
+expect(not error and lines[0].startswith("Results from"), "next_batch opens with the result's age")
+expect(lines[1].startswith("Sources/") and " · " in lines[1] and "clusters left" in lines[1], "next_batch header")
+expect("(mechanical, error)" in lines[1] and "force-unwrap" in lines[1], "next_batch picks the error cluster first")
+expect(any("| " in line for line in lines), "next_batch shows numbered code lines")
+expect(lines[-1].startswith("Next: fix these, then call verify"), "next_batch ends with the verify call")
+text, error = call("next_batch", {"rule": "magic-number", "max_chars": 450})
+expect(not error and len(text) <= 450 and "| " in text, "next_batch fits max_chars and still shows code")
+expect("Sources/Many.swift · magic-number" in text, "next_batch filters by rule")
+expect("more in this cluster: call findings with rule magic-number" in text, "a cut cluster says how to get the rest")
+text, error = call("next_batch", {"rule": "no-such-rule"})
+expect(not error and "Nothing left to fix" in text, "next_batch with nothing matching")
 
 text, error = call("findings", {"severity": "fatal"})
 expect(error and "severity must be one of" in text, "a bad argument is an error")

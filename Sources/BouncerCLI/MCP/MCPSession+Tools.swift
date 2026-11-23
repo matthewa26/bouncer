@@ -51,6 +51,7 @@ extension MCPSession {
         }
         let reading = try await reading()
         let reanalysis = try await reanalyze(paths.map { MCPPaths.resolve($0, repoRoot: defaults.repoRoot) })
+        noteVerified(reanalysis.targets.analyzedPaths)
         let (budget, root) = (arguments.budget, defaults.repoRoot)
         return MCPAnswer(ToolText.verify(header: reading.header, reanalysis, repoRoot: root, budget: budget))
     }

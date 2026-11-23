@@ -51,7 +51,7 @@ enum ToolSchemas {
     }
 
     /// Every tool.
-    static let all: [MCPTool] = [scan, status, findings, verify, check, explainRule]
+    static let all: [MCPTool] = [scan, status, findings, nextBatch, verify, check, explainRule]
 
     /// `scan`.
     private static let scan = MCPTool(
@@ -84,6 +84,17 @@ enum ToolSchemas {
             "severity": property(stringType, "The least severe finding to list.", ["enum": severities]),
             "group_by": property(stringType, "Group under file (default) or rule.", ["enum": ["file", "rule"]]),
             "cursor": property(stringType, "The cursor the previous page ended with.")
+        ]))
+    )
+
+    /// `next_batch`.
+    private static let nextBatch = MCPTool(
+        name: "next_batch",
+        description: "The one file and rule to fix next, following the repo's work order, with the code around "
+            + "each finding. Fix them, verify the file, and call next_batch again.",
+        inputSchema: object(budgeted([
+            "rule": stringOrArray("Only these rule IDs, such as force-unwrap."),
+            "path": stringOrArray("Only files matching these globs, relative to the repo root, such as Sources/**.")
         ]))
     )
 

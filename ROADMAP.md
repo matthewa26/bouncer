@@ -400,6 +400,9 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | HTML report loads lazily, 100 rows at a time, with a compact row encoding | built for millions of findings | 1.2.0 |
 | ✅ | HTML report: visible column sort state, keyboard-operable headers | | 1.2.0 |
 | ✅ | HTML report: rule panel to hide noisy rules, with counts and "Copy as `.bouncer`" | | 1.2.0 |
+| ✅ | HTML report: expand a finding to see its code, a few lines either side with the finding's line marked | read once per file, stored per file, parsed on first expand; long lines cut; none for data and doc files | 1.3.0 |
+| ✅ | HTML report: tooltip on each rule saying why it exists and why its findings are a smell | hover, keyboard focus, or tap; `aria-describedby` | 1.3.0 |
+| ✅ | HTML report: "Show fix" diff with the finding's quick fix, or "Show example" with the rule's example, syntax-highlighted | built-in highlighter, no library; trailing whitespace shown | 1.3.0 |
 | ✅ | Interactive setup (`bouncer configure`): starting point, output, coverage, contested thresholds, where to save | | 1.2.0 |
 | ✅ | `"profile"` key in `.bouncer` selects a profile | documented before, but ignored | 1.2.0 |
 | ✅ | User profiles: repo `.bouncer-profiles/` (shareable) and global `~/.bouncer-profiles/` | | 1.2.0 |

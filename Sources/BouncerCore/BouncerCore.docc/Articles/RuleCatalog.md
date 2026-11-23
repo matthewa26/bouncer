@@ -3,7 +3,8 @@
 Every built-in rule, what it checks, its default severity, and its parameters.
 Each rule also has a fix cost, `mechanical` (a local fix) or `refactor` (the code has to be
 restructured), which decides where an agent's work order puts its findings; `explain_rule` shows
-it (see <doc:Agents>).
+it (see <doc:Agents>). <doc:RuleCatalog#Why-each-rule-matters> says why each rule's findings are
+worth fixing.
 
 ## Where each rule runs
 
@@ -532,7 +533,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
 | `import-cycle` | A cycle of imports, reported once at an import inside it with the full path | warning | none |
-| `layer-violation` | An import from a lower layer into a higher one | warning | `layers`: path globs, top layer first (none, so off) |
+| `layer-violation` | A file in a lower layer importing a higher one (a later `layers` entry importing an earlier one, such as domain code importing UI) | warning | `layers`: path globs, top layer first (none, so off) |
 | `unused-export` | A TS/JS named export nothing in the project imports | warning | `entryPoints`: globs whose exports are used externally |
 | `high-fan-out` | A file, Swift target, or Go package depending on too many others in the project | warning | `maxDependencies` (15) |
 | `hub-module` | A file, target, or package too much of the project depends on | warning | `maxDependents` (30) |
@@ -761,6 +762,234 @@ limit are left to `cyclomatic-complexity` and `long-function`.
 base, by name in line order, and reports those left over; a new file gets one finding listing
 its symbols. Conformance members (`encode`, `hash`, `description`, `debugDescription`, `body`,
 `id`) and test files are skipped. Turn it on for library repos that review API growth.
+
+## Why each rule matters
+
+Why a finding is worth fixing: the harm each rule guards against, and who pays for it. The HTML report
+shows this when you point at a finding, and `explain_rule` prints it first.
+
+| Rule | Why it matters |
+|---|---|
+| `abbreviation` | Shortened names like `usrMgr` make every reader decode them, and people shorten the same word differently, so searches miss and one concept ends up spelled several ways across the code. |
+| `alternative-interfaces` | Two types that do the same job under different method names can't stand in for each other or share callers, so code gets written twice and a fix to one is easily missed in the other. |
+| `arrow-code` | Each nested `if` pushes the real work further right and makes the reader hold every condition at once; returning early on the failure cases keeps the main path flat and easy to follow. |
+| `boolean-name-prefix` | A boolean named `loaded` or `admin` can be mistaken for a value or an object; `isLoaded` or `isAdmin` reads as a yes-or-no question, so conditions like `if isAdmin` explain themselves. |
+| `boolean-parameter` | A call like `save(true, false)` tells the reader nothing about what the flags do, and a flag usually means the function does two jobs that would be clearer as two functions or an enum. |
+| `c-debug-print` | Debug prints left in C code clutter the program's real output, can leak internal values to users or logs, and show the code was committed in the middle of an investigation. |
+| `c-gets-usage` | `gets` can't know how big its buffer is, so any longer line overwrites nearby memory; an attacker who controls the input can crash the program or take over what it runs. |
+| `c-unsafe-string-function` | `strcpy`, `strcat` and `sprintf` write until the source ends, not until the buffer is full, so oversized input overflows memory that an attacker can use to crash the program or run their own code. |
+| `change-coupling` | Two files that keep changing together without referencing each other hide a dependency: someone editing one won't know to update the other, and the mismatch surfaces later as a bug. |
+| `class-cohesion` | When a class's methods share few fields, it's really several classes in one: each change risks the unrelated parts, and the class is harder to name, test and reuse. |
+| `cognitive-complexity` | Nested branches, loops and mixed and/or conditions make a reader track many conditions at once, which slows reviews and is where missed cases and off-by-one bugs tend to hide. |
+| `command-query-separation` | A method that both changes state and returns a value can't be called just to look at something, so a harmless-looking read has side effects, and calling it twice may not give the same answer. |
+| `commented-out-code` | Commented-out code rots: it isn't compiled or tested, readers can't tell whether it still matters, and version control already keeps the old version if anyone needs it back. |
+| `complexity-ratchet` | A function that was already over the limit got worse in this change; every addition makes it costlier to untangle later, so stopping the growth now is the cheapest time to fix it. |
+| `consecutive-blank-lines` | Runs of blank lines waste vertical space, so less code fits on screen at once, and they cause noisy whitespace-only diffs when someone else's editor tidies them up. |
+| `cors-credentials-any-origin` | Accepting any origin while also allowing credentials lets any website a logged-in user visits call your API with their cookies and read the answers, exposing their data and their account. |
+| `coupling-between-objects` | A class that names many other types can break whenever any of them changes, needs all of them set up to test, and can't be reused without dragging them along. |
+| `cpp-debug-print` | Debug prints to `std::cout` or `stderr` left in C++ code clutter the program's real output, can leak internal values into logs, and show the code was committed mid-investigation. |
+| `cpp-raw-new-delete` | Pairing `new` and `delete` by hand leaks memory whenever an exception or early return skips the `delete`, and invites double frees; smart pointers release memory automatically. |
+| `cpp-using-namespace-std` | `using namespace std` at file scope pulls hundreds of names into scope, so your own names can collide with standard ones and a library update can silently change which function a call picks. |
+| `crlf-line-endings` | Windows line endings in a repository others edit with LF make whole files look changed in diffs, break shell scripts with stray carriage returns, and cause merge conflicts that aren't real. |
+| `cyclomatic-complexity` | Every branch is another path a reader must trace and a test must cover; functions with many paths are hard to understand fully and tend to carry more bugs than simpler ones. |
+| `data-class` | A class that only holds fields leaves its behavior scattered across the code that uses it, so the same logic is rewritten in several places and its rules can't be enforced in one spot. |
+| `data-clump` | The same group of parameters passed around together is a missing type: every signature repeats it, values are easily passed in the wrong order, and adding one field means editing them all. |
+| `debug-mode-enabled` | Debug mode in production shows stack traces, settings and sometimes an interactive console to anyone who triggers an error, giving an attacker a map of your system or a way to run code on it. |
+| `deep-inheritance` | Deep class hierarchies spread one object's behavior across many files, so understanding or changing a class means reading all its ancestors, and a change near the top can break classes far below. |
+| `deep-nesting` | Deeply indented lines make readers keep many enclosing blocks in mind and push logic toward the right edge, so the code is slow to read and easy to change in the wrong block. |
+| `dependency-inversion` | A type that builds its own services instead of receiving them can't be tested with a fake or reconfigured without editing it, and it ties high-level logic to one concrete implementation. |
+| `disabled-tls-verification` | Turning off certificate checks means the program will talk to anyone claiming to be the server, so an attacker on the network can read and change the traffic, including passwords and tokens. |
+| `divergent-change` | A file that changes for several unrelated reasons mixes responsibilities, so unrelated features collide in it, conflict in merges, and a fix for one can break another. |
+| `duplicate-block` | Copied blocks within one file have to be kept in sync by hand: a bug fixed in one copy stays in the others, and readers waste time checking whether the copies really differ. |
+| `duplicate-code` | Code copied between files means every fix has to be found and repeated in each copy; the copies drift apart over time, and the one nobody remembers keeps the bug. |
+| `duplicate-import` | Importing the same module twice is noise that makes readers wonder whether the lines differ, and it usually comes from a careless merge that may have left other problems behind. |
+| `duplicated-string-literal` | The same string typed in several places has to be changed everywhere at once; one typo or missed copy causes a bug that a single named constant would have prevented. |
+| `else-after-return` | When the `if` branch always leaves, the `else` only adds a level of nesting; dropping it keeps the main path at the left margin and makes the early exit obvious to the reader. |
+| `empty-catch` | An empty `catch` swallows the error, so failures vanish: the program carries on in a broken state and nobody gets the log line that would explain what went wrong. |
+| `explicit-any` | `any` switches off type checking for that value and everything it flows into, so typos and wrong shapes reach runtime instead of being caught by the compiler, and editors lose autocomplete. |
+| `fail-open` | When a security check fails and its handler lets the request through anyway, an attacker who can make the check error, for example with malformed input, gets in without valid credentials. |
+| `feature-envy` | A method that mostly works with another object's data lives in the wrong place: that object's rules leak out, and changing its fields breaks code in a class that shouldn't care. |
+| `file-length` | Very long files mix many concerns, take longer to navigate and review, and attract merge conflicts because many people edit them at once; splitting by responsibility keeps each part findable. |
+| `file-name-mismatch` | When a file's name doesn't match the type inside it, people looking for the type by file name can't find it, and the mismatch often means the file was renamed or repurposed halfway. |
+| `fire-and-forget-task` | A `Task` started and never kept can't be cancelled, so it keeps running after its screen or owner is gone, can update state late or race with newer work, and its errors are lost. |
+| `forbidden-import` | The team decided this module shouldn't be used here, for layering, licensing or a replacement library; importing it anyway erodes that boundary one file at a time until it can't be enforced. |
+| `force-cast` | `as!` crashes at runtime whenever the value isn't the expected type, turning an unexpected server response or a refactor elsewhere into a crash in users' hands instead of a handled case. |
+| `force-try` | `try!` turns any thrown error into a crash, so a missing file, bad input or network hiccup takes the whole app down instead of being reported and handled. |
+| `force-unwrap` | `x!` crashes whenever the value is `nil`, and the reason it supposedly can't be is rarely written down, so a later change or unexpected input becomes a crash in users' hands. |
+| `generic-error-message` | A message like "Something went wrong" tells neither the user nor the developer reading the logs what failed or what to do, so every report of it starts a slow investigation from scratch. |
+| `global-mutable-state` | A global variable can be changed from anywhere, so a bug in one place shows up somewhere unrelated, tests leak state into each other, and concurrent code can race on it. |
+| `go-debug-print` | `fmt.Println` left in Go code writes unstructured output that bypasses log levels and destinations, cluttering production output and possibly exposing internal values. |
+| `go-discarded-return-value` | Assigning a call's result to `_` often throws away an `error`, so a failed write, close or parse goes unnoticed and the program carries on with bad or missing data. |
+| `go-panic-usage` | A `panic` crashes the whole program unless something recovers it, so one bad request or input can take down a server; returning an `error` lets callers decide how to handle it. |
+| `go-shell-injection` | Handing a command to `sh -c` lets shell syntax inside any inserted value run as commands, so an attacker who controls that value can run whatever they like on the machine. |
+| `go-unmanaged-goroutine` | A goroutine with no context, WaitGroup or channel can't be stopped or waited for, so it can leak, outlive the request that started it, or be cut off mid-work at shutdown. |
+| `go-unwrapped-error` | Returning `err` as is loses where it happened, so the final log says only "file not found" with no hint of which call or file; wrapping it with context makes failures traceable. |
+| `god-class` | A class with too many members and dependencies becomes the place everything goes, so nearly every change touches it, it's hard to test, and unrelated features break each other. |
+| `halstead-complexity` | A function packed with many distinct operators and operands holds a lot of detail in little space, so it's dense to read, slow to review and easy to misunderstand when changing it. |
+| `hardcoded-ip` | A literal IP address ties the code to one network layout, breaks when servers move, and shows internal infrastructure to anyone who reads the code; it belongs in configuration. |
+| `hardcoded-iv` | A fixed IV, nonce or salt makes encryption predictable: identical inputs give identical output, and with some modes a reused nonce lets an attacker recover the plaintext or forge messages. |
+| `high-coupling` | A file with many imports depends on many parts of the system, so changes elsewhere break it often, and understanding or testing it means understanding all of them first. |
+| `high-fan-out` | A module that depends on many others breaks whenever any of them changes and is hard to test in isolation; it's often doing several jobs that would be clearer apart. |
+| `hotspot` | Complex code that also changes often is where bugs and slow reviews concentrate; simplifying these few files pays off far more than cleaning up complex code that nobody touches. |
+| `hub-module` | When much of the project depends on one module, any change to it can break many callers and forces wide rebuilds and reviews, so it becomes the riskiest and slowest code to change. |
+| `hungarian-notation` | Type prefixes like `strName` repeat what the type system already knows and go stale when the type changes, leaving names that actively mislead the reader. |
+| `implicitly-unwrapped-optional` | A `T!` value crashes when read while `nil`, with no `!` at the use site to warn the reader, so the danger hides in a declaration far from where the crash happens. |
+| `import-cycle` | Modules that import each other can't be understood, tested or reused separately, their initialization order becomes fragile, and the cycle tends to grow until the project is one knot. |
+| `inappropriate-intimacy` | Two types that read each other's fields are tangled together, so neither can change its internals without breaking the other, and the boundary between them stops meaning anything. |
+| `incomplete-documentation` | A doc comment that skips a parameter, return value or thrown error leaves callers guessing at exactly the part they need, and suggests the rest of the comment may be out of date too. |
+| `inconsistent-indent` | A block indented by a different width than the rest of the file makes nesting harder to judge at a glance, and the mixed styles invite reformatting churn in later diffs. |
+| `inconsistent-terminology` | Using `fetch`, `get` and `load` for the same idea makes readers wonder whether they differ, and makes the right function harder to find by search or autocomplete. |
+| `insecure-cookie` | A cookie without `Secure` can travel over plain HTTP and be read on the network, and without `HttpOnly` any injected script can steal it; either way an attacker can take over the user's session. |
+| `insecure-http-url` | Plain `http://` traffic can be read and changed by anyone on the network path, so an attacker on shared Wi-Fi can steal what's sent or swap in a malicious response. |
+| `insecure-random` | `Math.random`, Python's `random` and Go's `math/rand` are predictable, so an attacker who sees a few outputs can guess the next token, ID or reset link and take over accounts. |
+| `interface-segregation` | When implementers stub out most of an interface, it's too broad: each one must carry methods it can't support, and callers can't tell which methods actually work. |
+| `java-generic-exception-catch` | Catching `Exception` or `Throwable` also catches bugs you never planned for, such as null pointers or out-of-memory errors, and hides them behind handling meant for something else. |
+| `java-print-stack-trace` | `printStackTrace` writes straight to stderr, bypassing your logger's levels, format and destinations, so the trace is often lost in production or shown where users can see it. |
+| `java-system-out` | `System.out` printing bypasses the logging framework, so the output can't be filtered, routed or turned off in production, and debug text ends up where nobody monitors it. |
+| `js-console-log` | A leftover `console.log` clutters browser and server output and can show internal data to anyone who opens dev tools, and a leftover `debugger` pauses the page whenever tools are open. |
+| `js-eval` | `eval` and `new Function` run a string as code, so if any part of it comes from user input, an attacker can run their own JavaScript with your page's or server's privileges. |
+| `js-loose-equality` | `==` converts types before comparing, so `0 == ""` and `null == undefined` are both true; surprising matches like these let wrong values slip through checks that `===` would catch. |
+| `js-raw-html` | Writing untrusted text through `innerHTML` or `dangerouslySetInnerHTML` lets an attacker inject script that runs as your users, stealing their sessions or acting for them (cross-site scripting). |
+| `js-shell-injection` | Building a shell command with `${…}` lets shell characters in that value run as extra commands, so an attacker who controls it can run anything on the machine. |
+| `js-var` | `var` is function-scoped and hoisted, so a variable leaks out of its block and can be read before it's set; `let` and `const` catch those mistakes and show whether it changes. |
+| `jwt-verification-disabled` | Skipping a JWT's signature or expiry check, or allowing the `none` algorithm, means anyone can forge or replay a token and be accepted as any user, an admin included. |
+| `lack-of-cohesion` | A class whose methods split into groups that share no data is several classes in one; a change to one group risks the others, and the class is harder to name, test and reuse. |
+| `large-type` | A very long type collects too many responsibilities, takes a long time to read, and attracts merge conflicts because many unrelated changes land in the same place. |
+| `law-of-demeter` | Reaching through `a.b.c.d` ties your code to the inner structure of objects several steps away, so a change deep inside any of them breaks code that shouldn't know it exists. |
+| `layer-violation` | When a lower layer imports a higher one, such as domain code importing UI, core logic starts depending on details it should not know about and can no longer be tested or reused alone. |
+| `lazy-class` | A class that does almost nothing adds a name, a file and a layer of indirection readers have to step through without earning its keep; folding it into its caller simplifies the code. |
+| `liskov-substitution` | When a subtype refuses an inherited operation or demands more of its inputs, code written against the parent breaks when handed that subtype, which defeats the point of the abstraction. |
+| `logged-secret` | Logs are copied to files, dashboards and outside services and kept for a long time, so a password or token written there can be read by many people and reused by an attacker. |
+| `long-boolean-expression` | A condition with many and/or parts is hard to read correctly and easy to get wrong in precedence or negation; naming the parts as variables makes the intent checkable. |
+| `long-closure` | A long anonymous closure hides a real unit of work without a name, makes the surrounding call hard to follow, and can't be tested on its own; a named function fixes all three. |
+| `long-function` | Long functions do several jobs at once, so readers must hold more in their head, tests can't target one behavior, and a change to one part risks breaking another. |
+| `long-identifier` | Very long names wrap lines and bury the word that matters, making code harder to scan; they often try to carry context the surrounding type or function should provide. |
+| `long-lines` | Long lines force horizontal scrolling and wrap badly in side-by-side diffs and review tools, so reviewers skim past changes at the end of the line. |
+| `long-message-chain` | A chain like `a.b().c().d()` depends on the shape of every object along the way, so a change at any step breaks the caller, and a failure in the middle is hard to pin down. |
+| `long-parameter-list` | Many parameters make calls hard to read and easy to get wrong, since arguments of the same type can be swapped without any error; they often signal a missing type or a function doing too much. |
+| `magic-number` | A bare number like `86400` hides what it means and has to be updated everywhere it appears; a named constant explains itself and changes in one place. |
+| `main-sequence-distance` | A module that's concrete yet depended on by many is painful to change, while one that's abstract yet unused is indirection nobody needs; both make the architecture harder to evolve. |
+| `maintainability-index` | A low index combines size, branching and dense code into one warning sign: the function is likely hard to understand and costly to change without breaking something. |
+| `many-subclasses` | A class with many direct subclasses makes every change to it ripple into all of them, and often means variation that could be data has been modeled as a type for each case. |
+| `middle-man` | A type whose methods only pass calls on to another object adds a layer readers must step through for no benefit; callers could use the real object directly. |
+| `missing-documentation` | Without a doc comment, callers have to read the implementation to learn what a declaration does, what it expects and how it fails, and editors have nothing to show on hover. |
+| `missing-file-header` | Where a project requires a license or ownership header, a file without one leaves its terms unclear to anyone who copies or audits it, and tools that rely on the header skip it. |
+| `missing-final-newline` | Without a final newline, the next edit to the last line shows up as two changed lines, `cat` and other tools glue the next output onto it, and some parsers mishandle the last line. |
+| `missing-lockfile` | Without a lockfile, each install can resolve different dependency versions, so builds aren't reproducible and a broken or compromised new release can slip into the project with no code change. |
+| `missing-readme` | A package without a README gives newcomers no starting point, so they can't tell what it does, how to use it or who owns it without reading the code. |
+| `missing-test-file` | A source file with no matching test file is likely untested, so regressions in it go unnoticed until users find them, and refactoring it is a gamble. |
+| `mixed-indentation` | Tabs and spaces render at different widths in different editors, so code aligned for one person looks broken to another, and in Python mixing them can be a hard error. |
+| `naming-convention` | Names that break the language's conventions make code look foreign and slow to read, since a name's case usually tells the reader what it is, such as a type versus a variable. |
+| `negated-boolean-name` | Names like `isNotReady` lead to double negatives such as `!isNotReady`, which readers easily misread; a positive name like `isReady` keeps every condition simple. |
+| `nested-ternary` | A ternary inside another packs several branches into one expression that's hard to read and easy to get wrong; an `if` or `switch` makes each case visible. |
+| `nesting-depth` | Each nested `if`, loop or `switch` adds a condition the reader must keep in mind; deep nesting makes it hard to tell which conditions apply to a line, and bugs hide there. |
+| `non-null-assertion` | `x!` tells TypeScript to trust that a value isn't `null` or `undefined` without checking, so when it is, the code fails at runtime far from the real cause. |
+| `nosql-injection` | Passing request data straight into a MongoDB query lets an attacker send an operator like `$ne` instead of a value, slipping past a login check or reading other users' records. |
+| `npath-complexity` | The function has so many distinct paths through it that no test suite can cover them, so some combinations of conditions will run for the first time in front of users. |
+| `null-collection-return` | Returning `nil` or `null` instead of an empty collection makes every caller check before looping, and the caller that forgets crashes; an empty collection needs no special case. |
+| `objc-debug-log` | `NSLog` writes to the system log even in release builds, slowing the app and exposing whatever it prints to anyone who can read the device's logs. |
+| `objc-shell-injection` | Building a shell command with `stringWithFormat:` lets shell characters in the inserted value run as extra commands, so an attacker who controls it can run anything with your app's rights. |
+| `open-redirect` | Redirecting to a URL taken from the request lets an attacker craft a link on your trusted domain that lands users on a phishing site, making the scam look legitimate. |
+| `oversized-change` | A very large change is hard to review properly, so reviewers skim and bugs slip through; it's also harder to revert and more likely to conflict with everyone else's work. |
+| `oversized-test` | A test that's very long or checks many things fails for many reasons, so a red result doesn't say what broke, and it's hard to see which behavior it protects. |
+| `parallel-inheritance` | When every new subclass in one hierarchy needs a matching subclass in another, each feature has to be added in two places, and forgetting one leaves the pair inconsistent. |
+| `path-traversal` | Using request input in a file path lets an attacker send `../` to read or overwrite files outside the intended folder, such as configuration or keys, or with PHP `include`, run code they choose. |
+| `permissive-cors` | Allowing every origin lets any website call your API from a visitor's browser and read the answers, exposing data meant only for your own front end, especially on internal networks. |
+| `php-debug-output` | `var_dump`, `print_r` or `dd` left in PHP code prints internal data straight into the page, breaking the response and showing attackers how the application works inside. |
+| `php-error-suppression` | The `@` operator hides errors and warnings completely, so a failed file read or database call carries on silently and the bug surfaces later with no log to explain it. |
+| `php-eval` | `eval` and `create_function` run a string as PHP code, so if any part of it comes from user input, an attacker can run their own code on your server. |
+| `php-extract` | `extract` on request data turns every request parameter into a local variable, so an attacker can overwrite variables like `$isAdmin` or a file path just by adding a parameter. |
+| `php-loose-comparison` | PHP's `==` converts types, so two different hashes that both look like `0e…` numbers compare equal, letting an attacker pass a token or password check without the right value. |
+| `php-shell-injection` | Passing a variable into `exec`, `system` or backticks lets shell characters in it run as extra commands, so an attacker who controls the value can run anything on the server. |
+| `php-weak-password-hash` | MD5 and SHA-1 are so fast that a stolen password table can be cracked by trying billions of guesses a second; `password_hash` uses a slow, salted algorithm made for this. |
+| `pipe-to-shell` | Piping a download straight into a shell runs whatever the server sends, unseen; if the site, its CDN or the connection is compromised, the attacker's script runs with your privileges. |
+| `powershell-debug-leftover` | Leftover tracing, breakpoints or debug output in a PowerShell script stall unattended runs, flood logs, and can print variables, secrets included, that were only meant for debugging. |
+| `powershell-invoke-expression` | `Invoke-Expression` runs a string as code, so if any part of it comes from input, a file or a download, an attacker can run their own commands with the script's rights. |
+| `powershell-plaintext-password` | Converting a password with `-AsPlainText` usually means it sits in the script, a variable or the history in readable form, where anyone with access to the file or session can take it. |
+| `primitive-obsession` | Plain strings and numbers for IDs, money or dates let values with different meanings be mixed up with no compiler error, such as a user ID passed where an order ID belongs. |
+| `public-api-growth` | Every public symbol is a promise to callers that's hard to take back without a breaking release; reviewing growth keeps internal details from becoming API by accident. |
+| `python-bare-except` | A bare `except:` catches everything, including `KeyboardInterrupt` and `SystemExit`, so real bugs get swallowed and the program can't even be stopped cleanly. |
+| `python-debug-print` | `print` left in code writes unstructured output that bypasses logging levels and handlers, cluttering production output and possibly exposing internal values. |
+| `python-eval-exec` | `eval` and `exec` run a string as Python code, so if any part of it comes from user input, an attacker can run their own code with your program's privileges. |
+| `python-mutable-default-arg` | A `[]` or `{}` default is created once and shared by every call, so items added in one call show up in the next, causing bugs that look random. |
+| `python-shell-injection` | `shell=True` and `os.system` pass the command through a shell, so shell characters in any inserted value run as extra commands that an attacker who controls the value can choose. |
+| `python-unsafe-deserialization` | `pickle` and unsafe YAML loading can build any object and run code while loading, so an attacker who controls the data can run their own code on your machine. |
+| `recursion-without-base-case` | A function that always calls itself has no way to stop, so it recurses until the stack overflows and the program crashes the first time it's called. |
+| `redundant-comment` | A comment that repeats the code costs reading time without adding information, and it goes stale when the code changes, leaving a comment that contradicts it. |
+| `refused-bequest` | A subclass that overrides inherited methods only to throw or do nothing doesn't really share its parent's behavior, so code expecting the parent fails when handed the subclass. |
+| `repeated-switch` | The same `switch` in several files means adding a case requires finding and editing every copy; missing one causes inconsistent behavior that's easy to overlook. |
+| `resource-leak` | A file or stream that's never closed holds an operating-system handle until the process ends; under load the program runs out of handles, and buffered writes may never reach the disk. |
+| `response-for-class` | A class whose methods call many other methods has a large surface of behavior to understand and test, and a change in any of those callees can break it. |
+| `rust-debug-print` | `dbg!` anywhere, or a stray `println!` in library code, writes to the terminal of whoever runs it, cluttering their output and bypassing their logging setup. |
+| `rust-panic` | `panic!` in library code crashes the caller's program instead of letting it handle the problem; returning a `Result` lets the caller decide what a failure means. |
+| `rust-shell-injection` | Running a shell with `-c` and a command built by `format!` lets shell characters in the inserted value run as extra commands, so an attacker who controls it can run anything. |
+| `rust-todo-macro` | `todo!()` and `unimplemented!()` compile fine but panic when reached, so unfinished code can ship and crash at runtime, in tests or in production. |
+| `rust-unsafe-without-safety-comment` | An `unsafe` block skips the compiler's memory-safety checks; without a `SAFETY:` comment, reviewers can't verify why it's sound, and later edits can break its hidden assumptions. |
+| `rust-unwrap` | `.unwrap()` and `.expect()` panic when the value is `None` or an error, so unexpected input crashes the program instead of being handled or reported. |
+| `secret-looking-pattern` | A secret committed to source is visible to everyone with repository access and stays in history forever; an attacker who finds it can use the key until it's rotated. |
+| `shared-mutable-state` | State changed from several threads or async tasks without a lock can be read half-updated or overwritten, causing intermittent bugs that are very hard to reproduce. |
+| `shell-debug-trace` | `set -x` prints every command with its variables expanded, so secrets and tokens land in CI logs and terminals, and the trace buries the messages that matter. |
+| `shell-eval-usage` | `eval` re-parses its arguments as shell code, so any variable inside it that holds outside input, such as a filename or argument, becomes commands an attacker can choose. |
+| `shell-unquoted-variable` | An unquoted `$var` is split on spaces and expanded as a wildcard, so a filename with a space or `*` becomes several arguments, and a command like `rm $dir/*` can delete the wrong files. |
+| `short-crypto-key` | RSA or DSA keys under 2048 bits and curves of 192 bits or fewer are within reach of today's computing power, letting an attacker decrypt data or forge signatures. |
+| `short-identifier` | One-letter names force readers to work out what each variable holds from the surrounding code, which slows reading and makes mix-ups easy. |
+| `shotgun-surgery` | When a typical change to one file also needs edits across many others, every feature costs more, and forgetting one of the scattered edits causes a bug. |
+| `single-author-file` | A file only one person has worked on depends on that person's memory; if they leave or are away, nobody else can safely change or review it. |
+| `single-implementation-interface` | An interface with one implementation and no test fake adds a layer readers must jump through, and a second place to edit for every change, without providing any flexibility yet. |
+| `single-override-subclass` | A subclass that only overrides one method uses inheritance where a parameter or closure would do, tying it to every detail of its parent class. |
+| `skipped-test` | A skipped test silently stops protecting its feature, and skips tend to stay forever; a focused `.only` or `fit` is worse, skipping every other test while CI stays green. |
+| `sql-missing-where` | An `UPDATE` or `DELETE` without a `WHERE` changes or removes every row in the table; that's almost never intended, and once it runs against production only a backup can undo it. |
+| `sql-select-star` | `SELECT *` fetches columns you don't need and silently changes what code receives when columns are added, removed or reordered, breaking callers that rely on position or shape. |
+| `sql-string-building` | Gluing values into SQL text lets an attacker who controls the input run their own SQL, reading or deleting data; parameterized queries keep the data apart from the command. |
+| `ssrf` | Letting request input choose where the server sends a request means an attacker can make your server call internal services or cloud metadata endpoints that only it can reach. |
+| `stale-documentation` | A doc comment describing a parameter that no longer exists misleads every reader and shows the docs weren't updated with the code, so the rest of it can't be trusted either. |
+| `swift-debug-print` | `print`, `dump` and `NSLog` left in Swift code run in release builds, slowing the app, cluttering logs, and exposing whatever they print to anyone reading the device logs. |
+| `swift-discarded-try` | A `try?` whose result is thrown away silently drops the error, so a failed save or network call looks like success and nobody learns it happened. |
+| `swift-fatal-error` | `fatalError` crashes the app, so any input or state you didn't expect ends the program for users instead of being reported or recovered from. |
+| `swift-main-sync` | `DispatchQueue.main.sync` called on the main thread waits on itself forever and freezes the app; from a background thread it can deadlock with work the main thread is waiting on. |
+| `swift-precondition` | A failed `precondition` crashes the app in release builds too, so a check that could have reported a bad argument instead ends the program for the user. |
+| `swift-semaphore-wait` | Blocking on a semaphore stalls its thread: on the main thread it freezes the UI, and inside Swift concurrency it can starve the shared thread pool and deadlock. |
+| `swift-shell-injection` | Running a shell with `-c` and an interpolated command lets shell characters in the inserted value run as extra commands, so an attacker who controls it can run anything. |
+| `swift-unchecked-sendable` | `@unchecked Sendable` and `nonisolated(unsafe)` turn off the compiler's data-race checks, so if the type isn't really thread-safe, races go unnoticed until they corrupt data in production. |
+| `switch-on-type-smell` | A `switch` with many branches on a kind or type must be updated every time a case is added, and such switches tend to be copied around; polymorphism keeps each case in one place. |
+| `tell-dont-ask` | Checking another object's state and then changing it from outside spreads that object's rules across its callers, where they can be applied inconsistently or skipped. |
+| `template-injection` | Compiling a template from request input lets an attacker write template code, which in many engines can read server data or run commands on the server. |
+| `temporary-field` | A field that's only set and used within one method makes the object's state confusing, since it's empty the rest of the time; it belongs in a local variable or parameter. |
+| `test-network-call` | A test that calls a real network service fails when that service is slow, down or changed, and may send real requests; mocking the call makes it fast and repeatable. |
+| `test-real-clock` | A test that reads the real clock behaves differently at different times, so it can fail at midnight, at month end or in another time zone with no code change. |
+| `test-sleep` | Sleeping in a test makes the suite slow, and the delay is a guess: too short and it fails at random on a busy machine, too long and every run wastes the time. |
+| `test-without-assertions` | A test that never asserts passes as long as nothing throws, so it gives false confidence and keeps passing even after the behavior it's named for breaks. |
+| `timing-unsafe-comparison` | Comparing secrets with `==` stops at the first wrong character, so an attacker who measures response times can guess a token or signature one character at a time. |
+| `todo-density` | Many TODO and FIXME markers in one file show known problems piling up; they make it hard to tell which are urgent and signal code nobody has had time to finish. |
+| `too-many-fields` | A class with many fields usually holds several concepts at once, which makes its state hard to keep consistent and the class hard to construct in tests. |
+| `too-many-generic-parameters` | Many generic parameters make a signature hard to read and its compiler errors hard to decode, and every caller has to understand how all of them relate. |
+| `too-many-locals` | Many local variables mean the reader must track a lot of state at once, and usually signal a function doing several steps that would read better as separate functions. |
+| `too-many-loop-jumps` | Many `break` and `continue` statements make it hard to see when a loop runs, skips or stops, so changing the loop safely means tracing every exit. |
+| `too-many-methods` | A class with many methods usually has several responsibilities, so it's hard to learn, unrelated changes collide in it, and its tests grow large. |
+| `too-many-returns` | Many exit points make it hard to see what a function returns in each case, and easy to skip cleanup or logging on one path when the function changes. |
+| `too-many-types` | Many types in one file make each hard to find by name and turn the file into a merge-conflict magnet; one main type per file keeps navigation simple. |
+| `trailing-whitespace` | Trailing spaces are invisible but show up as changes when an editor strips them, adding noise to reviews and causing needless merge conflicts. |
+| `ts-double-cast` | `as unknown as T` forces TypeScript to accept any value as any type, so a real type mismatch compiles cleanly and then fails at runtime, often far from the cast that hid it. |
+| `ts-ignore-without-reason` | Silencing a type error without a reason hides it from everyone else, and later readers can't tell whether the comment is safe to remove or masks a real bug. |
+| `ts-prefer-union-type` | A string-literal union does this enum's job with no runtime object, accepts plain strings such as JSON values, and narrows cleanly, so the `enum` adds code and indirection for nothing. |
+| `type-check-chain` | Repeated `instanceof` or `is` checks spread type-specific behavior across callers, so adding a new type means finding every chain; polymorphism keeps it in one place. |
+| `type-in-name` | A name like `userList` repeats the type and turns wrong when the type changes to a set, while saying nothing about which users it holds or what they're for. |
+| `unlogged-security-failure` | When a failed login or signature check is handled without logging, attacks such as password guessing leave no trace, so nobody notices them or can investigate later. |
+| `unpinned-ci-action` | An Action referenced by tag or branch can be changed by its owner, or by an attacker who takes over its repository, and your workflow will run the new code with access to your secrets. |
+| `unpinned-dependency` | A dependency without a reproducible version can change under you on the next install, pulling in breaking changes or a compromised release without any change to your code. |
+| `unreachable-code` | Code after a `return`, `throw` or `break` never runs, so it misleads readers into thinking it does, and it often points to a mistake in the control flow above it. |
+| `unsafe-deserialization` | Deserializing untrusted data with a format that can build any object lets an attacker craft input that runs code or rewrites program state while it's being loaded. |
+| `unsorted-imports` | Unsorted imports make it harder to see at a glance what a file uses and cause merge conflicts when two people add imports at the same spot. |
+| `unstable-dependency` | When stable code that many modules rely on imports volatile code, every change to the volatile part ripples into all of them, so the stable part stops being stable. |
+| `unused-dependency` | A dependency nothing imports is still installed, built and shipped, slowing builds and widening the attack surface, and its security alerts waste reviewers' time. |
+| `unused-export` | An export nobody imports is dead code that still has to be read, maintained and kept compiling, and it hides which parts of the module are its real API. |
+| `unused-import` | An unused import suggests the file depends on a module it doesn't, can slow builds or load code at runtime for nothing, and is usually a leftover from removed code. |
+| `unused-parameter` | A parameter the function ignores misleads callers into thinking it matters and makes them compute it for nothing; it often means the function lost a behavior it used to have. |
+| `unused-private-symbol` | A private declaration nothing uses is dead code: readers spend time understanding it, it must keep compiling, and nobody notices when it's wrong. |
+| `unused-public-symbol` | A public declaration no other module uses enlarges the API you have to keep stable; making it internal leaves you free to change it later. |
+| `weak-crypto` | MD5 and SHA-1 collisions can be forged, DES can be brute-forced, and ECB mode reveals patterns in the data, so attackers can fake hashes or learn what encrypted data says. |
+| `weighted-methods` | A class whose methods add up to a lot of branching logic is hard to understand and test as a whole, and is often doing the work of several classes. |
+| `xml-external-entities` | An XML parser that resolves external entities lets an attacker's crafted document read files on your server, make it call internal URLs, or exhaust its memory. |
 
 ## Coverage
 

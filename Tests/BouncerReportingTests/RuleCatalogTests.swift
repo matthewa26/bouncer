@@ -36,7 +36,7 @@ final class RuleCatalogTests: XCTestCase {
     func testLanguageNoteInTheRuleIDCellCounts() throws {
         let text = try text("force-unwrap")
         XCTAssertTrue(text.contains("- [Swift] A force unwrap, x!. Default: warning. Parameters: none."), text)
-        XCTAssertLessThan(text.count, 600)
+        XCTAssertLessThan(text.count, 900)
     }
 
     func testPerLanguageExtraWithOWASPCategory() throws {
@@ -104,5 +104,46 @@ final class RuleCatalogTests: XCTestCase {
         XCTAssertEqual(unknown, [], "Tagged but not a rule (a typo?): \(unknown.joined(separator: ", "))")
         let documented = FixCost.uncataloguedRuleIDs.filter { RuleCatalog.ruleIDs.contains($0) }
         XCTAssertEqual(documented, [], "Now in the catalog; drop from uncataloguedRuleIDs: \(documented)")
+    }
+
+    /// The longest a rationale may be, in characters, so the HTML report's tooltip stays short.
+    private let maxRationaleLength = 280
+    /// The shortest a rationale may be, in characters, so a placeholder can't stand in for one.
+    private let minRationaleLength = 80
+
+    func testEveryCatalogRuleHasAShortRationale() {
+        for id in RuleCatalog.ruleIDs {
+            let rationale = RuleCatalog.rationale(for: id) ?? ""
+            XCTAssertGreaterThanOrEqual(rationale.count, minRationaleLength, "No real rationale for \(id)")
+            XCTAssertLessThanOrEqual(rationale.count, maxRationaleLength, "Rationale too long for \(id)")
+            XCTAssertFalse(rationale.contains("`") || rationale.contains("|"), "Markdown left in \(id)'s rationale")
+        }
+    }
+
+    func testEveryRationaleNamesACatalogRule() {
+        let unknown = RuleCatalog.rationaleRuleIDs.filter { !RuleCatalog.ruleIDs.contains($0) }
+        XCTAssertEqual(unknown, [], "Rationale rows for rules the catalog doesn't define: \(unknown)")
+    }
+
+    func testUnknownRuleHasNoRationale() {
+        XCTAssertNil(RuleCatalog.rationale(for: "nope"))
+        XCTAssertNil(RuleCatalog.rationale(for: "Force-Unwrap"))
+    }
+
+    func testExplanationShowsTheRationaleOnceUnderTheHeading() throws {
+        for id in ["force-unwrap", "sql-string-building", "import-cycle", "c-unsafe-string-function"] {
+            let text = try text(id)
+            let rationale = try XCTUnwrap(RuleCatalog.rationale(for: id))
+            let lines = text.components(separatedBy: "\n")
+            XCTAssertEqual(lines[1], "Why it matters: \(rationale)", text)
+            XCTAssertEqual(text.components(separatedBy: rationale).count, 2, "Rationale not shown exactly once")
+            XCTAssertFalse(text.contains("Why each rule matters"), "The rationale table isn't a catalog section")
+        }
+    }
+
+    func testRationaleTableAddsNoRuleRows() throws {
+        let text = try text("long-function")
+        XCTAssertTrue(text.hasPrefix("long-function (rule catalog: Code smells)\nWhy it matters: "), text)
+        XCTAssertEqual(text.components(separatedBy: "\n- ").count, 2, "Exactly one documenting row")
     }
 }

@@ -3,7 +3,8 @@ import BouncerCore
 
 /// The findings in the compact form the HTML report embeds: each file and rule is written once in a lookup
 /// table, and each finding is a short array of indices into those tables, so a report with millions of findings
-/// stays small enough for a browser to load.
+/// stays small enough for a browser to load. Source lines for the findings' previews are stored per file, and
+/// rationales and examples per rule, so none of them is repeated per finding.
 struct HTMLReportData: Encodable {
     /// Identifies the report's repository, so the page can remember settings, such as hidden rules, per repository.
     let key: String
@@ -24,8 +25,30 @@ struct HTMLReportData: Encodable {
     let owasp: [String?]?
     /// The title of each category in `owasp` (`"A05:2025": "Injection"`), for the filter's labels.
     let owaspTitles: [String: String]?
+    /// Why each rule matters, or `null` where the catalog doesn't say, in the same order as `rules`.
+    let why: [String?]
+    /// Each rule's generic before-and-after example, or `null`, in the same order as `rules`.
+    let examples: [Example?]
+    /// The code previews, which `HTMLReporter` embeds in their own element so the page only parses them when a
+    /// finding is first expanded; left out of this object's JSON.
+    let source: Source
 
-    /// One finding, encoded as `[fileIndex, line, ruleIndex, severityIndex, message]`.
+    /// The keys this object's JSON has: every property but `source`.
+    private enum CodingKeys: String, CodingKey {
+        case key, coverage, severities, files, filePaths, rules, rows, owasp, owaspTitles, why, examples
+    }
+
+    /// The code previews, as their own JSON object.
+    struct Source: Encodable {
+        /// Each file's runs of source lines around its findings, or `null` for a file that couldn't be read or
+        /// whose code isn't shown, in the same order as `files`.
+        let code: [[Chunk]?]
+        /// How many lines of context the page shows above and below a finding's line, and around a quick fix.
+        var context = HTMLSourceExcerpts.radius
+    }
+
+    /// One finding, encoded as `[fileIndex, line, ruleIndex, severityIndex, message]`, followed by its quick fix
+    /// as a sixth element when it has one.
     struct Row: Encodable, Equatable {
         /// The finding's index into `files` and `filePaths`.
         let file: Int
@@ -37,6 +60,8 @@ struct HTMLReportData: Encodable {
         let severity: Int
         /// The finding's message.
         let message: String
+        /// The finding's quick fix, or `nil` (and left out of the JSON) if it has none.
+        let fix: Fix?
 
         /// Writes the row as a JSON array.
         ///
@@ -49,27 +74,65 @@ struct HTMLReportData: Encodable {
             try container.encode(rule)
             try container.encode(severity)
             try container.encode(message)
+            if let fix { try container.encode(fix) }
         }
     }
 
     /// The severities in the order the page lists them.
     static let severityOrder: [Severity] = [.error, .warning, .info]
 
-    /// Builds the compact data for a result.
+    /// Builds the compact data for a result, reading each file with findings once for the code previews.
     ///
     /// - Parameters:
     ///   - result: The analysis result.
     ///   - repoRoot: The repository root, which the table's paths are relative to.
-    init(result: AnalysisResult, repoRoot: URL) {
+    ///   - lookups: Where file text, rationales, examples, and quick fixes come from.
+    init(result: AnalysisResult, repoRoot: URL, lookups: HTMLReportLookups = HTMLReportLookups()) {
         var files = FileTable(repoRoot: repoRoot), rules = Interner()
-        let unsorted = result.findings.map { finding in
-            Row(file: files.index(of: finding.filePath), line: finding.line, rule: rules.index(of: finding.ruleID),
-                severity: Self.severityOrder.firstIndex(of: finding.severity) ?? 0, message: finding.message)
-        }
-        rows = Self.displayOrder(unsorted, files: files.relative)
+        let indices = result.findings.map { (file: files.index(of: $0.filePath), rule: rules.index(of: $0.ruleID)) }
+        let excerpts = HTMLSourceExcerpts(findings: result.findings, fileIndices: indices.map(\.file),
+                                          files: files.urls, lookups: lookups)
+        rows = Self.displayOrder(Self.rows(result.findings, indices, fixes: excerpts.fixes), files: files.relative)
         (key, coverage, severities) = (repoRoot.path, result.coverage?.overallLineCoveragePercent, Self.names)
         (self.files, filePaths, self.rules) = (files.relative, files.absolute, rules.values)
         (owasp, owaspTitles) = Self.categories(of: rules.values)
+        (why, examples, source) = Self.notes(on: rules.values, code: excerpts.code, lookups: lookups)
+    }
+
+    /// Looks up each rule's rationale and example, and wraps the code previews.
+    ///
+    /// - Parameters:
+    ///   - rules: The report's rule IDs.
+    ///   - code: Each file's runs of source lines.
+    ///   - lookups: Where rationales and examples come from.
+    /// - Returns: Each rule's rationale and example, or `nil`, in the order of `rules`, and the previews.
+    private static func notes(on rules: [String], code: [[Chunk]?],
+                              lookups: HTMLReportLookups) -> ([String?], [Example?], Source) {
+        (rules.map(lookups.rationale), rules.map { lookups.example($0).map(Example.init) }, Source(code: code))
+    }
+
+    /// Encodes the findings as rows, in the result's order.
+    ///
+    /// - Parameters:
+    ///   - findings: The findings.
+    ///   - indices: Each finding's file and rule index.
+    ///   - fixes: Each finding's quick fix, if it has one.
+    /// - Returns: The rows.
+    private static func rows(_ findings: [Finding], _ indices: [(file: Int, rule: Int)], fixes: [Fix?]) -> [Row] {
+        findings.indices.map { row(findings[$0], file: indices[$0].file, rule: indices[$0].rule, fix: fixes[$0]) }
+    }
+
+    /// Encodes one finding as a row.
+    ///
+    /// - Parameters:
+    ///   - finding: The finding.
+    ///   - file: Its index into `files`.
+    ///   - rule: Its index into `rules`.
+    ///   - fix: Its quick fix, if it has one.
+    /// - Returns: The row.
+    private static func row(_ finding: Finding, file: Int, rule: Int, fix: Fix?) -> Row {
+        Row(file: file, line: finding.line, rule: rule,
+            severity: severityOrder.firstIndex(of: finding.severity) ?? 0, message: finding.message, fix: fix)
     }
 
     /// Looks up each rule's OWASP category, for the page's category filter and the JSON it builds.
@@ -112,6 +175,8 @@ private struct FileTable {
     private(set) var relative: [String] = []
     /// Each file's absolute path.
     private(set) var absolute: [String] = []
+    /// Each file's URL, as the findings name it.
+    private(set) var urls: [URL] = []
     /// Each file's index in `relative` and `absolute`.
     private var indices: [URL: Int] = [:]
 
@@ -131,6 +196,7 @@ private struct FileTable {
         indices[file] = relative.count
         relative.append(RepoPath.relative(file, to: repoRoot))
         absolute.append(file.path)
+        urls.append(file)
         return relative.count - 1
     }
 }

@@ -5,8 +5,8 @@ import BouncerCore
 public struct RuleExplanation: Sendable, Equatable {
     /// The rule's ID.
     public let id: String
-    /// The explanation: the rule's catalog section, each catalog row that documents it, its OWASP category
-    /// when it has one, and how to configure it in `.bouncer` or suppress one finding inline.
+    /// The explanation: the rule's catalog section, why it matters, each catalog row that documents it, its OWASP
+    /// category when it has one, and how to configure it in `.bouncer` or suppress one finding inline.
     public let text: String
 }
 

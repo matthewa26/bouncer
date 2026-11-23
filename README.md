@@ -38,6 +38,7 @@ bouncer review .                       # recursively audit a directory, independ
 bouncer review . --format json         # structured output for CI or an agent
 bouncer review . --format table        # an aligned Markdown table, to read or paste anywhere
 bouncer review . --format html         # a self-contained page with table and JSON views
+                                       # click a finding for its code, why its rule matters, and a fix diff
 bouncer review . --format agent        # compact findings grouped by file, for a coding agent's context
 bouncer review . --summary             # only the totals, top rules, and top files (any format)
 bouncer review . --rule force-unwrap --path 'Sources/**' --min-severity warning --limit 20 --offset 20

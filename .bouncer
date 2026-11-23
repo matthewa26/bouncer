@@ -9,6 +9,7 @@
     "Sources/CTreeSitterTSX/**", "Sources/CTreeSitterJavaScript/**", "Sources/CTreeSitterObjC/**",
     "Sources/CTreeSitterRust/**", "Sources/CTreeSitterPHP/**",
     "Scripts/windows-vm/autounattend.xml",
-    "Sources/BouncerReporting/RuleCatalogText.swift"
+    "Sources/BouncerReporting/RuleCatalogText.swift",
+    "Sources/BouncerReporting/RuleExamplesText.swift"
   ]
 }

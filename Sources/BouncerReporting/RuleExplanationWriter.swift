@@ -3,9 +3,9 @@ import BouncerCore
 
 /// Writes a rule's explanation from the catalog rows that document it.
 ///
-/// The text is plain and compact, one fact per line: the rule and its catalog section, each documenting row
-/// (language, what it checks, default severity, parameters), the OWASP category, the fix cost, how to configure
-/// it in `.bouncer`, and how to suppress one finding inline.
+/// The text is plain and compact, one fact per line: the rule and its catalog section, why the rule matters,
+/// each documenting row (language, what it checks, default severity, parameters), the OWASP category, the fix
+/// cost, how to configure it in `.bouncer`, and how to suppress one finding inline.
 struct RuleExplanationWriter {
     /// Headers whose cells name a row's languages.
     private static let languageHeaders: Set<String> = ["Language", "Languages"]
@@ -24,8 +24,14 @@ struct RuleExplanationWriter {
 
     /// The whole explanation.
     var text: String {
-        ([heading] + rows.map(line(for:)) + [owasp, fixCost, configuration, suppression].compactMap { $0 })
+        ([heading, rationale].compactMap { $0 } + rows.map(line(for:))
+            + [owasp, fixCost, configuration, suppression].compactMap { $0 })
             .joined(separator: "\n")
+    }
+
+    /// Why the rule's findings are worth fixing, from the catalog's "Why each rule matters" table.
+    private var rationale: String? {
+        RuleCatalog.rationale(for: ruleID).map { "Why it matters: \($0)" }
     }
 
     /// The first line: the rule and the catalog sections it's in.

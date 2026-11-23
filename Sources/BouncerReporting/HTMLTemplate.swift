@@ -8,9 +8,11 @@ enum HTMLTemplate {
     ///   - title: The page title, HTML-escaped.
     ///   - summary: The summary line, HTML-escaped.
     ///   - data: The findings in the compact form `HTMLReportData` encodes, safe inside a `<script>` element.
+    ///   - code: The code previews `HTMLReportData.Source` encodes, also safe inside a `<script>` element.
     /// - Returns: The complete page.
-    static func page(title: String, summary: String, data: String) -> String {
-        [documentStart, title, styles, title, summaryStart, summary, views, data, script].joined()
+    static func page(title: String, summary: String, data: String, code: String) -> String {
+        [documentStart, title, styles, codeStyles, bodyStart, title, summaryStart, summary, views, data, codeStart,
+         code, script, codeScript, scriptEnd].joined()
     }
 
     /// The doctype and head, up to the title.
@@ -21,7 +23,7 @@ enum HTMLTemplate {
         <title>
         """#
 
-    /// The rest of the head, with the styles, and the page header up to its heading's text.
+    /// The rest of the head, with the table's styles.
     private static let styles = #"""
         </title>
         <style>
@@ -77,6 +79,11 @@ enum HTMLTemplate {
         .empty { color: var(--muted); padding: 24px 0; }
         #sentinel { height: 1px; }
         [hidden] { display: none !important; }
+
+        """#
+
+    /// Closes the styles and the head, and opens the page header up to its heading's text.
+    private static let bodyStart = #"""
         </style></head>
         <body><header><h1>
         """#
@@ -124,11 +131,20 @@ enum HTMLTemplate {
         <button class="action" id="copy">Copy JSON</button><button class="action" id="download">Download JSON</button>
         <span class="count" id="copied" role="status"></span></div>
         <p class="note" id="json-note"></p><pre id="json-preview" tabindex="0"></pre></section></main>
+        <div id="why-tip" aria-hidden="true" hidden></div><div id="why-texts" hidden></div>
         <script type="application/json" id="report-data">
         """#
 
-    /// Closes the findings data, then the script that renders, filters, and sorts the table a page at a time,
-    /// runs the rule panel, and builds the JSON preview, copy, and download from the compact rows.
+    /// Closes the findings data and opens the code previews' element, which the page parses only when a finding is
+    /// first expanded.
+    private static let codeStart = #"""
+        </script>
+        <script type="application/json" id="report-code">
+        """#
+
+    /// Closes the code previews, then the script that renders, filters, and sorts the table a page at a time,
+    /// runs the rule panel, and builds the JSON preview, copy, and download from the compact rows. `codeScript`
+    /// follows it in the same element, and `scriptEnd` starts the page.
     private static let script = #"""
         </script>
         <script>
@@ -137,6 +153,8 @@ enum HTMLTemplate {
         const { files, filePaths, rules, severities, rows } = data;
         // Optional, for rules that carry an OWASP category: data.owasp[ruleIndex] is the category or null.
         const owasp = Array.isArray(data.owasp) ? data.owasp : [];
+        // Optional, added in 1.3: per-rule rationales and examples. The code previews are parsed on first use.
+        const why = data.why || [], examples = data.examples || [];
         const PAGE = 100, $ = id => document.getElementById(id), fmt = n => n.toLocaleString();
         const storageKey = "bouncer-report:hidden-rules:" + (data.key || "");
         let sortKey = "severity", ascending = true, matching = new Int32Array(0), rendered = 0, lowered = null;
@@ -199,6 +217,7 @@ enum HTMLTemplate {
           if (entries.some(entry => entry.isIntersecting) && rendered < matching.length) renderMore();
         }, { rootMargin: "600px 0px" }) : null;
         function refresh() {
+          hideTip();
           matching = sorted(matches());
           rendered = 0;
           $("rows-body").replaceChildren();
@@ -217,15 +236,21 @@ enum HTMLTemplate {
           observer.observe($("sentinel"));
         }
         function rowElement(i) {
-          const r = rows[i], tr = document.createElement("tr"), rule = rules[r[2]];
+          const r = rows[i], tr = document.createElement("tr");
+          tr.className = "finding"; tr.tabIndex = 0; tr.dataset.row = i;
+          tr.setAttribute("aria-expanded", expanded.has(i));
           cell(tr, "sev " + severities[r[3]], severities[r[3]]);
-          const hide = document.createElement("button");
-          hide.className = "hide"; hide.dataset.rule = rule; hide.textContent = "hide";
-          hide.title = "Hide this rule"; hide.setAttribute("aria-label", "Hide rule " + rule);
-          cell(tr, "rule", rule).append(hide);
+          ruleCell(tr, r[2]);
           cell(tr, "loc", files[r[0]] + ":" + r[1]);
           cell(tr, "msg", r[4]);
-          return tr;
+          return expanded.has(i) ? withDetail(tr, i) : tr;
+        }
+        function ruleCell(tr, index) {
+          const rule = rules[index], td = cell(tr, "rule", why[index] ? "" : rule);
+          const hide = element("button", "hide", "hide");
+          hide.dataset.rule = rule; hide.title = "Hide this rule"; hide.setAttribute("aria-label", "Hide rule " + rule);
+          if (why[index]) td.append(whyAnchor(index));
+          td.append(hide);
         }
         function cell(tr, className, text) {
           const td = tr.insertCell();
@@ -275,7 +300,7 @@ enum HTMLTemplate {
         });
         $("rows-body").addEventListener("click", event => {
           const hide = event.target.closest("button.hide");
-          if (hide) { hidden.add(hide.dataset.rule); rulesChanged(); }
+          if (hide) { hidden.add(hide.dataset.rule); rulesChanged(); } else rowClicked(event);
         });
         $("show-all").addEventListener("click", () => { hidden.clear(); rulesChanged(); });
         $("copy-config").addEventListener("click", () => {
@@ -356,6 +381,12 @@ enum HTMLTemplate {
         categories.forEach(category => $("category")
           .add(new Option(titles[category] ? category + " " + titles[category] : category, category)));
         $("category-filter").hidden = categories.length === 0;
+
+        """#
+
+    /// Fills in the page and closes the script and the document.
+    private static let scriptEnd = #"""
+        buildWhyTexts();
         buildRulePanel();
         refresh();
         </script></body></html>

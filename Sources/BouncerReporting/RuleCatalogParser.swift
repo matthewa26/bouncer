@@ -29,11 +29,14 @@ struct CatalogRow: Sendable, Equatable {
 /// Reads the rule tables out of the rule catalog article's Markdown.
 ///
 /// A table is a run of lines starting with `|`: a header row, a separator row, then data rows. A data row is
-/// kept when its `Rule ID` cell names at least one backticked rule ID; tables without that column are skipped.
+/// kept when its key cell (`Rule ID` by default) names at least one backticked rule ID; tables without that
+/// column are skipped.
 struct RuleCatalogParser {
-    /// The header of the column that names a row's rules.
+    /// The header of the column that names a row's rules in the rule tables.
     static let ruleIDHeader = "Rule ID"
 
+    /// The header of the column whose cell names each kept row's rules.
+    private let keyHeader: String
     /// The rows read so far.
     private var rows: [CatalogRow] = []
     /// The current `##` section's plain title.
@@ -43,10 +46,12 @@ struct RuleCatalogParser {
 
     /// Reads every rule row from the article.
     ///
-    /// - Parameter markdown: The article's Markdown.
+    /// - Parameters:
+    ///   - markdown: The article's Markdown.
+    ///   - keyHeader: The header of the column that names each row's rules; tables without it are skipped.
     /// - Returns: The rows that name rules, in article order.
-    static func rows(in markdown: String) -> [CatalogRow] {
-        var parser = RuleCatalogParser()
+    static func rows(in markdown: String, keyedBy keyHeader: String = ruleIDHeader) -> [CatalogRow] {
+        var parser = RuleCatalogParser(keyHeader: keyHeader)
         let lines = markdown.replacingOccurrences(of: "\r", with: "").components(separatedBy: "\n")
         lines.forEach { parser.read($0) }
         return parser.rows
@@ -71,7 +76,7 @@ struct RuleCatalogParser {
     ///   - headers: The table's headers.
     private mutating func append(_ values: [String], under headers: [String]) {
         let cells = zip(headers, values).map { CatalogCell(header: $0, text: $1) }
-        let ids = Self.ruleIDs(in: cells.first { $0.header == Self.ruleIDHeader }?.text ?? "")
+        let ids = Self.ruleIDs(in: cells.first { $0.header == keyHeader }?.text ?? "")
         guard !ids.isEmpty else { return }
         rows.append(CatalogRow(section: section, cells: cells, ruleIDs: ids))
     }

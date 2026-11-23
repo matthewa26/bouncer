@@ -26,6 +26,8 @@ jobs:
       - uses: actions/checkout@v7
       - run: swift build
       - run: swift test
+      # The Swift image has no Python, which the MCP test uses to speak JSON-RPC.
+      - run: apt-get update && apt-get install -y --no-install-recommends python3
       - run: bash Scripts/test-mcp.sh .build/debug/bouncer
 
   windows:

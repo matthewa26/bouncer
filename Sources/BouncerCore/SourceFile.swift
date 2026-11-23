@@ -28,7 +28,18 @@ public struct SourceFile: Sendable {
         self.path = path
         self.language = language
         self.contents = contents
-        // Swift treats "\r\n" as one Character, so splitting on "\n" alone would leave a CRLF file as one line.
-        self.lines = contents.split(omittingEmptySubsequences: false) { $0 == "\n" || $0 == "\r\n" }
+        self.lines = Self.lines(of: contents)
+    }
+
+    /// Splits text into lines the way findings number them, on `\n` and `\r\n` alike, without the line endings.
+    ///
+    /// Swift treats `"\r\n"` as one `Character`, so splitting on `"\n"` alone leaves a CRLF file as one line, and
+    /// Foundation's `components(separatedBy: "\n")` does so on Linux and Windows but not on macOS. Anything that
+    /// maps a finding's line back to the text must split with this.
+    ///
+    /// - Parameter text: The text.
+    /// - Returns: Its lines, with an empty last line when the text ends with a line break.
+    public static func lines(of text: String) -> [Substring] {
+        text.split(omittingEmptySubsequences: false) { $0 == "\n" || $0 == "\r\n" }
     }
 }

@@ -143,3 +143,12 @@ final class NextBatchWriterTests: XCTestCase {
         XCTAssertNil(NextBatchSource.read(url.appendingPathExtension("missing")).lines)
     }
 }
+
+final class NextBatchSourceTests: XCTestCase {
+    func testReadsACRLFFileAsSeparateLines() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("crlf-\(UUID().uuidString).ts")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("let a = 1;\r\nlet b = 2;\r\n".utf8).write(to: url)
+        XCTAssertEqual(NextBatchSource.read(url).lines, ["let a = 1;", "let b = 2;", ""])
+    }
+}

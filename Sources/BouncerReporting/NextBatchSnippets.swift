@@ -22,7 +22,8 @@ public struct NextBatchSource: Sendable, Equatable {
     /// - Parameter url: The file.
     /// - Returns: The source, without lines when the file can't be read as UTF-8.
     public static func read(_ url: URL) -> NextBatchSource {
-        NextBatchSource(lines: (try? String(contentsOf: url, encoding: .utf8))?.components(separatedBy: "\n"))
+        let text = try? String(contentsOf: url, encoding: .utf8)
+        return NextBatchSource(lines: text.map { SourceFile.lines(of: $0).map(String.init) })
     }
 }
 

@@ -30,7 +30,7 @@ enum QuickFixes {
     ///
     /// - Parameters:
     ///   - finding: The finding.
-    ///   - lines: Its file's lines, split on `\n`.
+    ///   - lines: Its file's lines, as `SourceFile.lines(of:)` splits them.
     /// - Returns: The edit, or `nil` when the rule has no deterministic fix or the lines no longer match.
     static func fix(for finding: Finding, lines: [String]) -> QuickFix? {
         guard let fixer = fixers[finding.ruleID], let site = FixSite(finding: finding, lines: lines) else { return nil }

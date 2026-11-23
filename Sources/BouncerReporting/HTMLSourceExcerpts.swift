@@ -39,7 +39,7 @@ struct HTMLSourceExcerpts {
         fixes = Array(repeating: nil, count: findings.count)
         for (file, members) in Self.group(fileIndices, fileCount: files.count).enumerated() where !members.isEmpty {
             guard let text = lookups.readFile(files[file]) else { continue }
-            let lines = text.components(separatedBy: "\n")
+            let lines = SourceFile.lines(of: text).map(String.init)
             let ranges = addFixes(lines, findings: members.map { ($0, findings[$0]) }, lookups: lookups)
             guard !ranges.isEmpty, Self.showsPreview(of: files[file]) else { continue }
             code[file] = Self.merged(ranges).map { Self.chunk(of: lines, covering: $0) }
@@ -49,7 +49,7 @@ struct HTMLSourceExcerpts {
     /// Works out one file's fixes, and the windows of lines its findings and fixes would show.
     ///
     /// - Parameters:
-    ///   - lines: The file's lines, split on `\n`.
+    ///   - lines: The file's lines, as `SourceFile.lines(of:)` splits them.
     ///   - findings: The file's findings, each with its index in the result.
     ///   - lookups: How to compute fixes.
     /// - Returns: The windows, unmerged, for a preview if the file gets one.

@@ -6,7 +6,8 @@ name: release
 #   so they run on any distro and under WSL1/WSL2.
 # - Windows: an x86_64 zip of bouncer.exe plus the Swift runtime DLLs it loads.
 # - SwiftPM: bouncer.artifactbundle.zip, the macOS and Linux binaries as one binary artifact for the
-#   bouncer-plugin package (github.com/matthewa26/bouncer-plugin), whose Package.swift pins its URL and checksum.
+#   bouncer-plugin package (github.com/matthewa26/bouncer-plugin), whose Package.swift pins its URL and checksum;
+#   the plugin job bumps and tags it.
 # Plus SHA256SUMS, which install.ps1 verifies every download against. The homebrew job then
 # publishes Formula/bouncer.rb to github.com/matthewa26/homebrew-tap.
 #
@@ -120,25 +121,9 @@ jobs:
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: dist/*
-      # Bumping the plugin package is a manual step: it needs write access to another repo, which this
-      # workflow's token doesn't have. See bouncer-plugin's README, "Releasing".
-      - name: Print the bouncer-plugin bump
-        run: |
-          checksum=$(sha256sum dist/bouncer.artifactbundle.zip | cut -d ' ' -f 1)
-          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/bouncer.artifactbundle.zip"
-          {
-            echo "### bouncer-plugin bump"
-            echo "In bouncer-plugin's Package.swift set:"
-            echo '```swift'
-            echo "let bouncerVersion = \"$GITHUB_REF_NAME\""
-            echo "let bouncerChecksum = \"$checksum\""
-            echo '```'
-            echo "Bundle: $url"
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-
   # Publishes the formula for this release to the Homebrew tap. Writing to another repo needs a token this
   # workflow's own doesn't have: HOMEBREW_TAP_TOKEN, a fine-grained token with Contents read and write on
-  # the tap. Without it the job prints the formula instead, to commit by hand.
+  # the tap (and on bouncer-plugin, for the plugin job). Without it the job prints the formula instead, to commit by hand.
   homebrew:
     needs: publish
     runs-on: ubuntu-latest
@@ -173,6 +158,54 @@ jobs:
           echo "### Homebrew formula not pushed" >> "$GITHUB_STEP_SUMMARY"
           echo "HOMEBREW_TAP_TOKEN isn't set. Commit the formula printed above as Formula/bouncer.rb in $TAP." \
             >> "$GITHUB_STEP_SUMMARY"
+
+  # Points bouncer-plugin's Package.swift at this release's artifact bundle and tags the plugin with the same
+  # version, without the `v`, so `from:` requirements work. Uses the same token as the homebrew job, which
+  # also needs Contents read and write on bouncer-plugin. Without it the job prints the two lines to change.
+  plugin:
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PLUGIN: ${{ github.repository_owner }}/bouncer-plugin
+      PLUGIN_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Read the bundle's checksum
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS
+          checksum=$(grep ' \*\{0,1\}bouncer.artifactbundle.zip$' SHA256SUMS | cut -d ' ' -f 1)
+          [ -n "$checksum" ] || { echo "SHA256SUMS has no bouncer.artifactbundle.zip"; exit 1; }
+          echo "CHECKSUM=$checksum" >> "$GITHUB_ENV"
+          {
+            echo "### bouncer-plugin"
+            echo '```swift'
+            echo "let bouncerVersion = \"$GITHUB_REF_NAME\""
+            echo "let bouncerChecksum = \"$checksum\""
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Bump and tag the plugin
+        if: env.PLUGIN_TOKEN != ''
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          git clone "https://x-access-token:${PLUGIN_TOKEN}@github.com/${PLUGIN}.git" plugin
+          cd plugin
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            echo "bouncer-plugin already has tag $version."; exit 0
+          fi
+          sed -i "s/^let bouncerVersion = \".*\"/let bouncerVersion = \"$GITHUB_REF_NAME\"/" Package.swift
+          sed -i "s/^let bouncerChecksum = \".*\"/let bouncerChecksum = \"$CHECKSUM\"/" Package.swift
+          grep -qx "let bouncerVersion = \"$GITHUB_REF_NAME\"" Package.swift
+          grep -qx "let bouncerChecksum = \"$CHECKSUM\"" Package.swift
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Use Bouncer $version"
+          git tag -a "$version" -m "Bouncer plugin $version"
+          git push origin HEAD "refs/tags/$version"
+      - name: Say how to bump it by hand
+        if: env.PLUGIN_TOKEN == ''
+        run: |
+          echo "HOMEBREW_TAP_TOKEN isn't set: set the two lines above in $PLUGIN's Package.swift, commit, and tag" \
+            "${GITHUB_REF_NAME#v}." >> "$GITHUB_STEP_SUMMARY"
 
   # Puts this release on the Pages site, which the installer downloads from by default. The
   # site is deployed only by docs.yml, from main (Pages refuses deploys from a tag), so this

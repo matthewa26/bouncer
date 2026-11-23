@@ -404,7 +404,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Xcode coverage from `.xcresult` (`xcrun xccov`) | macOS | 1.0.0 |
 | ✅ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | 1.2.0 |
 | ✅ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | 1.2.0 |
-| ✅ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | 1.2.0 |
+| ✅ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package, bumped and tagged by the release workflow | 1.2.0 |
 | ✅ | Homebrew formula (`brew install matthewa26/tap/bouncer`), published to the tap by the release workflow | prebuilt binaries; needs `HOMEBREW_TAP_TOKEN` | 1.2.0 |
 | ✅ | Token-efficient agent output (`--format agent`, `--group-by file\|rule`) | grouped, relative paths, repeated messages dropped | 1.2.0 |
 | ✅ | Report filters and paging (`--rule`, `--path`, `--min-severity`, `--limit`, `--offset`); exit code follows the filtered set | | 1.2.0 |

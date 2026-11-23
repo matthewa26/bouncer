@@ -133,6 +133,8 @@ let package = Package(
         ),
         .testTarget(name: "BouncerUpdateCheckTests", dependencies: ["BouncerUpdateCheck"]),
         .testTarget(name: "BouncerXcodeTests", dependencies: ["BouncerXcode"]),
-        .testTarget(name: "BouncerMCPTests", dependencies: ["BouncerMCP"])
+        .testTarget(name: "BouncerMCPTests", dependencies: ["BouncerMCP"]),
+        // Runs the built `bouncer` executable end to end; depending on its target makes `swift test` build it first.
+        .testTarget(name: "BouncerCLITests", dependencies: ["BouncerCLI", "BouncerCore"])
     ]
 )

@@ -9,7 +9,7 @@ Thanks for helping. Changes land through pull requests against `main`:
 3. Check it locally:
    ```sh
    swift build
-   swift test
+   swift test                      # includes an end-to-end `bouncer mcp` session against the built binary
    .build/debug/bouncer review .   # Bouncer checks itself; this must report no errors
    sh Scripts/check-roadmap.sh     # every roadmap row says when it ships
    ```

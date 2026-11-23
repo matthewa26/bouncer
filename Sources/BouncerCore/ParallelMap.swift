@@ -17,15 +17,52 @@ struct ParallelMap {
     /// - Returns: The transformed items, in the items' order.
     /// - Throws: The earliest failing item's error.
     func map<Item: Sendable, Value: Sendable>(
-        _ items: [Item], _ transform: @Sendable (Item) throws -> Value
+        _ items: [Item], _ transform: @escaping @Sendable (Item) throws -> Value
     ) throws -> [Value] {
         let workers = min(jobs, items.count)
         guard workers > 1 else { return try items.map(transform) }
         let claims = ParallelClaims<Value>(count: items.count)
-        DispatchQueue.concurrentPerform(iterations: workers) { _ in
+        WorkerThreads.start(workers) {
             while let index = claims.next() { claims.store(Result { try transform(items[index]) }, at: index) }
         }
         return try claims.values()
+    }
+}
+
+/// Threads with a stack big enough for the recursion that parsing deeply nested code takes.
+///
+/// A thread's default stack depends on the platform: a Dispatch or Swift concurrency thread gets 512 KiB on
+/// macOS, but only musl's 128 KiB in the static Linux build, which deeply nested code overflows. Analysis runs
+/// on these threads instead, so every platform gets the same, generous stack.
+enum WorkerThreads {
+    /// Each thread's stack size: 64 MiB, reserved rather than committed, so unused stack costs no memory.
+    static let stackSize = 64 << 20
+
+    /// Runs a closure on several new threads at once and waits until every one returns.
+    ///
+    /// - Parameters:
+    ///   - count: How many threads to start.
+    ///   - body: The work each thread does.
+    static func start(_ count: Int, _ body: @escaping @Sendable () -> Void) {
+        let group = DispatchGroup()
+        for _ in 0..<count {
+            group.enter()
+            let thread = Thread { body(); group.leave() }
+            thread.stackSize = stackSize
+            thread.start()
+        }
+        group.wait()
+    }
+
+    /// Runs a closure on a new thread and waits for it.
+    ///
+    /// - Parameter body: The work.
+    /// - Returns: What it returned.
+    /// - Throws: What it threw.
+    static func call<Value: Sendable>(_ body: @escaping @Sendable () throws -> Value) throws -> Value {
+        let claims = ParallelClaims<Value>(count: 1)
+        start(1) { claims.store(Result { try body() }, at: 0) }
+        return try claims.values()[0]
     }
 }
 

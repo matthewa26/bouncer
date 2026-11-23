@@ -72,4 +72,27 @@ final class ParallelMapTests: XCTestCase {
         XCTAssertEqual(try ParallelMap(jobs: 8).map([Int]()) { $0 }, [])
         XCTAssertEqual(try ParallelMap(jobs: 8).map([5]) { $0 + 1 }, [6])
     }
+
+    /// Recurses `depth` times, keeping 1 KiB on the stack in each frame, so it needs about `depth` KiB of stack.
+    private static func deepRecursion(_ depth: Int) -> Int {
+        withUnsafeTemporaryAllocation(of: UInt8.self, capacity: 1024) { buffer in
+            buffer.initialize(repeating: 1)
+            return depth == 0 ? Int(buffer[0]) : deepRecursion(depth - 1) + Int(buffer[depth % 1024])
+        }
+    }
+
+    func testWorkerThreadsHaveStackForDeepRecursionThatDefaultThreadsOverflow() throws {
+        // About 8 MiB: past the 512 KiB of a macOS Dispatch thread and musl's 128 KiB default.
+        let depth = 8 * 1024
+        XCTAssertGreaterThan(try WorkerThreads.call { Self.deepRecursion(depth) }, 0)
+        let mapped = try ParallelMap(jobs: 4).map(Array(0..<4)) { _ in Self.deepRecursion(depth) }
+        XCTAssertEqual(mapped.count, 4)
+    }
+
+    func testCallReturnsAndRethrowsFromItsThread() {
+        XCTAssertEqual(try WorkerThreads.call { 42 }, 42)
+        XCTAssertThrowsError(try WorkerThreads.call { () throws -> Int in throw Failure(index: 3) }) { error in
+            XCTAssertEqual(error as? Failure, Failure(index: 3))
+        }
+    }
 }

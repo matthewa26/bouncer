@@ -117,7 +117,8 @@ public struct AnalysisEngine: Sendable {
     /// - Returns: The combined findings and coverage report.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func run() throws -> AnalysisResult {
-        try serializingEvents.execute().result
+        let engine = serializingEvents
+        return try WorkerThreads.call { try engine.execute().result }
     }
 
     /// This engine with its event handler made to take turns, since parallel workers report their files at once.
@@ -135,7 +136,7 @@ public struct AnalysisEngine: Sendable {
     public func runRecordingFiles() throws -> RecordedRun {
         var recording = serializingEvents
         recording.recordsFiles = true
-        return try recording.execute()
+        return try WorkerThreads.call { [recording] in try recording.execute() }
     }
 
     /// Runs every pass, recording each target file's stamp and hash when `recordsFiles` is set.

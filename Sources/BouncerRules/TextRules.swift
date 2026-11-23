@@ -61,7 +61,8 @@ public enum UniversalPatterns {
     public static let specs: [PatternRuleSpec] = [
         PatternRuleSpec(
             id: "weak-crypto",
-            pattern: #"(?i)\b(md5|sha1)\b|\bInsecure\.(MD5|SHA1)\b|\bDES\b|\bECB\b"#,
+            pattern: #"(?i)^(?!.*"# + LanguageProfiles.phpWeakPasswordHash
+                + #").*?(?:\b(md5|sha1)\b|\bInsecure\.(MD5|SHA1)\b|\bDES\b|\bECB\b)"#,
             message: "Weak cryptography (MD5, SHA-1, DES, or ECB mode); use SHA-256+ or an AEAD cipher."
         ),
         PatternRuleSpec(

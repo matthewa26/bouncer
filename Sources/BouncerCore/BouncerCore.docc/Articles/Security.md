@@ -38,7 +38,7 @@ check.
 `insecure-http-url`, `hardcoded-ip`, `debug-mode-enabled`, `permissive-cors`, `insecure-cookie`,
 `xml-external-entities`.
 
-Plain `http://` URLs, hard-coded addresses, debug mode left on, CORS open to every origin,
+Plain `http://` URLs, hard-coded addresses, debug mode left on (PHP's `display_errors` included), CORS open to every origin,
 cookies without `Secure` or `HttpOnly`, and XML parsers that resolve external entities.
 
 ### A03:2025 Software Supply Chain Failures
@@ -51,9 +51,10 @@ Dependencies and CI actions without a pinned version, manifests without a lockfi
 ### A04:2025 Cryptographic Failures
 
 `secret-looking-pattern`, `weak-crypto`, `insecure-random`, `disabled-tls-verification`,
-`hardcoded-iv`, `short-crypto-key`.
+`hardcoded-iv`, `short-crypto-key`, `php-weak-password-hash`.
 
-Committed credentials, MD5/SHA-1/DES/ECB, non-cryptographic randomness for tokens and IDs,
+Committed credentials, MD5/SHA-1/DES/ECB, passwords hashed with MD5 or SHA-1 instead of `password_hash`,
+non-cryptographic randomness for tokens and IDs,
 disabled certificate checks, fixed IVs, nonces, and salts, and RSA keys under 2048 bits or curves
 of 192 bits or fewer.
 
@@ -62,7 +63,8 @@ of 192 bits or fewer.
 `sql-string-building`, `sql-missing-where`, `shell-eval-usage`, `powershell-invoke-expression`,
 `c-gets-usage`, `c-unsafe-string-function`, `python-shell-injection`, `js-shell-injection`,
 `go-shell-injection`, `swift-shell-injection`, `rust-shell-injection`, `objc-shell-injection`,
-`js-eval`, `js-raw-html`, `python-eval-exec`, `template-injection`, `nosql-injection`.
+`php-shell-injection`, `js-eval`, `js-raw-html`, `python-eval-exec`, `php-eval`, `template-injection`,
+`nosql-injection`.
 
 SQL, shell, and template strings built from variables, code evaluated from strings, raw HTML
 written into the page, unbounded C string functions, and request bodies handed to NoSQL queries.
@@ -75,20 +77,22 @@ Design reviews and threat modeling cover this category.
 
 ### A07:2025 Authentication Failures
 
-`powershell-plaintext-password`, `jwt-verification-disabled`, `timing-unsafe-comparison`.
+`powershell-plaintext-password`, `jwt-verification-disabled`, `timing-unsafe-comparison`,
+`php-loose-comparison`.
 
 Plaintext password handling, JWT signature or expiry checks switched off, and secrets compared
-with ordinary equality, which leaks timing. Most authentication failures (weak password rules,
+with ordinary equality, which leaks timing (or, with PHP's loose `==`, type juggling). Most authentication failures (weak password rules,
 missing MFA, session fixation) are about what an application doesn't do, so this category is
 covered only in part.
 
 ### A08:2025 Software or Data Integrity Failures
 
-`python-unsafe-deserialization`, `unsafe-deserialization`.
+`python-unsafe-deserialization`, `unsafe-deserialization`, `php-extract`.
 
 Deserializers that can build arbitrary objects from their input: `pickle`, `yaml.load`, Java's
-`ObjectInputStream` and `XMLDecoder`, `node-serialize`, and the non-secure `NSKeyedUnarchiver`
-APIs.
+`ObjectInputStream` and `XMLDecoder`, `node-serialize`, PHP's `unserialize` without
+`allowed_classes`, and the non-secure `NSKeyedUnarchiver` APIs; and PHP's `extract()` on request
+input, which lets a caller overwrite any local variable.
 
 ### A09:2025 Security Logging and Alerting Failures
 
@@ -104,9 +108,9 @@ logs.
 ### A10:2025 Mishandling of Exceptional Conditions
 
 `empty-catch`, `swift-discarded-try`, `python-bare-except`, `java-generic-exception-catch`,
-`rust-unwrap`, `fail-open`.
+`rust-unwrap`, `fail-open`, `php-error-suppression`.
 
-Errors swallowed or caught too broadly, and security checks that let a request through when they
+Errors swallowed, silenced with PHP's `@`, or caught too broadly, and security checks that let a request through when they
 fail (`return true` or `next()` in the error handler).
 
 ## The owasp profile

@@ -106,6 +106,13 @@ final class DuplicateCodeTests: XCTestCase {
         XCTAssertEqual(rust.filter { $0.line == 1 }.count, rust.count)
     }
 
+    func testPHPHashCommentsAreSkippedButAttributesAreNot() {
+        let php = tokens("a.php", "# note\n#[Pure]\nfunction f($a) { return '$a' . \"b\"; } // c\n/* d */\n")
+        XCTAssertEqual(php.count, 16, "# [ ID ] function ID ( ID ) { return LIT . LIT ; }")
+        XCTAssertEqual(php.first?.line, 2)
+        XCTAssertEqual(php.map(\.hash), tokens("b.phtml", "#[Pure]\nfunction g($b) { return `x` . 'y'; }\n").map(\.hash))
+    }
+
     func testKeepingLiteralsDistinguishesValues() {
         XCTAssertEqual(tokens("a.ts", "f(1, 'a')").map(\.hash), tokens("a.ts", "f(2, 'b')").map(\.hash))
         XCTAssertNotEqual(

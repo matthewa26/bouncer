@@ -26,17 +26,31 @@ public struct ImportResolvers: Sendable {
     ///
     /// - Parameters:
     ///   - paths: Every indexed file's repo-relative path.
-    ///   - repoRoot: The repository root, for `tsconfig.json`, `go.mod`, and `Cargo.toml`.
+    ///   - repoRoot: The repository root, for `tsconfig.json`, `go.mod`, `Cargo.toml`, and `composer.json`.
     public init(paths: Set<String>, repoRoot: URL) {
-        let javascript = JavaScriptImportResolver(paths: paths, repoRoot: repoRoot)
-        let python = PythonImportResolver(paths: paths), objc = ObjCImportResolver(paths: paths)
-        var resolvers: [String: ImportResolver] = ["swift": SwiftImportResolver(paths: paths), "py": python]
-        for ext in JavaScriptImportResolver.extensions { resolvers[ext] = javascript }
-        for ext in ObjCImportResolver.extensions { resolvers[ext] = objc }
+        var resolvers = Self.multiExtension(paths: paths, repoRoot: repoRoot)
+        resolvers["swift"] = SwiftImportResolver(paths: paths)
+        resolvers["py"] = PythonImportResolver(paths: paths)
+        resolvers["rs"] = RustImportResolver(paths: paths, repoRoot: repoRoot)
         if let module = GoImportResolver.modulePath(repoRoot: repoRoot) {
             resolvers["go"] = GoImportResolver(module: module)
         }
-        byExtension = resolvers.merging(["rs": RustImportResolver(paths: paths, repoRoot: repoRoot)]) { $1 }
+        byExtension = resolvers
+    }
+
+    /// Builds the resolvers that handle several extensions each: TS/JS, Objective-C, and PHP.
+    ///
+    /// - Parameters:
+    ///   - paths: Every indexed file's repo-relative path.
+    ///   - repoRoot: The repository root, for `tsconfig.json` and `composer.json`.
+    /// - Returns: Each extension's resolver.
+    private static func multiExtension(paths: Set<String>, repoRoot: URL) -> [String: ImportResolver] {
+        let shared: [([String], ImportResolver)] = [
+            (JavaScriptImportResolver.extensions, JavaScriptImportResolver(paths: paths, repoRoot: repoRoot)),
+            (ObjCImportResolver.extensions, ObjCImportResolver(paths: paths)),
+            (PHPImportResolver.extensions, PHPImportResolver(paths: paths, repoRoot: repoRoot))
+        ]
+        return Dictionary(shared.flatMap { extensions, resolver in extensions.map { ($0, resolver) } }) { $1 }
     }
 
     /// Looks up the resolver for a file.

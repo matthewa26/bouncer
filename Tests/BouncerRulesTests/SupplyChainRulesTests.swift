@@ -147,6 +147,34 @@ final class SupplyChainRulesTests: XCTestCase {
         XCTAssertEqual(lines(UnpinnedDependencyRule(), "Cargo.toml", manifest), [6, 8, 9, 15, 17])
     }
 
+    func testFlagsComposerStarsBranchesAndOpenRangesButNotPlatformRequirements() {
+        let manifest = """
+            {
+              "require": {
+                "php": ">=8.4",
+                "ext-json": "*",
+                "any/thing": "*",
+                "caret/pkg": "^1.2",
+                "tilde/pkg": "~1.2",
+                "exact/pkg": "1.2.3",
+                "either/pkg": "^4.5 || ^5.0",
+                "open/pkg": ">=1.0",
+                "bounded/pkg": ">=1.0 <2.0",
+                "master/pkg": "dev-master",
+                "alias/pkg": "0.2.x-dev",
+                "pinned/pkg": "dev-main#0123abc",
+                "inline/pkg": "dev-main as 1.0.x-dev",
+                "beta/pkg": "^1.2@beta"
+              },
+              "require-dev": { "main/pkg": "dev-main", "star/dev": "*@dev" }
+            }
+            """
+        let found = UnpinnedDependencyRule().evaluate(file: file("composer.json", manifest), context: context)
+        XCTAssertEqual(found.map(\.line).sorted(), [5, 10, 12, 13, 15, 18, 18])
+        XCTAssertTrue(found.contains { $0.message.contains("\"alias/pkg\" is \"0.2.x-dev\", which follows a development") })
+        XCTAssertEqual(lines(UnpinnedDependencyRule(), "composer.json", "not json"), [])
+    }
+
     func testFlagsSwiftPackagesFollowingABranch() {
         let manifest = """
             let package = Package(

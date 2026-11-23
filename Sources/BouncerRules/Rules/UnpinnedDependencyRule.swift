@@ -11,6 +11,10 @@ import BouncerCore
 ///   `[workspace.dependencies]`, their `[target.….dependencies]` forms, and `[dependencies.<name>]` tables):
 ///   version `*`, or a `git` source following a `branch` or its default branch. A `rev` pins it; a `tag` is
 ///   accepted, since it's how unreleased crates are conventionally pinned and `Cargo.lock` records its commit.
+/// - `composer.json` (`require`, `require-dev`): `*`, a dev branch (`dev-main`, or a branch alias such as
+///   `2.x-dev`) without a `#<commit>`, or a `>=`/`>` range with no upper bound. Platform requirements (`php`,
+///   `ext-*`) and ordinary constraints (`^1.2`, `~1.2`, `1.2.3`, `^4.5 || ^5.0`) are fine, since `composer.lock`
+///   pins them.
 /// - `Package.swift`: a `.package(…)` following a `branch:` (or `.branch(…)`). Versions, ranges, and
 ///   `revision:` are fine, since `Package.resolved` pins them.
 public struct UnpinnedDependencyRule: Rule {
@@ -19,7 +23,7 @@ public struct UnpinnedDependencyRule: Rule {
     /// Creates the rule.
     public init() {}
 
-    /// Flags each unpinned dependency in a `package.json`, `Cargo.toml`, or `Package.swift`.
+    /// Flags each unpinned dependency in a `package.json`, `Cargo.toml`, `composer.json`, or `Package.swift`.
     ///
     /// - Parameters:
     ///   - file: The file to inspect.
@@ -39,10 +43,11 @@ public struct UnpinnedDependencyRule: Rule {
     /// - Returns: The problems, or none for a file that isn't a supported manifest.
     static func problems(in file: SourceFile) -> [PinProblem] {
         switch file.path.lastPathComponent {
-        case "package.json": return NPMPins.problems(in: file.contents)
-        case "Cargo.toml": return CargoPins.problems(in: file.lines)
-        case "Package.swift": return SwiftPackagePins.problems(in: file.lines)
-        default: return []
+        case "package.json": NPMPins.problems(in: file.contents)
+        case "Cargo.toml": CargoPins.problems(in: file.lines)
+        case "composer.json": ComposerPins.problems(in: file.contents)
+        case "Package.swift": SwiftPackagePins.problems(in: file.lines)
+        default: []
         }
     }
 }
@@ -65,10 +70,24 @@ enum NPMPins {
     /// - Parameter text: The manifest's text.
     /// - Returns: The problems, or none if it isn't a JSON object.
     static func problems(in text: String) -> [PinProblem] {
+        problems(in: text, sections: sections) { reason(for: $1) }
+    }
+
+    /// Lists a JSON manifest's unpinned dependencies, for `package.json` and `composer.json`.
+    ///
+    /// - Parameters:
+    ///   - text: The manifest's text.
+    ///   - sections: The top-level objects listing dependencies by name.
+    ///   - judge: Explains why a dependency's version spec isn't reproducible, from its name and spec, or
+    ///     returns `nil` for a pinnable one.
+    /// - Returns: The problems, or none if it isn't a JSON object.
+    static func problems(
+        in text: String, sections: [String], judge: (String, String) -> String?
+    ) -> [PinProblem] {
         guard let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else { return [] }
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
         return sections.flatMap { section in
-            problems(in: json[section] as? [String: Any] ?? [:], section: section, lines: lines)
+            problems(in: json[section] as? [String: Any] ?? [:], section: section, lines: lines, judge: judge)
         }
     }
 
@@ -78,11 +97,14 @@ enum NPMPins {
     ///   - declared: The section's entries.
     ///   - section: The section's name, such as `devDependencies`.
     ///   - lines: The manifest's lines.
+    ///   - judge: Explains why a dependency's version spec isn't reproducible.
     /// - Returns: The problems, by dependency name.
-    private static func problems(in declared: [String: Any], section: String, lines: [Substring]) -> [PinProblem] {
+    private static func problems(
+        in declared: [String: Any], section: String, lines: [Substring], judge: (String, String) -> String?
+    ) -> [PinProblem] {
         let start = lines.firstIndex { $0.contains("\"\(section)\"") } ?? 0
         return declared.compactMapValues { $0 as? String }.sorted { $0.key < $1.key }.compactMap { name, spec in
-            reason(for: spec).map { reason in
+            judge(name, spec).map { reason in
                 let line = lines[start...].firstIndex { $0.contains("\"\(name)\"") }.map { $0 + 1 } ?? 1
                 return PinProblem(line: line, message: "Dependency \"\(name)\" is \"\(spec)\", which \(reason)")
             }

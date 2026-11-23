@@ -42,12 +42,24 @@ extension TreeSitterQualityCollector {
     /// - Parameter members: The class body's members.
     /// - Returns: The field names.
     private func declaredFields(_ members: [Node]) -> Set<String> {
-        Set(members.compactMap { member -> String? in
+        Set(members.flatMap { member -> [String] in
             let value = member.child(byFieldName: "value")?.nodeType ?? ""
-            guard let field = quality.cohesion?.fieldNameFields[member.nodeType ?? ""],
-                  !spec.functionNodeTypes.contains(value) else { return nil }
-            return member.child(byFieldName: field).flatMap(text)
+            guard let cohesion = quality.cohesion, let field = cohesion.fieldNameFields[member.nodeType ?? ""],
+                  !spec.functionNodeTypes.contains(value) else { return [] }
+            let holders = cohesion.fieldElementNodeType.map { element in
+                namedChildren(of: member).filter { $0.nodeType == element }
+            } ?? [member]
+            return holders.compactMap { $0.child(byFieldName: field).flatMap(text) }.map(withoutSigil)
         })
+    }
+
+    /// Drops the sigil a declared field's name starts with, as PHP's `$count` is `count` in `$this->count`.
+    ///
+    /// - Parameter name: The declared name.
+    /// - Returns: The name as member access spells it.
+    private func withoutSigil(_ name: String) -> String {
+        guard let sigil = quality.cohesion?.fieldSigil, name.hasPrefix(sigil) else { return name }
+        return String(name.dropFirst(sigil.count))
     }
 
     /// Unwraps a class member to the function it defines: a method, a decorated method, or a field holding a function.

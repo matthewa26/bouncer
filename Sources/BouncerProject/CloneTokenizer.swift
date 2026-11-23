@@ -15,6 +15,8 @@ struct CloneSyntax {
     let quotes: Set<UInt8>
     /// Whether `"""` (and `'''` where `'` quotes) opens a multi-line string.
     let tripleQuotes: Bool
+    /// Whether `#` also opens a line comment, unless it opens a `#[` attribute, as in PHP.
+    var hashComments = false
 
     private static let slashes = Array("//".utf8), block = (open: Array("/*".utf8), close: Array("*/".utf8))
     private static let quote = UInt8(ascii: "\""), apostrophe = UInt8(ascii: "'"), backtick = UInt8(ascii: "`")
@@ -34,6 +36,12 @@ struct CloneSyntax {
         lineComment: slashes, blockComment: block, quotes: [quote], tripleQuotes: false
     )
 
+    /// PHP: `//`, `#`, and `/* */` comments, and `"`, `'`, and `` ` `` (shell) strings.
+    private static let php = CloneSyntax(
+        lineComment: slashes, blockComment: block, quotes: [quote, apostrophe, backtick], tripleQuotes: false,
+        hashComments: true
+    )
+
     /// Looks up a language's syntax.
     ///
     /// - Parameter language: The file's language.
@@ -44,6 +52,7 @@ struct CloneSyntax {
         case .typescript, .javascript, .go, .objc: cFamily
         case .python: python
         case .rust: rust
+        case .php: php
         default: nil
         }
     }
@@ -131,13 +140,21 @@ struct CloneTokenizer {
     ///
     /// - Returns: Whether there was one.
     private mutating func skipComment() -> Bool {
-        if matches(syntax.lineComment, at: index) {
+        if matches(syntax.lineComment, at: index) || opensHashComment() {
             advance(to: bytes[index...].firstIndex(of: Byte.newline) ?? bytes.count)
             return true
         }
         guard let block = syntax.blockComment, matches(block.open, at: index) else { return false }
         advance(to: end(of: block.close, from: index + block.open.count))
         return true
+    }
+
+    /// Reports whether a `#` line comment, rather than a `#[` attribute, starts at the current position.
+    ///
+    /// - Returns: Whether the language has `#` comments and one starts here.
+    private func opensHashComment() -> Bool {
+        guard syntax.hashComments, bytes[index] == Byte.hash else { return false }
+        return index + 1 >= bytes.count || bytes[index + 1] != Byte.openBracket
     }
 
     /// Reads a string literal at the current position, single-line or triple-quoted.
@@ -267,6 +284,7 @@ enum CloneKeywords {
 enum CloneBytes {
     static let newline = UInt8(ascii: "\n"), backslash = UInt8(ascii: "\\"), space = UInt8(ascii: " ")
     static let dot = UInt8(ascii: "."), underscore = UInt8(ascii: "_"), dollar = UInt8(ascii: "$")
+    static let hash = UInt8(ascii: "#"), openBracket = UInt8(ascii: "[")
     static let digits = UInt8(ascii: "0")...UInt8(ascii: "9")
     static let lowercaseLetters = UInt8(ascii: "a")...UInt8(ascii: "z")
     /// ORing an ASCII letter with this lowercases it.

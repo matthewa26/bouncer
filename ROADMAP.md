@@ -17,7 +17,7 @@ The **Scope** column says what analysis a check needs:
 
 **Defaults (warnings):** file ≤ 500 lines, function ≤ 40 lines, nesting ≤ 16 by indentation, line ≤ 120 chars, ≤ 5 TODO markers per 100 lines, no repeated 6-line block, complexity ≤ 10, ≤ 15 imports, ≤ 6 switch branches, god-class at ≤ 20 members and ≤ 10 imports, coverage ≥ 80% (taken from the README example). On Swift, TypeScript and JavaScript also: ≤ 5 parameters, no boolean flag parameters, ≤ 4 returns, cognitive complexity ≤ 15, control-flow nesting ≤ 4, LCOM4 ≤ 2.
 
-**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Objective-C, Rust, Python and Go are parsed too and get the same function-shape, cohesion, and single-location rules wherever the language has the construct (Go has no classes, ternaries, or `catch`). Everything else is heuristic.
+**Language support:** TypeScript (primary, including TSX), JavaScript (including JSX) and Swift get every check marked ✅ below unless a row says otherwise. Objective-C, Rust, PHP, Python and Go are parsed too and get the same function-shape, cohesion, and single-location rules wherever the language has the construct (Go has no classes, ternaries, or `catch`). Everything else is heuristic.
 
 ### 0.1 TypeScript type safety
 
@@ -203,7 +203,8 @@ The **Scope** column says what analysis a check needs:
 | ✅ | Java broad `catch (Exception)` | F | 1.0.0 |
 | ✅ | Go `panic()` and discarded returns | F | 1.0.0 |
 | ✅ | Empty catch block (`empty-catch`); Swift, TS, JS, Python (an `except` that only `pass`es) | F | 1.0.0 |
-| ✅ | Empty catch block in the remaining languages (`empty-catch`, text-based: Java, C++, PowerShell, C#/Kotlin/PHP/Dart) | F | 1.0.0 |
+| ✅ | Empty catch block in PHP from the parse tree (`empty-catch`) | F | 1.3.0 |
+| ✅ | Empty catch block in the remaining languages (`empty-catch`, text-based: Java, C++, PowerShell, C#/Kotlin/Dart) | F | 1.0.0 |
 | ✅ | Swift `try!`, force-unwrap `!`, `as!`, implicitly unwrapped optionals (`force-try`, `force-unwrap`, `force-cast`, `implicitly-unwrapped-optional`) | F | 1.0.0 |
 | ✅ | Swift `fatalError` (`swift-fatal-error`) | F | 1.0.0 |
 | ✅ | Swift `precondition` (`swift-precondition`, opt-in), and limiting either to library (non-app) code (`libraryOnly`) | F | 1.0.0 |
@@ -236,6 +237,7 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Server-side request forgery: user input in a fetched URL (`ssrf`) | T | 1.2.0 |
 | ✅ | Open redirect: user input in a redirect target (`open-redirect`) | T | 1.2.0 |
 | ✅ | CORS allowing any origin with credentials (`cors-credentials-any-origin`) | F | 1.2.0 |
+| ✅ | PHP `include`/`require` of a variable path (`path-traversal`) | F | 1.3.0 |
 
 ### A02 Security Misconfiguration
 
@@ -247,6 +249,7 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | CORS allowing any origin (`permissive-cors`) | F | 1.2.0 |
 | ✅ | Cookies set without `Secure`/`HttpOnly`/`SameSite` (`insecure-cookie`) | F | 1.2.0 |
 | ✅ | XML parser with external entities enabled (`xml-external-entities`) | F | 1.2.0 |
+| ✅ | PHP `display_errors` switched on with `ini_set` (`debug-mode-enabled`) | F | 1.3.0 |
 
 ### A03 Software Supply Chain Failures
 
@@ -256,6 +259,7 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Manifest without a lockfile (`missing-lockfile`) | X | 1.2.0 |
 | ✅ | Download piped into a shell, `curl … \| sh` (`pipe-to-shell`) | F | 1.2.0 |
 | ✅ | GitHub Action referenced by tag instead of commit SHA (`unpinned-ci-action`, opt-in) | F | 1.2.0 |
+| ✅ | Composer: `composer.json` requirement at `*`, `dev-master`, or an open range (`unpinned-dependency`), or no `composer.lock` (`missing-lockfile`) | X | 1.3.0 |
 
 ### A04 Cryptographic Failures
 
@@ -267,6 +271,8 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Disabled TLS verification (`disabled-tls-verification`); every language | F | 1.0.0 |
 | ✅ | Hardcoded IV, nonce or salt (`hardcoded-iv`) | F | 1.2.0 |
 | ✅ | RSA keys under 2048 bits, EC curves of 192 bits or fewer (`short-crypto-key`) | F | 1.2.0 |
+| ✅ | PHP password hashed with `md5`/`sha1` instead of `password_hash` (`php-weak-password-hash`) | F | 1.3.0 |
+| ✅ | PHP TLS verification off: `CURLOPT_SSL_VERIFYPEER`/`VERIFYHOST` false or 0, `'verify' => false` (`disabled-tls-verification`) | F | 1.3.0 |
 
 ### A05 Injection
 
@@ -284,6 +290,9 @@ Grouped by [OWASP Top 10:2025](https://owasp.org/Top10/2025/) category. A rule a
 | ✅ | Objective-C `NSTask`/`system` with formatted input (`objc-shell-injection`) | F | 1.2.0 |
 | ✅ | Template injection: user input rendered as a template (`template-injection`) | T | 1.2.0 |
 | ✅ | NoSQL injection: `$where` or query objects built from input (`nosql-injection`) | F | 1.2.0 |
+| ✅ | PHP SQL interpolated or concatenated into a query, or built from `$_GET`/`$_POST`/`$_REQUEST` (`sql-string-building`) | F | 1.3.0 |
+| ✅ | PHP `exec`/`shell_exec`/`system`/`passthru`/`proc_open`/`popen` or backticks with a variable (`php-shell-injection`) | F | 1.3.0 |
+| ✅ | PHP `eval`/`create_function` (`php-eval`) | F | 1.3.0 |
 
 ### A06 Insecure Design (not statically checkable)
 
@@ -295,6 +304,7 @@ Insecure design is about missing threat modeling and controls, which no syntax p
 |---|---|---|---|
 | ✅ | JWT with `alg: none` or signature verification disabled (`jwt-verification-disabled`) | F | 1.2.0 |
 | ✅ | Secret or token compared with `==` instead of a constant-time comparison (`timing-unsafe-comparison`) | F | 1.2.0 |
+| ✅ | PHP loose `==`/`!=` on a hash, token, or password (`php-loose-comparison`) | F | 1.3.0 |
 
 ### A08 Software or Data Integrity Failures
 
@@ -302,6 +312,8 @@ Insecure design is about missing threat modeling and controls, which no syntax p
 |---|---|---|---|
 | ✅ | Unsafe deserialization (`python-unsafe-deserialization`) | F | 1.0.0 |
 | ✅ | Unsafe deserialization in every language (`unsafe-deserialization`: Java `ObjectInputStream`, YAML `load`, `NSKeyedUnarchiver` without secure coding) | F | 1.2.0 |
+| ✅ | PHP `unserialize` of input without `allowed_classes` (`unsafe-deserialization`) | F | 1.3.0 |
+| ✅ | PHP `extract()` on a superglobal (`php-extract`) | F | 1.3.0 |
 
 ### A09 Security Logging & Alerting Failures
 
@@ -318,6 +330,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 |---|---|---|---|
 | ✅ | Fail-open: a catch block that returns success or grants access (`fail-open`) | T | 1.2.0 |
 | ✅ | Rust `unwrap()`/`expect()` outside tests (`rust-unwrap`) | F | 1.2.0 |
+| ✅ | PHP `@` error suppression (`php-error-suppression`) | F | 1.3.0 |
 
 ### Reporting
 
@@ -354,6 +367,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Debug leftovers: Swift `print`/`dump`/`NSLog` (`swift-debug-print`), JS (`js-console-log`), Python (`python-debug-print`), Go (`go-debug-print`), Java (`java-system-out`) | F | 1.0.0 |
 | ✅ | Shell `set -x` left on (`shell-debug-trace`) | F | 1.0.0 |
 | ✅ | Debug leftovers in C, C++, and PowerShell (`c-debug-print`, `cpp-debug-print`, `powershell-debug-leftover`; explicit debug markers only) | F | 1.0.0 |
+| ✅ | PHP debug output: `var_dump`, `print_r`, `dd`, `dump` (`php-debug-output`) | F | 1.3.0 |
 
 ## 14. Process and churn (git-aware)
 
@@ -427,6 +441,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | zsh, bash, PowerShell, C, C++, Java, SQL, and any other file | heuristic | 1.0.0 |
 | ✅ | Objective-C (`.m`, `.mm`, ObjC `.h` by content), with Swift/ObjC import edges | tree-sitter | 1.2.0 |
 | ✅ | Rust, with `mod`/`use` and Cargo workspace edges | tree-sitter | 1.2.0 |
+| ✅ | PHP (`.php`, `.phtml`), with namespace/`use` edges through Composer PSR-4 autoload and literal `require`/`include` edges | tree-sitter | 1.3.0 |
 
 ## Notes on the current implementation
 

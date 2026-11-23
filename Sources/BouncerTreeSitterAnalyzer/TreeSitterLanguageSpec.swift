@@ -36,6 +36,9 @@ enum VisibilityConvention: Sendable {
     /// A `visibility_modifier` child: bare `pub` is public, a restricted `pub(…)` is internal, and none is private;
     /// a trait's methods take the trait's visibility, as in Rust.
     case visibilityModifier
+    /// A `visibility_modifier` child that may be left out: none or `public` is public, `protected` is internal, and
+    /// `private` is private, as in PHP.
+    case accessModifier
 }
 
 /// A call expression that loads a module, such as CommonJS `require("x")`.

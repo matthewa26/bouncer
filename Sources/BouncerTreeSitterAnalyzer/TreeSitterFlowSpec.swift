@@ -5,6 +5,8 @@ import BouncerRules
 struct FlowSpec: Sendable {
     /// `if` statements, read through their `condition`, `consequence`, and (repeatable) `alternative` fields.
     var ifNodeType = "if_statement"
+    /// The field holding an `if`'s (or `elif`'s) branch, which PHP calls `body`.
+    var consequenceField = "consequence"
     /// An `alternative` that is another condition and branch, as Python's `elif`; any other alternative is an `else`.
     var elifNodeType: String?
     let loopNodeTypes: Set<String>

@@ -9,6 +9,8 @@ import BouncerCore
 ///   its folder or any folder above it in the repository, where a workspace root keeps it.
 /// - `Cargo.toml` for a binary crate (`[[bin]]`, or `src/main.rs` beside it) or a workspace root
 ///   (`[workspace]`) with no `Cargo.lock` in its folder or above. Libraries conventionally leave theirs out.
+/// - `composer.json` requiring packages (`require` or `require-dev` entries other than `php`, `ext-*`, and
+///   other platform requirements) with no `composer.lock` beside it.
 /// - The root `Package.swift` with remote dependencies and no `Package.resolved`, only with the
 ///   `swiftPackages` parameter set, since libraries often leave it out too.
 ///
@@ -20,8 +22,8 @@ public struct MissingLockfileRule: ProjectRule {
     /// Creates the rule.
     public init() {}
 
-    /// Checks every `package.json`, `Cargo.toml`, and (when `swiftPackages` is set) root `Package.swift` being
-    /// checked.
+    /// Checks every `package.json`, `Cargo.toml`, `composer.json`, and (when `swiftPackages` is set) root
+    /// `Package.swift` being checked.
     ///
     /// - Parameters:
     ///   - index: The project's facts, used to read manifests.
@@ -44,10 +46,11 @@ public struct MissingLockfileRule: ProjectRule {
     /// - Returns: The message, or `nil` if the file isn't a manifest missing its lockfile.
     private func message(for path: String, disk: LockfileDisk) -> String? {
         switch (path as NSString).lastPathComponent {
-        case "package.json": return npm(path, disk: disk)
-        case "Cargo.toml": return cargo(path, disk: disk)
-        case Self.swiftManifest where path == Self.swiftManifest: return swiftPackage(path, disk: disk)
-        default: return nil
+        case "package.json": npm(path, disk: disk)
+        case "Cargo.toml": cargo(path, disk: disk)
+        case "composer.json": composer(path, disk: disk)
+        case Self.swiftManifest where path == Self.swiftManifest: swiftPackage(path, disk: disk)
+        default: nil
         }
     }
 
@@ -80,6 +83,19 @@ public struct MissingLockfileRule: ProjectRule {
         guard isWorkspace || isBinary else { return nil }
         let kind = isWorkspace ? "This workspace" : "This binary crate"
         return kind + " has no Cargo.lock; commit it so builds use the dependency versions you tested."
+    }
+
+    /// Checks a `composer.json` that requires packages for a `composer.lock` beside it.
+    ///
+    /// - Parameters:
+    ///   - path: The manifest.
+    ///   - disk: Reads it and looks for the lockfile.
+    /// - Returns: The message, or `nil` without package requirements, for a malformed manifest, or with a lockfile.
+    private func composer(_ path: String, disk: LockfileDisk) -> String? {
+        guard let manifest = disk.read(path).flatMap(ComposerManifest.init(text:)), !manifest.dependencies.isEmpty,
+              !disk.exists(path, sibling: "composer.lock") else { return nil }
+        return "This package requires dependencies but no composer.lock is committed beside it; commit it so "
+            + "installs use the versions you tested."
     }
 
     /// Checks the root `Package.swift` with remote dependencies for a `Package.resolved` beside it.

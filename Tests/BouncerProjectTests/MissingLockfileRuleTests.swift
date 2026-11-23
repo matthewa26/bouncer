@@ -58,6 +58,21 @@ final class MissingLockfileRuleTests: XCTestCase {
         XCTAssertEqual(flagged(targets), ["app/Cargo.toml:1", "tool/Cargo.toml:1"])
     }
 
+    func testFlagsAComposerPackageRequiringPackagesWithoutAComposerLock() throws {
+        try write("app/composer.json", #"{"require": {"php": ">=8.2", "vendor/lib": "^1.0"}}"#)
+        try write("dev/composer.json", #"{"require-dev": {"phpunit/phpunit": "^11.0"}}"#)
+        try write("platform/composer.json", #"{"require": {"php": ">=8.4", "ext-json": "*"}}"#)
+        try write("locked/composer.json", #"{"require": {"vendor/lib": "^1.0"}}"#)
+        try write("locked/composer.lock", "{}")
+        try write("broken/composer.json", "{ not json")
+        try write("composer.lock", "{}")
+        let targets: Set = [
+            "app/composer.json", "dev/composer.json", "platform/composer.json", "locked/composer.json",
+            "broken/composer.json"
+        ]
+        XCTAssertEqual(flagged(targets), ["app/composer.json:1", "dev/composer.json:1"])
+    }
+
     func testChecksTheRootSwiftPackageOnlyWhenOptedIn() throws {
         try write("Package.swift", ".package(url: \"https://github.com/a/b.git\", from: \"1.0.0\")\n")
         XCTAssertEqual(flagged(["Package.swift"]), [])

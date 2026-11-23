@@ -1,3 +1,4 @@
+import Foundation
 import SwiftTreeSitter
 import BouncerCore
 import BouncerRules
@@ -72,7 +73,9 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     /// - Returns: The combined findings.
     private func findings(root: Node, file: SourceFile, context: AnalysisContext) -> [Finding] {
         let unused = spec.deadCode?.unusedDeclarations(in: DeadCodeTree(root: root, file: file)) ?? []
-        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root, unused: unused)
+        let path = file.relativePath(under: context.repoRoot)
+        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents, path: path)
+            .build(root: root, unused: unused)
         let smells = spec.smells?.findings(in: SmellTree(root: root, file: file, context: context)) ?? []
         return genericFindings(file: file, context: context) + astFindings(summary, file: file, context: context)
             + smells
@@ -86,7 +89,8 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     public func measureFunctions(file: SourceFile) throws -> [FunctionMeasure]? {
         let root = try parse(file)
         if let fallback = fallback(for: root) { return try fallback.measureFunctions(file: file) }
-        let summary = TreeSitterSummaryBuilder(spec: spec, source: file.contents).build(root: root)
+        let builder = TreeSitterSummaryBuilder(spec: spec, source: file.contents, path: file.path.path)
+        let summary = builder.build(root: root)
         let profile = LanguageProfiles.profile(for: spec.coreLanguage)
         return DeclarationFindings.measures(summary, file: file, profile: profile)
     }
@@ -149,6 +153,17 @@ public struct TreeSitterAnalyzer: LanguageAnalyzer {
     private func astFindings(_ summary: DeclarationSummary, file: SourceFile, context: AnalysisContext) -> [Finding] {
         let naming = NamingPatterns(function: spec.functionNamePattern, type: spec.typeNamePattern)
         return DeclarationFindings.all(summary, file: file, context: context, naming: naming)
+    }
+}
+
+extension SourceFile {
+    /// Works out the file's path relative to the repository root.
+    ///
+    /// - Parameter root: The repository root.
+    /// - Returns: The path below the root, or the full path for a file outside it.
+    func relativePath(under root: URL) -> String {
+        let base = root.standardizedFileURL.path, full = path.standardizedFileURL.path
+        return full.hasPrefix(base + "/") ? String(full.dropFirst(base.count + 1)) : full
     }
 }
 

@@ -2,8 +2,8 @@ import Foundation
 import BouncerCore
 
 /// Flags an empty `catch` block in the languages without a syntax tree: Java, C++, PowerShell, and unrecognized
-/// languages with `try`/`catch` (C#, Kotlin, PHP, Dart). Swift, TypeScript, JavaScript, Python, and Go get the
-/// parse-tree version of the same `empty-catch` rule instead.
+/// languages with `try`/`catch` (C#, Kotlin, Dart). Swift, TypeScript, JavaScript, Python, Go, Objective-C, and
+/// PHP get the parse-tree version of the same `empty-catch` rule instead, so this one skips them.
 ///
 /// It's text-based: a `catch` on a code line, optionally followed by its `(…)` or `[Type]` clause, opens a brace
 /// block that's followed (across lines, up to 20) to its matching `}`. The block is empty when nothing but whitespace

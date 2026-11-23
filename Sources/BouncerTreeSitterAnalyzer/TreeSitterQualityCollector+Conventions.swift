@@ -30,7 +30,7 @@ extension TreeSitterQualityCollector {
     /// - Returns: The `else` node to report at, or `nil`.
     func elseAfterExit(_ node: Node, type: String) -> Node? {
         guard type == conventions.ifNodeType, let alternative = node.child(byFieldName: "alternative"),
-              let consequence = node.child(byFieldName: "consequence"),
+              let consequence = node.child(byFieldName: quality.flow?.consequenceField ?? "consequence"),
               let last = lastStatement(in: consequence) else { return nil }
         return quality.statements.jumpNodeTypes.contains(last.nodeType ?? "") ? alternative : nil
     }
@@ -114,14 +114,15 @@ extension TreeSitterQualityCollector {
         (attributes(of: node, tests: tests).compactMap(text) + [text(node) ?? ""]).joined(separator: "\n")
     }
 
-    /// Lists the attributes directly above a function, nearest first.
+    /// Lists a function's attributes: its own attribute field, then those directly above it, nearest first.
     ///
     /// - Parameters:
     ///   - node: The function.
     ///   - tests: The language's test conventions, naming its attribute node types.
     /// - Returns: The attribute nodes, or none for a language without attributes.
     private func attributes(of node: Node, tests: TestSpec) -> [Node] {
-        var found: [Node] = [], current = node.previousNamedSibling
+        var found = tests.attributeField.flatMap { node.child(byFieldName: $0) }.map { [$0] } ?? []
+        var current = node.previousNamedSibling
         while let sibling = current, tests.attributeNodeTypes.contains(sibling.nodeType ?? "") {
             found.append(sibling)
             current = sibling.previousNamedSibling
@@ -180,8 +181,8 @@ extension TreeSitterQualityCollector {
             && conventions.rootNodeTypes.contains(node.parent?.parent?.nodeType ?? "")
     }
 
-    /// Reports whether a function is a test, by its name, an attribute above it, or being passed to a
-    /// test-defining call.
+    /// Reports whether a function is a test, by its name, an attribute on or above it, or being passed to a
+    /// test-defining call, in a file whose path allows tests.
     ///
     /// - Parameters:
     ///   - node: The function node.
@@ -189,11 +190,25 @@ extension TreeSitterQualityCollector {
     ///   - tests: The language's test conventions.
     /// - Returns: Whether it's a test.
     private func isTest(_ node: Node, name: String, tests: TestSpec) -> Bool {
+        if let place = tests.pathPattern, filePath.range(of: place, options: .regularExpression) == nil { return false }
         if let pattern = tests.namePattern, name.range(of: pattern, options: .regularExpression) != nil { return true }
         if let pattern = tests.attributePattern, attributes(of: node, tests: tests).compactMap(text).contains(where: {
             $0.range(of: pattern, options: .regularExpression) != nil
         }) { return true }
-        guard node.parent?.nodeType == "arguments", let call = node.parent?.parent else { return false }
+        return isTestCallback(node, tests: tests)
+    }
+
+    /// Reports whether a function is passed to a test-defining call, such as `it("works", () => { … })`.
+    ///
+    /// - Parameters:
+    ///   - node: The function node.
+    ///   - tests: The language's test conventions.
+    /// - Returns: Whether a test-defining call takes it as an argument.
+    private func isTestCallback(_ node: Node, tests: TestSpec) -> Bool {
+        let wrapper = node.parent.flatMap { $0.nodeType == tests.argumentNodeType ? $0 : nil }
+        guard let list = wrapper?.parent ?? node.parent, list.nodeType == "arguments", let call = list.parent else {
+            return false
+        }
         return call.child(byFieldName: "function").flatMap(text).map(tests.callbackCallees.contains) ?? false
     }
 

@@ -1,6 +1,6 @@
 /// A source language Bouncer can analyze.
 ///
-/// Swift, Python, Go, TypeScript, JavaScript, Objective-C, and Rust are analyzed through
+/// Swift, Python, Go, TypeScript, JavaScript, Objective-C, Rust, and PHP are analyzed through
 /// a real syntax tree. Every other case is analyzed heuristically, and `.other` exists
 /// so a file in an unrecognized language is still given a best-effort pass
 /// instead of being skipped outright.
@@ -21,6 +21,8 @@ public enum Language: Hashable, Sendable {
     case objc
     /// Rust (`.rs`).
     case rust
+    /// PHP, including PHP mixed with HTML (`.php`, `.phtml`).
+    case php
     case other(String)
 }
 
@@ -33,7 +35,7 @@ extension Language {
         "js": .javascript, "jsx": .javascript, "mjs": .javascript, "cjs": .javascript,
         "cpp": .cpp, "cc": .cpp, "cxx": .cpp, "hpp": .cpp, "hh": .cpp,
         "java": .java, "go": .go, "sql": .sql, "c": .c, "h": .c, "m": .objc, "mm": .objc,
-        "rs": .rust
+        "rs": .rust, "php": .php, "phtml": .php
     ]
 
     /// Line openings that only Objective-C uses, which make a `.h` header Objective-C rather than C.

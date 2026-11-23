@@ -226,7 +226,7 @@ extension TreeSitterQualityCollector {
     func arrowDepth(of block: Node, flow: FlowSpec) -> Int {
         guard let last = finalStatement(in: block), last.nodeType == flow.ifNodeType,
               last.child(byFieldName: "alternative") == nil,
-              let consequence = last.child(byFieldName: "consequence") else { return 0 }
+              let consequence = last.child(byFieldName: flow.consequenceField) else { return 0 }
         return 1 + arrowDepth(of: consequence, flow: flow)
     }
 

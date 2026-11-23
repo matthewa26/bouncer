@@ -11,6 +11,8 @@ struct TreeSitterQualityCollector {
     let text: (Node) -> String?
     /// Names the file's Python imports bind, which start module paths rather than object chains.
     var moduleNames: Set<String> = []
+    /// The file's path, relative to the repository root where known, which a `TestSpec.pathPattern` reads.
+    var filePath = ""
 
     /// Running totals for one function's walk.
     private struct Tally {

@@ -6,6 +6,9 @@ import BouncerRules
 final class TreeSitterSummaryBuilder {
     let spec: TreeSitterLanguageSpec
     private let source: String
+    /// The file's path, relative to the repository root where known, for the languages whose tests are told
+    /// apart by where they live.
+    private let path: String
     private var functions: [CollectedFunction] = []
     private var types: [CollectedType] = []
     private var switches: [CollectedSwitch] = []
@@ -24,9 +27,11 @@ final class TreeSitterSummaryBuilder {
     /// - Parameters:
     ///   - spec: The language's tree-sitter node types and conventions.
     ///   - source: The file's full text, used to extract node text by range.
-    init(spec: TreeSitterLanguageSpec, source: String) {
+    ///   - path: The file's path, relative to the repository root where known.
+    init(spec: TreeSitterLanguageSpec, source: String, path: String = "") {
         self.spec = spec
         self.source = source
+        self.path = path
     }
 
     /// Extracts a node's source text, since this SwiftTreeSitter version has no `Node.text`.
@@ -46,6 +51,7 @@ final class TreeSitterSummaryBuilder {
     /// - Returns: Everything gathered during the walk.
     func build(root: Node, unused: [UnusedDeclaration] = []) -> DeclarationSummary {
         quality?.moduleNames = importedNames(in: root)
+        quality?.filePath = path
         walk(root)
         let shapes = collectShapes(root)
         return DeclarationSummary(
@@ -227,13 +233,15 @@ final class TreeSitterSummaryBuilder {
         return count
     }
 
-    /// Reports whether a binary-expression-like node is a logical `&&`/`||`.
+    /// Reports whether a binary-expression-like node is a logical operator: `&&`, `||`, `??`, or one of the
+    /// language's own, such as PHP's `and` and `or`.
     ///
     /// - Parameter node: The node to check.
-    /// - Returns: Whether its `operator` field is `&&` or `||`.
+    /// - Returns: Whether its `operator` field is a logical operator.
     private func isLogicalOperator(_ node: Node) -> Bool {
-        let op = node.child(byFieldName: "operator").flatMap(text)
-        return op == "&&" || op == "||" || op == "??"
+        guard let op = node.child(byFieldName: "operator").flatMap(text) else { return false }
+        let own = spec.quality?.complexity.logicalOperators ?? []
+        return op == "&&" || op == "||" || op == "??" || own.contains(op)
     }
 
     /// Counts every descendant matching a set of node types, anywhere within a subtree.

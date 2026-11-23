@@ -62,11 +62,20 @@ extension TreeSitterQualityCollector {
             .compactMap { node.child(at: $0) }
         let branches = [node] + alternatives.filter { $0.nodeType == flow.elifNodeType }
         let others = alternatives.filter { $0.nodeType != flow.elifNodeType }
-        let taken = branches.reduce(0) { total, branch in
-            let consequence = branch.child(byFieldName: "consequence").map { paths(through: $0, flow: flow) } ?? 1
-            return PathCount.add(total, consequence + operators(in: branch.child(byFieldName: "condition")))
-        }
+        let taken = branches.reduce(0) { PathCount.add($0, branchPaths($1, flow: flow)) }
         return PathCount.add(taken, others.isEmpty ? 1 : sum(others, flow: flow))
+    }
+
+    /// Counts the paths through one `if` or `elif` branch: its body's, plus one per logical operator in its
+    /// condition.
+    ///
+    /// - Parameters:
+    ///   - branch: The `if` statement or `elif` clause.
+    ///   - flow: The language's flow node types.
+    /// - Returns: Its paths.
+    private func branchPaths(_ branch: Node, flow: FlowSpec) -> Int {
+        let consequence = branch.child(byFieldName: flow.consequenceField).map { paths(through: $0, flow: flow) } ?? 1
+        return consequence + operators(in: branch.child(byFieldName: "condition"))
     }
 
     /// Counts the paths through a `switch` or `match`: each case, plus one if nothing matches.

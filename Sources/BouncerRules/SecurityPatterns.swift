@@ -21,7 +21,10 @@ public enum SecurityPatterns {
             SecurityPattern([.python], #"\b\w+\.run\([^)]*\bdebug\s*=\s*True\b"#),
             SecurityPattern([.python], #"^\s*DEBUG\s*=\s*True\b"#, context: .path(#"/settings(?:/[^/]+|[^/]*)\.py$"#)),
             SecurityPattern([.python], #"\bapp\.debug\s*=\s*True\b|\bapp\.config\[\s*['"]DEBUG['"]\s*\]\s*=\s*True\b"#),
-            SecurityPattern(scripts, #"\bapp\.set\(\s*['"]env['"]\s*,\s*['"]development['"]|\bapp\.debug\s*=\s*true\b"#)
+            SecurityPattern(scripts, #"\bapp\.set\(\s*['"]env['"]\s*,\s*['"]development['"]|"#
+                + #"\bapp\.debug\s*=\s*true\b"#),
+            SecurityPattern([.php], #"(?i)\bini_set\(\s*['"]display_errors['"]\s*,\s*(?:['"]\s*(?:1|on|true|yes|"#
+                + #"stdout|stderr)\s*['"]|1|true)\s*\)"#)
         ]
     )
 

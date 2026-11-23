@@ -138,7 +138,9 @@ extension SecurityPatterns {
                 + #"\.requiresSecureCoding\s*=\s*false\b"#),
             SecurityPattern([.objc], #"\[NSKeyedUnarchiver\s+unarchiveObjectWith(?:Data|File):|"#
                 + #"\bunarchiveTopLevelObjectWithData:|\bNSUnarchiver\b|\bsetRequiresSecureCoding:\s*NO\b|"#
-                + #"\.requiresSecureCoding\s*=\s*NO\b|\[NSKeyedUnarchiver\s+alloc\]\s+initForReadingWithData:"#)
+                + #"\.requiresSecureCoding\s*=\s*NO\b|\[NSKeyedUnarchiver\s+alloc\]\s+initForReadingWithData:"#),
+            SecurityPattern([.php], #"(?<![\w$>:])unserialize\s*\((?![^;]*allowed_classes['"]\s*=>\s*(?:false|\[))"#
+                + #"[^,;)]*\$"#)
         ],
         conditions: (fileGate: nil, fileExclusion: #"ObjectInputFilter|ValidatingObjectInputStream|resolveClass\("#,
                      lineExclusion: nil)

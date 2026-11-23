@@ -11,7 +11,7 @@ enum AnalyzerFactory {
 
     /// Builds an analyzer for every language with dedicated support.
     ///
-    /// - Returns: The real-AST analyzers (Swift, Python, Go, TS, JS, Objective-C, Rust), plus a heuristic one per
+    /// - Returns: The real-AST analyzers (Swift, Python, Go, TS, JS, Objective-C, Rust, PHP), plus a heuristic one per
     ///   other language.
     static func makeKnownAnalyzers() -> [Language: LanguageAnalyzer] {
         var analyzers: [Language: LanguageAnalyzer] = [.swift: SwiftSyntaxAnalyzer()]
@@ -25,7 +25,7 @@ enum AnalyzerFactory {
     ///
     /// - Returns: One analyzer per tree-sitter grammar.
     private static func makeTreeSitterAnalyzers() -> [TreeSitterAnalyzer] {
-        [TreeSitterLanguageSpec.python, .go, .typescript, .javascript, .rust].map { TreeSitterAnalyzer(spec: $0) }
+        [TreeSitterLanguageSpec.python, .go, .typescript, .javascript, .rust, .php].map { TreeSitterAnalyzer(spec: $0) }
             + [TreeSitterAnalyzer(spec: .objc, fallback: HeuristicAnalyzer(language: .objc))]
     }
 

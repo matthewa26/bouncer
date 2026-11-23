@@ -52,27 +52,29 @@ public enum OWASPCategory: String, CaseIterable, Sendable, Codable {
         ]),
         (.cryptographicFailures, "Cryptographic Failures", [
             "secret-looking-pattern", "weak-crypto", "insecure-random", "disabled-tls-verification",
-            "hardcoded-iv", "short-crypto-key"
+            "hardcoded-iv", "short-crypto-key", "php-weak-password-hash"
         ]),
         (.injection, "Injection", [
             "sql-string-building", "sql-missing-where", "shell-eval-usage", "powershell-invoke-expression",
             "c-gets-usage", "c-unsafe-string-function", "python-shell-injection", "js-shell-injection",
             "go-shell-injection", "swift-shell-injection", "rust-shell-injection", "objc-shell-injection",
-            "js-eval", "js-raw-html", "python-eval-exec", "template-injection", "nosql-injection"
+            "php-shell-injection", "js-eval", "js-raw-html", "python-eval-exec", "php-eval", "template-injection",
+            "nosql-injection"
         ]),
         (.insecureDesign, "Insecure Design", []),
         (.authenticationFailures, "Authentication Failures", [
-            "powershell-plaintext-password", "jwt-verification-disabled", "timing-unsafe-comparison"
+            "powershell-plaintext-password", "jwt-verification-disabled", "timing-unsafe-comparison",
+            "php-loose-comparison"
         ]),
         (.softwareOrDataIntegrityFailures, "Software or Data Integrity Failures", [
-            "python-unsafe-deserialization", "unsafe-deserialization"
+            "python-unsafe-deserialization", "unsafe-deserialization", "php-extract"
         ]),
         (.securityLoggingAndAlertingFailures, "Security Logging and Alerting Failures", [
             "logged-secret", "unlogged-security-failure"
         ]),
         (.mishandlingOfExceptionalConditions, "Mishandling of Exceptional Conditions", [
             "empty-catch", "swift-discarded-try", "python-bare-except", "java-generic-exception-catch",
-            "rust-unwrap", "fail-open"
+            "rust-unwrap", "fail-open", "php-error-suppression"
         ])
     ]
 }

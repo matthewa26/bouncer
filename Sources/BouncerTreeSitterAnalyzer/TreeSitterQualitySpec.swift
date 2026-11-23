@@ -86,6 +86,14 @@ struct TestSpec: Sendable {
     var attributePattern: String?
     /// The nodes that may sit directly above a function as its attributes, such as `attribute_item`.
     var attributeNodeTypes: Set<String> = []
+    /// The function's own field holding its attributes, such as PHP's `attributes` (`#[Test]`), read beside the
+    /// attributes above it.
+    var attributeField: String?
+    /// A wrapper around each call argument, such as PHP's `argument`, between a test callback and its call.
+    var argumentNodeType: String?
+    /// A pattern the file's path must match for its functions to be tests, such as PHP's `tests/` folders;
+    /// `nil` makes any file's functions tests by the other conventions.
+    var pathPattern: String?
 }
 
 /// What scores cognitive complexity, deepens nesting, and counts as a `return`.
@@ -163,6 +171,11 @@ struct CohesionSpec: Sendable {
     let propertyField: String
     let receiverText: String
     let staticKeyword: String?
+    /// For a field declaration that lists its fields as elements, such as PHP's `property_element`, the element
+    /// node type holding each field's name field.
+    var fieldElementNodeType: String?
+    /// A sigil a declared field's name starts with but `this.x` access leaves off, such as PHP's `$`.
+    var fieldSigil: String?
 }
 
 extension TreeSitterQualitySpec {

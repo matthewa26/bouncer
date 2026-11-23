@@ -12,8 +12,12 @@ struct CommentSyntax: Sendable {
     let blockOpen: String?
     /// The block-comment closer matching `blockOpen`.
     let blockClose: String?
+    /// An attribute's opener that starts like a line comment, such as PHP's `#[`; a line starting with it is code.
+    let attributePrefix: String?
 
     /// Derives the comment syntax for a file's language.
+    ///
+    /// PHP's line comments are `//` and `#`, but not `#[`, which opens an attribute.
     ///
     /// Returns `nil` for `.other`: the best-effort profile's prefixes are guesses (`#` is also a Markdown heading),
     /// so the comment-smell rules don't run there.
@@ -24,9 +28,11 @@ struct CommentSyntax: Sendable {
     init?(language: Language, profile: LanguageProfile) {
         if case .other = language { return nil }
         let delimiters = Self.blockDelimiters(for: language)
-        self.linePrefixes = profile.lineCommentPrefixes
+        let isPHP = language == .php
+        self.linePrefixes = isPHP ? ["//", "#"] : profile.lineCommentPrefixes
         self.blockOpen = delimiters?.open
         self.blockClose = delimiters?.close
+        self.attributePrefix = isPHP ? "#[" : nil
     }
 
     /// Looks up the block-comment delimiters for a language.
@@ -35,7 +41,7 @@ struct CommentSyntax: Sendable {
     /// - Returns: The opener and closer, or `nil` for a language without block comments (Python, shells).
     private static func blockDelimiters(for language: Language) -> (open: String, close: String)? {
         switch language {
-        case .swift, .typescript, .javascript, .cpp, .c, .objc, .java, .go, .sql, .rust: return ("/*", "*/")
+        case .swift, .typescript, .javascript, .cpp, .c, .objc, .java, .go, .sql, .rust, .php: return ("/*", "*/")
         case .powershell: return ("<#", "#>")
         default: return nil
         }
@@ -154,6 +160,7 @@ struct CommentScanner {
     ///   - index: The line's 0-based index.
     /// - Returns: The comment line, or `nil` if the line isn't a line comment.
     private func lineComment(_ line: Substring, index: Int) -> CommentLine? {
+        if let attribute = syntax.attributePrefix, line.hasPrefix(attribute) { return nil }
         guard let prefix = syntax.linePrefixes.first(where: { line.hasPrefix($0) }) else { return nil }
         let rest = line.dropFirst(prefix.count)
         let marker = rest.first

@@ -136,6 +136,7 @@ extension TreeSitterSummaryBuilder {
         case .exportKeyword: visibilityByExport(node, name: name)
         case .fileScope: visibilityByFileScope(node, name: name)
         case .visibilityModifier: visibilityByModifier(node)
+        case .accessModifier: visibilityByAccessModifier(node)
         }
     }
 

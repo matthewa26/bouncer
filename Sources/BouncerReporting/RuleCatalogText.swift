@@ -15,8 +15,8 @@ it (see <doc:Agents>).
 ## Where each rule runs
 
 Swift, TypeScript (`.ts`, `.mts`, `.cts`, and `.tsx` via the TSX grammar), JavaScript
-(`.js`, `.mjs`, `.cjs`, `.jsx`), Python, Go, and Objective-C (`.m`, `.mm`, and Objective-C `.h`
-headers) get most of these rules computed exactly from a real parse tree. Every other supported
+(`.js`, `.mjs`, `.cjs`, `.jsx`), Python, Go, Rust, PHP (`.php`, `.phtml`), and Objective-C (`.m`, `.mm`,
+and Objective-C `.h` headers) get most of these rules computed exactly from a real parse tree. Every other supported
 language (zsh, bash, PowerShell, C++, Java, SQL, C, and anything unrecognized) gets the same checks
 computed heuristically instead, from
 indentation and regular expressions rather than a real grammar. The rule IDs, defaults, and
@@ -62,7 +62,7 @@ These run on every language.
 | `forbidden-import` (Swift, TS/JS, Python, Go, Java, C/C++) | An import that `deny` forbids for the file's path, or that `allow` leaves out; does nothing until configured | warning | `deny`, `allow`: `"<glob>=<module>,<module>"` entries (a bare module list applies everywhere) |
 | `path-traversal` | Request input (`req.params`, `request.args`, `r.URL.Query()`, …) reaching a path join or file call, on the same line or through a variable assigned within 10 lines (OWASP A01:2025) | warning | none |
 | `logged-secret` | A log or print call that writes a password, secret, API or private key, auth token, SSN, or card number (OWASP A09:2025) | warning | none |
-| `empty-catch` (Java, C++, PowerShell, C#/Kotlin/PHP/Dart files) | A `catch` block with nothing but whitespace inside; the parse-tree version covers Swift, TS/JS, Python, and Go (OWASP A10:2025) | warning | none |
+| `empty-catch` (Java, C++, PowerShell, C#/Kotlin/Dart files) | A `catch` block with nothing but whitespace inside; the parse-tree version covers Swift, TS/JS, Python, Go, and PHP (OWASP A10:2025) | warning | none |
 | `null-collection-return` (Swift, TS, Python, Java) | A function declared to return an optional or nullable collection (`-> [T]?`, `T[] \| null`, `Optional[List[T]]`, a Java `List`/`Map`/array) whose own body returns `nil`/`null`/`None` and never an empty one, unless its doc comment says what the null means; off unless configured | warning | none |
 | `shared-mutable-state` (Swift, Go; TS/JS and Python through `languages`) | A Swift global or `static var` outside an actor or global actor, a Go package-level `var` written by a function, a TS/JS module-level `let` reassigned in a file with async code, or a Python `global` in a threaded or asyncio file, with no lock, queue, or atomic in the file | warning | `languages` (`["swift", "go"]`) |
 | `missing-final-newline` | A non-empty file that doesn't end with a newline | warning | none |
@@ -73,7 +73,7 @@ These run on every language.
 | `disabled-tls-verification` | `rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `verify=False`, `InsecureSkipVerify: true`, `curl -k` (OWASP A04:2025) | warning | none |
 | `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example` hosts, and XML namespaces (OWASP A02:2025) | warning | none |
 | `sql-string-building` | SQL built by concatenation or interpolation (`"SELECT … " + x`, `${x}`, `\(x)`, f-strings) (OWASP A05:2025) | warning | none |
-| `unpinned-dependency` | A `package.json`, `Cargo.toml`, or `Package.swift` dependency without a reproducible version: `*`/`latest`/an unbounded `>=` range, a git source without a commit, a tarball URL, a Cargo `git` dependency without `rev`, or a SwiftPM `branch:` (OWASP A03:2025) | warning | none |
+| `unpinned-dependency` | A `package.json`, `Cargo.toml`, `Package.swift`, or `composer.json` dependency without a reproducible version: `*`/`latest`/an unbounded `>=` range, a Composer development branch (`dev-main`, `2.x-dev`) not pinned with `#<commit>`, a git source without a commit, a tarball URL, a Cargo `git` dependency without `rev`, or a SwiftPM `branch:` (OWASP A03:2025) | warning | none |
 | `pipe-to-shell` | A download piped straight into a shell or interpreter (`curl … \| sh`, `bash <(curl …)`, `irm … \| iex`) in scripts, Dockerfiles, Makefiles, and YAML; not Markdown (OWASP A03:2025) | warning | none |
 | `unpinned-ci-action` | A GitHub Actions `uses:` not pinned to a 40-character commit SHA, in `.github/workflows/*.yml` and `action.yml`; off unless configured (OWASP A03:2025) | info | none |
 
@@ -95,7 +95,7 @@ cheap approximation of clone detection, not a real one.
 
 ## Security rules (OWASP Top 10:2025)
 
-These run on TypeScript/JavaScript, Python, Go, Java, Swift, and Objective-C, as each row says,
+These run on TypeScript/JavaScript, Python, Go, Java, Swift, Objective-C, and PHP, as each row says,
 and skip test files. Each is tagged with its OWASP Top 10:2025 category in `--format json` and the
 HTML report; <doc:Security> maps every security rule to its category, and the bundled `owasp`
 profile turns them all on as errors. They favor precision over recall: each looks for the insecure
@@ -106,7 +106,7 @@ value written out, so a setting built elsewhere or passed through a variable is 
 | `ssrf` | A01:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | Request input leading the URL of an outbound request (`fetch`, `axios`, `requests.get`, `urlopen`, `http.Get`, `http.NewRequest`, `new URL(…).openConnection()`, `URLSession` tasks, `NSURL URLWithString:` in a file using `NSURLSession`); a literal host prefix or a nearby allowlist check clears it | warning |
 | `open-redirect` | A01:2025 | TS/JS, Python, Go, Java, Swift | Request input leading a redirect (`res.redirect`, `location.href =`, Flask/Django `redirect`, `HttpResponseRedirect`, `http.Redirect`, `sendRedirect`, `"redirect:" +`, Vapor `redirect(to:)`); a literal path prefix, `is_safe_url`, `url_has_allowed_host_and_scheme`, or a `startsWith("/")` check clears it | warning |
 | `cors-credentials-any-origin` | A01:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | Any-origin CORS (the patterns of `permissive-cors`, plus `origin: true` and Vapor `.originBased`) in a file that also enables credentials (`credentials: true`, `supports_credentials=True`, `AllowCredentials: true`, `Access-Control-Allow-Credentials: true`, …) | warning |
-| `debug-mode-enabled` | A02:2025 | Python, TS/JS | `app.run(debug=True)`, `app.debug = True`, `app.config["DEBUG"] = True`, `DEBUG = True` in a Django `settings*.py` or `settings/` module, Express `app.set("env", "development")` | warning |
+| `debug-mode-enabled` | A02:2025 | Python, TS/JS, PHP | `app.run(debug=True)`, `app.debug = True`, `app.config["DEBUG"] = True`, `DEBUG = True` in a Django `settings*.py` or `settings/` module, Express `app.set("env", "development")`, PHP `ini_set('display_errors', '1')` (or `On`, `true`, `stdout`, `stderr`) | warning |
 | `permissive-cors` | A02:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | `Access-Control-Allow-Origin: *`, `cors()` with no options, `origin: "*"`, `CORS(app)`, `CORS_ALLOW_ALL_ORIGINS = True`, `allow_origins=["*"]`, Go `AllowedOrigins: []string{"*"}`/`AllowAllOrigins`, a bare `@CrossOrigin`, `allowedOrigins("*")`, Vapor `allowedOrigin: .all`; files that enable credentials get `cors-credentials-any-origin` instead | warning |
 | `insecure-cookie` | A02:2025 | TS/JS, Python, Go, Java, Swift | A cookie set with `secure: false`/`httpOnly: false`, `set_cookie(…, secure=False)`, `SESSION_COOKIE_SECURE = False`, Go `http.Cookie{Secure: false}`, `cookie.setSecure(false)`, Vapor `isSecure: false`; the flag must sit within 8 lines of a cookie | warning |
 | `xml-external-entities` | A02:2025 | TS/JS, Python, Java, Swift, Objective-C | An XML parser with external entities on: libxmljs `noent: true`, lxml `resolve_entities=True`, `IS_SUPPORTING_EXTERNAL_ENTITIES, true`, `setExpandEntityReferences(true)`, the external-entity features set to `true` or `disallow-doctype-decl` to `false`, `shouldResolveExternalEntities = true`/`YES` | warning |
@@ -117,7 +117,7 @@ value written out, so a setting built elsewhere or passed through a variable is 
 | `nosql-injection` | A05:2025 | TS/JS, Python, Go, Java | `$where` built by concatenation, interpolation, or formatting, and `req.body`/`req.query`/`request.json` handed straight to a MongoDB query (`find({ email: req.body.email })`), in files that mention Mongo; `String(…)`/`str(…)` casts and `express-mongo-sanitize` clear it | warning |
 | `jwt-verification-disabled` | A07:2025 | Python, TS/JS, Go, Java | `jwt.decode(…, verify=False)`, `"verify_signature": False`, `"verify_exp": False`, the `none` algorithm allowed, `ignoreExpiration: true`, Go `jwt.SigningMethodNone`/`UnsafeAllowNoneSignatureType`, JJWT `parseClaimsJwt`/`parseUnsecuredClaims`/`unsecured()` | warning |
 | `timing-unsafe-comparison` | A07:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A password, secret, HMAC, signature, API key, or token compared with `==`/`===`/`!=` against its expected, stored, provided, computed, or environment value, in a file about authentication or crypto | warning |
-| `unsafe-deserialization` | A08:2025 | Java, TS/JS, Swift, Objective-C | `new ObjectInputStream(…)` in a file calling `readObject` without an `ObjectInputFilter`, `XMLDecoder`, Jackson `enableDefaultTyping`, `node-serialize` `unserialize`, `NSKeyedUnarchiver.unarchiveObject(with:)`/`unarchiveTopLevelObjectWithData`, `NSUnarchiver`, `requiresSecureCoding = false`; Python is `python-unsafe-deserialization` | warning |
+| `unsafe-deserialization` | A08:2025 | Java, TS/JS, Swift, Objective-C, PHP | `new ObjectInputStream(…)` in a file calling `readObject` without an `ObjectInputFilter`, `XMLDecoder`, Jackson `enableDefaultTyping`, `node-serialize` `unserialize`, `NSKeyedUnarchiver.unarchiveObject(with:)`/`unarchiveTopLevelObjectWithData`, `NSUnarchiver`, `requiresSecureCoding = false`, PHP `unserialize` of a variable or superglobal without `allowed_classes` set to `false` or a class list; Python is `python-unsafe-deserialization` | warning |
 | `unlogged-security-failure` | A09:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A `catch`/`except`/`if err != nil` handler on a verify, authenticate, authorize, login, signature, permission, password, JWT, or token call that neither logs, rethrows, returns, responds, nor passes the error on | warning |
 | `fail-open` | A10:2025 | TS/JS, Python, Go, Java, Swift, Objective-C | A handler on the same kind of security check that lets the request through: `return true`/`True`/`YES`, `next()` with no error, `return { valid: true }`, `return .allow`, or `authorized = true` | warning |
 
@@ -419,6 +419,16 @@ mistake in that language, layered on top of the shared rules above:
 | Rust | `disabled-tls-verification` | `.danger_accept_invalid_certs(true)`/`.danger_accept_invalid_hostnames(true)`, or rustls's `dangerous().set_certificate_verifier(…)` |
 | Rust | `sql-string-building` | `format!("SELECT …{}…")` and the other SQL verbs |
 | Rust | `skipped-test` | `#[ignore]` |
+| PHP | `php-debug-output` | `var_dump`, `print_r`, `dd`, or `dump` left in |
+| PHP | `php-eval` | `eval` or `create_function` (OWASP A05:2025) |
+| PHP | `php-error-suppression` | The `@` error-suppression operator (OWASP A10:2025) |
+| PHP | `php-extract` | `extract()` on a superglobal (`$_GET`, `$_POST`, `$_REQUEST`, …), which lets a request overwrite local variables (OWASP A08:2025) |
+| PHP | `php-loose-comparison` | `==`/`!=` on a hash, token, or password value; use `hash_equals` or `===` (OWASP A07:2025) |
+| PHP | `php-shell-injection` | `exec`, `shell_exec`, `system`, `passthru`, `proc_open`, or `popen` whose first argument holds a variable or superglobal, or a backtick command holding a `$`; a call whose line uses `escapeshellarg` is skipped (OWASP A05:2025) |
+| PHP | `php-weak-password-hash` | `md5`/`sha1` (or `hash('md5'/'sha1', …)`) on a password or passwd value, or assigned to one; use `password_hash` (OWASP A04:2025) |
+| PHP | `sql-string-building` | A double-quoted `SELECT … FROM`/`INSERT INTO`/`UPDATE … SET`/`DELETE FROM` string interpolating `$x` or `{$x}`, one concatenated with `. $x`, or `mysqli_query`/`pg_query`/`->query(`/`->exec(` given such a string or a superglobal (OWASP A05:2025) |
+| PHP | `path-traversal` | `include`/`require`(`_once`) of a path holding a variable or superglobal (OWASP A01:2025) |
+| PHP | `disabled-tls-verification` | `CURLOPT_SSL_VERIFYPEER`/`CURLOPT_SSL_VERIFYHOST` set to `false` or `0` (in `curl_setopt` or an options array), or `'verify'`/`'verify_peer'`/`'verify_peer_name'`/`'verify_host' => false` (OWASP A04:2025) |
 
 Most of these are declarative pattern rules, the same mechanism `customRules` in your own
 `.bouncer` file uses; see <doc:Configuration>. Adding one for a language that doesn't have it
@@ -497,6 +507,30 @@ and string arrays over one or several lines, with `#` comments. `#[path = "…"]
 modules aren't followed, and `unused-export` isn't mapped for Rust, since a library's `pub` items are its API.
 `duplicate-code` tokenizes Rust with `"` as its only quote, so a lifetime (`'a`) doesn't open a string.
 
+PHP (`.php`, `.phtml`) is parsed with tree-sitter too, and gets the shared parse-tree rules, with `empty-catch`
+from the parse tree rather than the text rule. The PHP checks treat files under `tests/` and files named
+`*Test.php` (PHPUnit and Pest) as test code, and `assert*` calls and Pest's `expect()` as assertions. The PHP
+pattern rows above are line patterns: they skip comment lines (`//`, `#` but not a `#[…]` attribute, `/*`, and a
+docblock's `*`), and they read only the line, so a query or command built across several lines, or into a
+variable before the call, isn't followed. `php-shell-injection` reads a call's first argument, so `exec`'s output
+variable doesn't count, and trusts any `escapeshellarg` on the line, even if another argument goes unquoted.
+`path-traversal`'s PHP row flags any include whose path holds a variable, request input or not; an autoloader that
+includes a computed class file can say so with `// bouncer:disable-line path-traversal -- reason`.
+`weak-crypto` skips a line `php-weak-password-hash` reports, so a hashed password is reported once, with the
+password-specific fix, and MD5 or SHA-1 used for anything else (a cache key, the WebSocket handshake) stays a
+`weak-crypto` finding. Heuristic PHP, when a file falls back from the parse tree, reads `function` declarations,
+`switch` and `match`, and top-level `use` lines, and expects camelCase functions and methods (a magic method's
+`__` allowed) and PascalCase classes, interfaces, traits, and enums.
+
+PHP's project graph has one node per file. A `use` of a namespaced name (aliased and grouped ones included) is an
+edge to the file the repository-root `composer.json`'s PSR-4 `autoload` or `autoload-dev` maps it to, by the longest
+matching prefix, when that file is in the project; a `use function` or `use const` links to its namespace's file only
+when one exists. An `include`/`require` of a string literal resolves against the requiring file's folder (`__DIR__`
+included) or else the repository root; computed paths aren't followed. So `import-cycle` and `high-fan-out` cover PHP.
+Vendor namespaces, `psr-0`, `classmap`, and `files` autoload entries add no edges, and a missing or malformed
+`composer.json` means no `use` edges. `unused-export` isn't mapped for PHP, since a class in the same namespace needs no
+`use`.
+
 ## Project rules
 
 These look across files, using each file's imports and exports. `bouncer review` runs them;
@@ -535,7 +569,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 | `unused-dependency` | A SwiftPM, `package.json`, or `go.mod` dependency no code imports | warning | `ignore` (none) |
 | `inconsistent-terminology` | A module mixing synonym verbs (`fetchX`, `getY`, `loadZ`); off unless configured | warning | `groups`, `ignoreNames` |
 | `missing-readme` | A SwiftPM target, `package.json` package, or Go module without a README; off unless configured | warning | `includeTests` (false) |
-| `missing-lockfile` | A `package.json` with dependencies and no npm, pnpm, Yarn, or Bun lockfile at or above it; a binary crate's or workspace's `Cargo.toml` without `Cargo.lock`; the root `Package.swift` with remote dependencies and no `Package.resolved` (only with `swiftPackages`), reported at line 1 (OWASP A03:2025) | warning | `swiftPackages` (false) |
+| `missing-lockfile` | A `package.json` with dependencies and no npm, pnpm, Yarn, or Bun lockfile at or above it; a binary crate's or workspace's `Cargo.toml` without `Cargo.lock`; the root `Package.swift` with remote dependencies and no `Package.resolved` (only with `swiftPackages`); a `composer.json` with requirements and no `composer.lock`, reported at line 1 (OWASP A03:2025) | warning | `swiftPackages` (false) |
 
 `layer-violation` reads `layers` as an ordered list: a file in one layer may import its own layer
 or any later one, never an earlier one, and files matching no layer are unconstrained. For

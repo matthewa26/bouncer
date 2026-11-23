@@ -158,7 +158,7 @@ enum SourceText {
     }
 
     /// Reports whether a language is a programming language, so its lines are code: every recognized language, and
-    /// unrecognized files whose extension names one (Rust, C#, Kotlin, Scala, PHP, Dart, Ruby, …) rather than text,
+    /// unrecognized files whose extension names one (Rust, C#, Kotlin, Scala, Dart, Ruby, …) rather than text,
     /// data, or markup such as a test-corpus `.txt`.
     ///
     /// - Parameter language: The file's language.
@@ -169,7 +169,7 @@ enum SourceText {
     }
 
     private static let otherProgramExtensions: Set = [
-        "rs", "cs", "kt", "kts", "scala", "php", "dart", "groovy", "gradle", "m", "mm", "rb", "lua", "pl", "pm", "r",
+        "rs", "cs", "kt", "kts", "scala", "dart", "groovy", "gradle", "m", "mm", "rb", "lua", "pl", "pm", "r",
         "ex", "exs", "erl", "hs", "clj", "fs", "fsx", "vb", "zig", "nim", "cr", "jl", "ml"
     ]
 

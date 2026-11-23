@@ -23,7 +23,7 @@ final class OWASPMappingTests: XCTestCase {
     ]
 
     private let languages: [Language] = [
-        .swift, .python, .zsh, .bash, .powershell, .typescript, .javascript, .cpp, .java, .go, .sql, .c, .objc
+        .swift, .python, .zsh, .bash, .powershell, .typescript, .javascript, .cpp, .java, .go, .sql, .c, .objc, .php
     ]
 
     /// Every rule ID the text-rule registry builds, across every language.

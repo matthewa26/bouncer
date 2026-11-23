@@ -20,7 +20,7 @@ public enum LanguageProfiles {
         .swift: swift, .python: python, .zsh: shell, .bash: shell,
         .powershell: powershell, .typescript: javascriptLike, .javascript: javascriptLike,
         .cpp: cpp, .java: java, .go: go, .sql: sql, .c: c, .objc: objc,
-        .rust: rust
+        .rust: rust, .php: php
     ]
 
     private static let python = LanguageProfile(

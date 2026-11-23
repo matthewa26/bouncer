@@ -67,8 +67,19 @@ struct SetupQuestions {
     /// The coverage threshold the coverage check uses when none is configured.
     static let defaultCoverageThreshold = 80.0
 
+    /// A repo with fewer analyzable files than this gets `immediate` refresh recommended, a larger one `next-scan`.
+    static let immediateRefreshFileCutoff = 5_000
+    /// The refresh question, as the user sees it.
+    static let refreshQuestion = "When files change while an agent is working, when should Bouncer notice?"
+    /// The refresh choices, in the order offered.
+    static let refreshChoices: [AgentRefresh] = [.nextScan, .immediate]
+
+    /// The question-asking I/O.
     let prompt: Prompt
+    /// The starting point every answer defaults to and is compared with.
     let base: BouncerConfig
+    /// Counts the repo's analyzable files, for the refresh recommendation; called only when that question is asked.
+    let countFiles: () -> Int
 
     /// Asks every question.
     ///
@@ -79,6 +90,7 @@ struct SetupQuestions {
         changes.output = try askOutput()
         changes.coverage = try askCoverage()
         changes.rules = try askRules()
+        changes.agent = try askAgent()
         return changes
     }
 
@@ -182,4 +194,44 @@ struct SetupQuestions {
         guard case .string(let scope)? = entry?.params?["scope"] else { return "public" }
         return scope
     }
+
+    /// Asks when a long-lived agent session should notice changed files, recommending by the repo's size.
+    ///
+    /// The blank-answer default is the starting point's setting, or the recommendation when it has none.
+    ///
+    /// - Returns: The changed agent section, or `nil` if the answer matches the starting point (default `next-scan`).
+    /// - Throws: `PromptError.endOfInput` if input ends first.
+    private func askAgent() throws -> AgentConfig? {
+        let current = base.agent?.refresh ?? .nextScan
+        let recommended: AgentRefresh = countFiles() < Self.immediateRefreshFileCutoff ? .immediate : .nextScan
+        let options = Self.refreshChoices.map { refreshOption($0, recommended: recommended) }
+        let initial = Self.refreshChoices.firstIndex(of: base.agent?.refresh ?? recommended) ?? 0
+        let index = try prompt.choice(Self.refreshQuestion, described: options, default: initial)
+        let picked = Self.refreshChoices[index]
+        return picked == current ? nil : AgentConfig(refresh: picked)
+    }
+
+    /// Describes one refresh choice, noting it as recommended when it is.
+    ///
+    /// - Parameters:
+    ///   - refresh: The choice.
+    ///   - recommended: The choice the repo's size suggests.
+    /// - Returns: The option to show.
+    private func refreshOption(_ refresh: AgentRefresh, recommended: AgentRefresh) -> PromptOption {
+        switch refresh {
+        case .nextScan:
+            let note = refresh == recommended ? " (recommended for large repos)" : ""
+            return PromptOption("On the next scan" + note, detail: Self.nextScanDetail)
+        case .immediate:
+            let note = refresh == recommended ? " (recommended for this repo's size)" : ""
+            return PromptOption("Immediately" + note, detail: Self.immediateDetail)
+        }
+    }
+
+    /// What `next-scan` means, under its option.
+    private static let nextScanDetail =
+        "Results stay as they were until the agent scans again or verifies the files it edited."
+    /// What `immediate` means, under its option.
+    private static let immediateDetail =
+        "Before every answer, Bouncer re-checks any file that changed. Always current, but slower on large repos."
 }

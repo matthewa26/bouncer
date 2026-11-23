@@ -23,17 +23,22 @@ final class SetupWizardTests: XCTestCase {
     private func answers(
         start: String = "", verbosity: String = "", coverage: [String] = [""],
         thresholds: [String] = Array(repeating: "", count: SetupThreshold.all.count),
-        magic: String = "", docs: String = "", target: [String] = [""], confirm: [String] = [""]
+        magic: String = "", docs: String = "", refresh: String = "", target: [String] = [""], confirm: [String] = [""]
     ) -> [String] {
-        [start, verbosity] + coverage + thresholds + [magic, docs] + target + confirm
+        [start, verbosity] + coverage + thresholds + [magic, docs, refresh] + target + confirm
     }
 
-    private func run(_ lines: [String], target: SetupTarget? = nil) throws -> (written: [URL], transcript: String) {
+    /// Runs the wizard over scripted answers, in a repo of `fileCount` files (large by default, so the
+    /// refresh question's default writes nothing).
+    private func run(
+        _ lines: [String], target: SetupTarget? = nil, fileCount: Int = 10_000
+    ) throws -> (written: [URL], transcript: String) {
         let terminal = ScriptedTerminal(lines)
         let paths = SetupPaths(
             repoConfig: repoConfig, globalConfig: globalConfig, store: ProfileStore(repoRoot: repo, homeDirectory: home)
         )
-        let written = try SetupWizard(prompt: terminal.prompt, paths: paths).run(target: target)
+        let wizard = SetupWizard(prompt: terminal.prompt, paths: paths, countFiles: { fileCount })
+        let written = try wizard.run(target: target)
         XCTAssertTrue(terminal.lines.isEmpty, "Unconsumed answers: \(terminal.lines)\n\(terminal.output)")
         return (written, terminal.output)
     }
@@ -132,7 +137,7 @@ final class SetupWizardTests: XCTestCase {
         let paths = SetupPaths(
             repoConfig: repoConfig, globalConfig: globalConfig, store: ProfileStore(repoRoot: repo, homeDirectory: home)
         )
-        let wizard = SetupWizard(prompt: ScriptedTerminal(["", "", "", "25"]).prompt, paths: paths)
+        let wizard = SetupWizard(prompt: ScriptedTerminal(["", "", "", "25"]).prompt, paths: paths, countFiles: { 0 })
         XCTAssertThrowsError(try wizard.run()) { XCTAssertEqual($0 as? PromptError, .endOfInput) }
         XCTAssertFalse(FileManager.default.fileExists(atPath: repoConfig.path))
     }
@@ -144,5 +149,65 @@ final class SetupWizardTests: XCTestCase {
             "cyclomatic-complexity.max=10", "cognitive-complexity.max=15", "long-parameter-list.maxParameters=5",
             "nesting-depth.maxDepth=4"
         ])
+    }
+
+    func testLargeRepoRecommendsNextScanAndItsDefaultWritesNothing() throws {
+        let result = try run(answers(confirm: []), fileCount: SetupQuestions.immediateRefreshFileCutoff)
+        XCTAssertTrue(result.transcript.contains("""
+            When files change while an agent is working, when should Bouncer notice?
+              1. On the next scan (recommended for large repos)
+                 Results stay as they were until the agent scans again or verifies the files it edited.
+              2. Immediately
+                 Before every answer, Bouncer re-checks any file that changed. Always current, but slower on large repos.
+            Choose [1]:\u{20}
+            """), result.transcript)
+        XCTAssertEqual(result.written, [])
+    }
+
+    func testSmallRepoRecommendsImmediateAndItsDefaultWritesIt() throws {
+        let result = try run(answers(), fileCount: SetupQuestions.immediateRefreshFileCutoff - 1)
+        XCTAssertTrue(result.transcript.contains("  1. On the next scan\n"), result.transcript)
+        XCTAssertTrue(result.transcript.contains("  2. Immediately (recommended for this repo's size)\n"))
+        XCTAssertTrue(result.transcript.contains("Choose [2]: "))
+        XCTAssertTrue(result.transcript.contains(#"agent.refresh = "immediate""#), result.transcript)
+        XCTAssertEqual((try json(at: repoConfig)["agent"] as? [String: String])?["refresh"], "immediate")
+        let loaded = try ConfigLoader().load(globalPath: globalConfig, repoRoot: repo, profileName: nil)
+        XCTAssertEqual(loaded.agent?.refresh, .immediate)
+    }
+
+    func testPickingImmediateInALargeRepoWritesIt() throws {
+        _ = try run(answers(refresh: "2"))
+        XCTAssertEqual(try json(at: repoConfig) as NSDictionary, ["agent": ["refresh": "immediate"]] as NSDictionary)
+    }
+
+    func testPickingNextScanInASmallRepoMatchesTheDefaultAndWritesNothing() throws {
+        let result = try run(answers(refresh: "1", confirm: []), fileCount: 3)
+        XCTAssertEqual(result.written, [])
+    }
+
+    func testRefreshAnswerIsComparedWithTheStartingPoint() throws {
+        var base = BouncerConfig.empty
+        base.agent = AgentConfig(refresh: .immediate)
+        let questionCount = answers().count - 3
+        let kept = ScriptedTerminal(Array(repeating: "", count: questionCount))
+        let unchanged = try SetupQuestions(prompt: kept.prompt, base: base, countFiles: { 10_000 }).ask()
+        XCTAssertNil(unchanged.agent, "The starting point's setting is the default, even against the recommendation")
+        var lines = Array(repeating: "", count: questionCount)
+        lines[lines.count - 1] = "1"
+        let switched = try SetupQuestions(prompt: ScriptedTerminal(lines).prompt, base: base, countFiles: { 3 }).ask()
+        XCTAssertEqual(switched.agent, AgentConfig(refresh: .nextScan))
+    }
+
+    func testFileCountHonorsExcludesAndSkipsHiddenFiles() throws {
+        for name in ["a.swift", "b.py", "vendor/c.js"] {
+            let file = repo.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try "x\n".write(to: file, atomically: true, encoding: .utf8)
+        }
+        try #"{"exclude": ["vendor/**"]}"#.write(to: repoConfig, atomically: true, encoding: .utf8)
+        let paths = SetupPaths(
+            repoConfig: repoConfig, globalConfig: globalConfig, store: ProfileStore(repoRoot: repo, homeDirectory: home)
+        )
+        XCTAssertEqual(RepoFileCount.analyzableFiles(paths: paths), 2)
     }
 }

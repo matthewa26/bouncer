@@ -9,6 +9,24 @@ public enum PromptError: Error, Equatable, CustomStringConvertible {
     public var description: String { "Input ended before every question was answered; nothing was written." }
 }
 
+/// One option of a described choice: a short label, and a line saying what picking it means.
+public struct PromptOption: Sendable, Equatable {
+    /// The option's name, shown after its number.
+    public let label: String
+    /// What picking it means, shown indented on the next line.
+    public let detail: String
+
+    /// Creates an option.
+    ///
+    /// - Parameters:
+    ///   - label: The option's name.
+    ///   - detail: What picking it means.
+    public init(_ label: String, detail: String) {
+        self.label = label
+        self.detail = detail
+    }
+}
+
 /// Line-oriented terminal questions with defaults, validation, and re-asking on bad input.
 ///
 /// Input and output are injected so a scripted session can drive it in tests. A blank answer takes the
@@ -54,6 +72,25 @@ public struct Prompt {
         return try ask("Choose", hint: "[\(defaultOption)]", fallback: defaultOption) { answer in
             Int(answer).flatMap { options.indices.contains($0 - 1) ? options[$0 - 1] : nil }
                 ?? options.first { $0.caseInsensitiveCompare(answer) == .orderedSame }
+        }
+    }
+
+    /// Asks the user to pick one of several options, each explained on its own line, by number.
+    ///
+    /// - Parameters:
+    ///   - question: The question text.
+    ///   - options: The options, listed as `1. label` with their detail indented below.
+    ///   - defaultIndex: The index of the option a blank answer picks.
+    /// - Returns: The chosen option's index.
+    /// - Throws: `PromptError.endOfInput` if input ends first.
+    public func choice(_ question: String, described options: [PromptOption], default defaultIndex: Int) throws -> Int {
+        say(question)
+        for (index, option) in options.enumerated() {
+            say("  \(index + 1). \(option.label)")
+            say("     \(option.detail)")
+        }
+        return try ask("Choose", hint: "[\(defaultIndex + 1)]", fallback: defaultIndex) { answer in
+            Int(answer).flatMap { options.indices.contains($0 - 1) ? $0 - 1 : nil }
         }
     }
 

@@ -74,17 +74,32 @@ public struct SetupWizard {
     /// The option naming `~/.bouncer`.
     private static let globalConfigOption = "global ~/.bouncer"
 
+    /// The question-asking I/O.
     private let prompt: Prompt
+    /// The files to read starting points from and write answers to.
     private let paths: SetupPaths
+    /// Counts the repo's analyzable files, for the `agent.refresh` recommendation.
+    private let countFiles: () -> Int
 
-    /// Creates a setup wizard.
+    /// Creates a setup wizard that counts the repo's files the way `review` lists them.
     ///
     /// - Parameters:
     ///   - prompt: The question-asking I/O.
     ///   - paths: The files to read starting points from and write answers to.
     public init(prompt: Prompt, paths: SetupPaths) {
+        self.init(prompt: prompt, paths: paths, countFiles: { RepoFileCount.analyzableFiles(paths: paths) })
+    }
+
+    /// Creates a setup wizard with a given way to count the repo's files.
+    ///
+    /// - Parameters:
+    ///   - prompt: The question-asking I/O.
+    ///   - paths: The files to read starting points from and write answers to.
+    ///   - countFiles: Returns the repo's analyzable file count.
+    init(prompt: Prompt, paths: SetupPaths, countFiles: @escaping () -> Int) {
         self.prompt = prompt
         self.paths = paths
+        self.countFiles = countFiles
     }
 
     /// Runs the whole walkthrough.
@@ -96,7 +111,7 @@ public struct SetupWizard {
     /// - Throws: `PromptError.endOfInput` if input ends early, a `ProfileError`, or a file error.
     public func run(target: SetupTarget? = nil, preferredScope: SetupScope = .repo) throws -> [URL] {
         let start = try chooseStart()
-        let changes = try SetupQuestions(prompt: prompt, base: start.config).ask()
+        let changes = try SetupQuestions(prompt: prompt, base: start.config, countFiles: countFiles).ask()
         let chosen = try target ?? chooseTarget(preferredScope: preferredScope)
         let writes = try plan(start: start, changes: changes, target: chosen)
         return try confirmAndWrite(writes)

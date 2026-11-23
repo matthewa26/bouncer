@@ -43,4 +43,13 @@ final class BouncerConfigMergeTests: XCTestCase {
         XCTAssertEqual(merged.output?.verbosity, .quiet)
         XCTAssertNil(BouncerConfig.empty.output?.saveRun)
     }
+
+    func testAgentRefreshDecodesAndSurvivesAMergeThatDoesNotSetIt() throws {
+        let repo = try JSONDecoder().decode(BouncerConfig.self, from: Data(#"{"agent": {"refresh": "next-scan"}}"#.utf8))
+        XCTAssertEqual(repo.agent?.refresh, .nextScan)
+        XCTAssertEqual(repo.merging(BouncerConfig(profile: "kirby")).agent?.refresh, .nextScan)
+        var global = BouncerConfig()
+        global.agent = AgentConfig(refresh: .immediate)
+        XCTAssertEqual(global.merging(repo).agent?.refresh, .nextScan)
+    }
 }

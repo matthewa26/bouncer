@@ -15,6 +15,7 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
     public var profile: String?
     public var exclude: [String]?
     public var project: ProjectConfig?
+    public var agent: AgentConfig?
 
     /// An empty config, equivalent to "nothing configured at this layer."
     public static let empty = BouncerConfig()
@@ -57,12 +58,14 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
     /// - Returns: The merged config.
     public func merging(_ other: BouncerConfig) -> BouncerConfig {
         let sections = mergedSections(with: other)
-        return BouncerConfig(
+        var merged = BouncerConfig(
             output: sections.output, coverage: sections.coverage, rules: mergedRules(with: other.rules),
             customRules: other.customRules ?? customRules, hooks: sections.hooks, updateCheck: sections.updateCheck,
             profile: other.profile ?? profile, exclude: other.exclude ?? exclude,
             project: mergedOptional(project, other.project) { $0.merging($1) }
         )
+        merged.agent = mergedOptional(agent, other.agent) { $0.merging($1) }
+        return merged
     }
 
     /// Merges the four sections that all follow the same optional-pair merge pattern.

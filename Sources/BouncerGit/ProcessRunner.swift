@@ -49,6 +49,9 @@ enum ProcessRunner {
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.currentDirectoryURL = currentDirectory
+        // No child may inherit Bouncer's standard input: under `bouncer mcp` it's the protocol's open pipe, and on
+        // Windows Git's `git.exe` launcher blocks on an inherited open pipe, so `check` never answered.
+        process.standardInput = FileHandle.nullDevice
         process.standardOutput = output
         process.standardError = Pipe()
         return process

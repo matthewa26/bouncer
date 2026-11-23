@@ -4,8 +4,8 @@ import BouncerCore
 /// Writes a rule's explanation from the catalog rows that document it.
 ///
 /// The text is plain and compact, one fact per line: the rule and its catalog section, each documenting row
-/// (language, what it checks, default severity, parameters), the OWASP category, how to configure it in
-/// `.bouncer`, and how to suppress one finding inline.
+/// (language, what it checks, default severity, parameters), the OWASP category, the fix cost, how to configure
+/// it in `.bouncer`, and how to suppress one finding inline.
 struct RuleExplanationWriter {
     /// Headers whose cells name a row's languages.
     private static let languageHeaders: Set<String> = ["Language", "Languages"]
@@ -24,7 +24,7 @@ struct RuleExplanationWriter {
 
     /// The whole explanation.
     var text: String {
-        ([heading] + rows.map(line(for:)) + [owasp, configuration, suppression].compactMap { $0 })
+        ([heading] + rows.map(line(for:)) + [owasp, fixCost, configuration, suppression].compactMap { $0 })
             .joined(separator: "\n")
     }
 
@@ -71,6 +71,11 @@ struct RuleExplanationWriter {
     /// The rule's OWASP Top 10:2025 category, when it's a security rule.
     private var owasp: String? {
         OWASPCategory.category(forRule: ruleID).map { "OWASP: \($0.rawValue) \($0.title)." }
+    }
+
+    /// How much work fixing one of the rule's findings takes, which decides where an agent's work order puts it.
+    private var fixCost: String? {
+        FixCost.cost(forRule: ruleID).map { "Fix cost: \($0.rawValue) (\($0.summary))." }
     }
 
     /// How to turn the rule off or on, change its severity, and set a parameter in `.bouncer`.

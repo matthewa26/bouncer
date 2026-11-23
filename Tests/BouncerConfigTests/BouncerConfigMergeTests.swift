@@ -52,4 +52,15 @@ final class BouncerConfigMergeTests: XCTestCase {
         global.agent = AgentConfig(refresh: .immediate)
         XCTAssertEqual(global.merging(repo).agent?.refresh, .nextScan)
     }
+
+    func testAgentWorkOrderDecodesAndSurvivesAMergeThatOnlySetsRefresh() throws {
+        let json = Data(#"{"agent": {"workOrder": "severity-first"}}"#.utf8)
+        let repo = try JSONDecoder().decode(BouncerConfig.self, from: json)
+        XCTAssertEqual(repo.agent?.workOrder, .severityFirst)
+        var refreshOnly = BouncerConfig()
+        refreshOnly.agent = AgentConfig(refresh: .immediate)
+        XCTAssertEqual(repo.merging(refreshOnly).agent, AgentConfig(refresh: .immediate, workOrder: .severityFirst))
+        XCTAssertEqual(refreshOnly.merging(repo).agent, AgentConfig(refresh: .immediate, workOrder: .severityFirst))
+        XCTAssertNil(BouncerConfig.empty.agent?.workOrder)
+    }
 }

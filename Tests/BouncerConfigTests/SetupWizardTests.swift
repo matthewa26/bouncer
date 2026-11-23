@@ -23,9 +23,10 @@ final class SetupWizardTests: XCTestCase {
     private func answers(
         start: String = "", verbosity: String = "", coverage: [String] = [""],
         thresholds: [String] = Array(repeating: "", count: SetupThreshold.all.count),
-        magic: String = "", docs: String = "", refresh: String = "", target: [String] = [""], confirm: [String] = [""]
+        magic: String = "", docs: String = "", refresh: String = "", workOrder: String = "",
+        target: [String] = [""], confirm: [String] = [""]
     ) -> [String] {
-        [start, verbosity] + coverage + thresholds + [magic, docs, refresh] + target + confirm
+        [start, verbosity] + coverage + thresholds + [magic, docs, refresh, workOrder] + target + confirm
     }
 
     /// Runs the wizard over scripted answers, in a repo of `fileCount` files (large by default, so the
@@ -193,9 +194,47 @@ final class SetupWizardTests: XCTestCase {
         let unchanged = try SetupQuestions(prompt: kept.prompt, base: base, countFiles: { 10_000 }).ask()
         XCTAssertNil(unchanged.agent, "The starting point's setting is the default, even against the recommendation")
         var lines = Array(repeating: "", count: questionCount)
-        lines[lines.count - 1] = "1"
+        lines[lines.count - 2] = "1"
         let switched = try SetupQuestions(prompt: ScriptedTerminal(lines).prompt, base: base, countFiles: { 3 }).ask()
         XCTAssertEqual(switched.agent, AgentConfig(refresh: .nextScan))
+    }
+
+    func testWorkOrderQuestionFollowsRefreshAndDefaultsToQuickFixes() throws {
+        let result = try run(answers(confirm: []))
+        XCTAssertTrue(result.transcript.contains("""
+            Choose [1]: When an agent asks Bouncer what to fix next, what should come first?
+              1. Quick fixes first (recommended)
+                 Small, local fixes, like a force unwrap or a missing doc comment, before anything that needs
+                 restructuring, like a long function or duplicated code. The agent clears the most findings fastest.
+              2. Most severe first
+                 Errors before warnings, even when an error needs a refactor. Slower, but the riskiest problems go first.
+            Choose [1]:\u{20}
+            """), result.transcript)
+        XCTAssertEqual(result.written, [])
+    }
+
+    func testPickingMostSevereFirstWritesIt() throws {
+        let result = try run(answers(workOrder: "2"))
+        XCTAssertTrue(result.transcript.contains(#"agent.workOrder = "severity-first""#), result.transcript)
+        let expected: NSDictionary = ["agent": ["workOrder": "severity-first"]]
+        XCTAssertEqual(try json(at: repoConfig) as NSDictionary, expected)
+        let loaded = try ConfigLoader().load(globalPath: globalConfig, repoRoot: repo, profileName: nil)
+        XCTAssertEqual(loaded.agent, AgentConfig(workOrder: .severityFirst))
+    }
+
+    func testWorkOrderAnswerIsComparedWithTheStartingPoint() throws {
+        var base = BouncerConfig.empty
+        base.agent = AgentConfig(workOrder: .severityFirst)
+        let questionCount = answers().count - 3
+        let kept = ScriptedTerminal(Array(repeating: "", count: questionCount))
+        let unchanged = try SetupQuestions(prompt: kept.prompt, base: base, countFiles: { 10_000 }).ask()
+        XCTAssertNil(unchanged.agent, "A blank answer keeps the starting point's order")
+        XCTAssertTrue(kept.output.contains("Choose [2]: "), kept.output)
+        var lines = Array(repeating: "", count: questionCount)
+        lines[lines.count - 1] = "1"
+        let terminal = ScriptedTerminal(lines)
+        let switched = try SetupQuestions(prompt: terminal.prompt, base: base, countFiles: { 10_000 }).ask()
+        XCTAssertEqual(switched.agent, AgentConfig(workOrder: .quickFixesFirst))
     }
 
     func testFileCountHonorsExcludesAndSkipsHiddenFiles() throws {

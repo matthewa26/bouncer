@@ -1,6 +1,9 @@
 # Rule Catalog
 
 Every built-in rule, what it checks, its default severity, and its parameters.
+Each rule also has a fix cost, `mechanical` (a local fix) or `refactor` (the code has to be
+restructured), which decides where an agent's work order puts its findings; `explain_rule` shows
+it (see <doc:Agents>).
 
 ## Where each rule runs
 

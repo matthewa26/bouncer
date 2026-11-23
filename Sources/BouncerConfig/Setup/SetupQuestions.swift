@@ -73,6 +73,10 @@ struct SetupQuestions {
     static let refreshQuestion = "When files change while an agent is working, when should Bouncer notice?"
     /// The refresh choices, in the order offered.
     static let refreshChoices: [AgentRefresh] = [.nextScan, .immediate]
+    /// The work-order question, as the user sees it.
+    static let workOrderQuestion = "When an agent asks Bouncer what to fix next, what should come first?"
+    /// The work-order choices, in the order offered.
+    static let workOrderChoices: [AgentWorkOrder] = [.quickFixesFirst, .severityFirst]
 
     /// The question-asking I/O.
     let prompt: Prompt
@@ -195,20 +199,57 @@ struct SetupQuestions {
         return scope
     }
 
+    /// Asks how a coding agent's session behaves: when it notices changed files, then what it fixes first.
+    ///
+    /// - Returns: The changed agent section, or `nil` if both answers match the starting point.
+    /// - Throws: `PromptError.endOfInput` if input ends first.
+    private func askAgent() throws -> AgentConfig? {
+        let refresh = try askRefresh()
+        let workOrder = try askWorkOrder()
+        let changes = AgentConfig(refresh: refresh, workOrder: workOrder)
+        return changes == AgentConfig() ? nil : changes
+    }
+
     /// Asks when a long-lived agent session should notice changed files, recommending by the repo's size.
     ///
     /// The blank-answer default is the starting point's setting, or the recommendation when it has none.
     ///
-    /// - Returns: The changed agent section, or `nil` if the answer matches the starting point (default `next-scan`).
+    /// - Returns: The answer, or `nil` if it matches the starting point (default `next-scan`).
     /// - Throws: `PromptError.endOfInput` if input ends first.
-    private func askAgent() throws -> AgentConfig? {
+    private func askRefresh() throws -> AgentRefresh? {
         let current = base.agent?.refresh ?? .nextScan
         let recommended: AgentRefresh = countFiles() < Self.immediateRefreshFileCutoff ? .immediate : .nextScan
         let options = Self.refreshChoices.map { refreshOption($0, recommended: recommended) }
         let initial = Self.refreshChoices.firstIndex(of: base.agent?.refresh ?? recommended) ?? 0
         let index = try prompt.choice(Self.refreshQuestion, described: options, default: initial)
         let picked = Self.refreshChoices[index]
-        return picked == current ? nil : AgentConfig(refresh: picked)
+        return picked == current ? nil : picked
+    }
+
+    /// Asks what an agent should fix first, recommending quick fixes.
+    ///
+    /// The blank-answer default is the starting point's setting, or `quick-fixes-first` when it has none.
+    ///
+    /// - Returns: The answer, or `nil` if it matches the starting point (default `quick-fixes-first`).
+    /// - Throws: `PromptError.endOfInput` if input ends first.
+    private func askWorkOrder() throws -> AgentWorkOrder? {
+        let current = base.agent?.workOrder ?? .quickFixesFirst
+        let options = Self.workOrderChoices.map(Self.workOrderOption)
+        let initial = Self.workOrderChoices.firstIndex(of: current) ?? 0
+        let index = try prompt.choice(Self.workOrderQuestion, described: options, default: initial)
+        let picked = Self.workOrderChoices[index]
+        return picked == current ? nil : picked
+    }
+
+    /// Describes one work-order choice.
+    ///
+    /// - Parameter workOrder: The choice.
+    /// - Returns: The option to show.
+    private static func workOrderOption(_ workOrder: AgentWorkOrder) -> PromptOption {
+        switch workOrder {
+        case .quickFixesFirst: PromptOption("Quick fixes first (recommended)", detail: quickFixesFirstDetail)
+        case .severityFirst: PromptOption("Most severe first", detail: severityFirstDetail)
+        }
     }
 
     /// Describes one refresh choice, noting it as recommended when it is.
@@ -234,4 +275,12 @@ struct SetupQuestions {
     /// What `immediate` means, under its option.
     private static let immediateDetail =
         "Before every answer, Bouncer re-checks any file that changed. Always current, but slower on large repos."
+    /// What `quick-fixes-first` means, under its option, over two lines.
+    private static let quickFixesFirstDetail = """
+        Small, local fixes, like a force unwrap or a missing doc comment, before anything that needs
+        restructuring, like a long function or duplicated code. The agent clears the most findings fastest.
+        """
+    /// What `severity-first` means, under its option.
+    private static let severityFirstDetail =
+        "Errors before warnings, even when an error needs a refactor. Slower, but the riskiest problems go first."
 }

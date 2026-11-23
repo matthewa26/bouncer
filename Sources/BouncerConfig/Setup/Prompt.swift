@@ -13,7 +13,7 @@ public enum PromptError: Error, Equatable, CustomStringConvertible {
 public struct PromptOption: Sendable, Equatable {
     /// The option's name, shown after its number.
     public let label: String
-    /// What picking it means, shown indented on the next line.
+    /// What picking it means, shown indented below the label; each of its lines is indented the same.
     public let detail: String
 
     /// Creates an option.
@@ -79,7 +79,7 @@ public struct Prompt {
     ///
     /// - Parameters:
     ///   - question: The question text.
-    ///   - options: The options, listed as `1. label` with their detail indented below.
+    ///   - options: The options, listed as `1. label` with each line of their detail indented below.
     ///   - defaultIndex: The index of the option a blank answer picks.
     /// - Returns: The chosen option's index.
     /// - Throws: `PromptError.endOfInput` if input ends first.
@@ -87,7 +87,7 @@ public struct Prompt {
         say(question)
         for (index, option) in options.enumerated() {
             say("  \(index + 1). \(option.label)")
-            say("     \(option.detail)")
+            option.detail.split(separator: "\n").forEach { say("     \($0)") }
         }
         return try ask("Choose", hint: "[\(defaultIndex + 1)]", fallback: defaultIndex) { answer in
             Int(answer).flatMap { options.indices.contains($0 - 1) ? $0 - 1 : nil }

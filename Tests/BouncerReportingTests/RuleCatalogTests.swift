@@ -1,5 +1,5 @@
 import XCTest
-import BouncerCore
+@testable import BouncerCore
 @testable import BouncerReporting
 
 final class RuleCatalogTests: XCTestCase {
@@ -30,6 +30,7 @@ final class RuleCatalogTests: XCTestCase {
         XCTAssertTrue(text.contains("// bouncer:disable-line long-function -- reason"), text)
         XCTAssertFalse(text.contains("`"), text)
         XCTAssertFalse(text.contains("OWASP"), text)
+        XCTAssertTrue(text.contains("Fix cost: refactor (needs restructuring)."), text)
     }
 
     func testLanguageNoteInTheRuleIDCellCounts() throws {
@@ -43,6 +44,7 @@ final class RuleCatalogTests: XCTestCase {
         XCTAssertTrue(text.hasPrefix("rust-unwrap (rule catalog: Per-language extras)"), text)
         XCTAssertTrue(text.contains("- [Rust] .unwrap() or .expect(…) outside test code"), text)
         XCTAssertTrue(text.contains("OWASP: A10:2025 Mishandling of Exceptional Conditions."), text)
+        XCTAssertTrue(text.contains("Conditions.\nFix cost: mechanical (a local fix)."), "Cost follows OWASP")
     }
 
     func testProjectRuleThatIsOffUntilConfigured() throws {
@@ -85,5 +87,22 @@ final class RuleCatalogTests: XCTestCase {
     func testEveryOWASPMappedRuleHasAnEntry() {
         let missing = OWASPCategory.mappedRuleIDs.filter { RuleCatalog.explain($0) == nil }
         XCTAssertEqual(missing, [])
+    }
+
+    func testForceUnwrapIsAMechanicalFix() throws {
+        XCTAssertTrue(try text("force-unwrap").contains("Fix cost: mechanical (a local fix)."))
+    }
+
+    func testEveryCatalogRuleHasAFixCost() {
+        let missing = RuleCatalog.ruleIDs.filter { FixCost.cost(forRule: $0) == nil }
+        XCTAssertEqual(missing, [], "No fix-cost tag in FixCost.table: \(missing.joined(separator: ", "))")
+    }
+
+    func testEveryTaggedRuleIsARealRule() {
+        let known = Set(RuleCatalog.ruleIDs).union(FixCost.uncataloguedRuleIDs)
+        let unknown = FixCost.taggedRuleIDs.filter { !known.contains($0) }
+        XCTAssertEqual(unknown, [], "Tagged but not a rule (a typo?): \(unknown.joined(separator: ", "))")
+        let documented = FixCost.uncataloguedRuleIDs.filter { RuleCatalog.ruleIDs.contains($0) }
+        XCTAssertEqual(documented, [], "Now in the catalog; drop from uncataloguedRuleIDs: \(documented)")
     }
 }

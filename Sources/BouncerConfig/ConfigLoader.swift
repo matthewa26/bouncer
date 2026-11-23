@@ -88,11 +88,13 @@ public struct ConfigLoader {
     ///
     /// - Parameter path: The file's location.
     /// - Returns: The decoded config, or `BouncerConfig.empty` if the file doesn't exist.
-    /// - Throws: If the file exists but isn't valid JSON.
+    /// - Throws: If the file exists but isn't valid JSON, or `ConfigError` if a setting is out of range.
     public func read(_ path: URL) throws -> BouncerConfig {
         guard fileManager.fileExists(atPath: path.path) else { return .empty }
         let data = try Data(contentsOf: path)
-        return try JSONDecoder().decode(BouncerConfig.self, from: data)
+        let config = try JSONDecoder().decode(BouncerConfig.self, from: data)
+        if let jobs = config.jobs, jobs < 1 { throw ConfigError.invalidJobs(path: path.path, value: jobs) }
+        return config
     }
 
     /// Resolves the profile and merges it beneath the file layers.

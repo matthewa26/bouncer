@@ -2,10 +2,10 @@ import Foundation
 import BouncerCore
 import BouncerReporting
 
-/// A running scan's progress, updated from its analysis events on the analysis thread and read by tool calls.
+/// A running scan's progress, updated from its analysis events, possibly on worker threads, and read by tool calls.
 ///
 /// It's unchecked because `lock` guards every mutable property: the engine calls its event handler
-/// synchronously on the analysis thread, so an actor would need a task per event.
+/// synchronously, one at a time, from analysis threads, so an actor would need a task per event.
 final class ScanProgress: @unchecked Sendable {
     /// Guards every stored property below.
     private let lock = NSLock()

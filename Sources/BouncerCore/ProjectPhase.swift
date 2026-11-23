@@ -72,16 +72,21 @@ public struct ProjectPhase: Sendable {
 
     /// Reads and parses files for the project phase, and the facts already parsed for target files.
     struct FileAccess {
-        let read: (URL) throws -> SourceFile
-        let parse: (SourceFile) throws -> ModuleFacts?
+        /// Reads a file; called from several threads at once with more than one job.
+        let read: @Sendable (URL) throws -> SourceFile
+        /// Parses a file's module facts; called from several threads at once with more than one job.
+        let parse: @Sendable (SourceFile) throws -> ModuleFacts?
         /// Target files' facts from the main pass, keyed by repo-relative path, so they aren't parsed twice.
         var parsed: [String: FileFacts] = [:]
         /// Target files as the main pass read them, keyed by repo-relative path, so they aren't read twice.
         var sources: [String: SourceFile] = [:]
         /// Target files' content hashes from the main pass, keyed by repo-relative path, so they aren't hashed twice.
         var hashes: [String: String] = [:]
-        /// Receives the phase's progress events.
+        /// Receives the phase's progress events; with more than one job, from several threads.
         var onEvent: AnalysisEventHandler = { _ in }
+        /// How many files to index at once; `read`, `parse`, the store, and the analyzer's fingerprinting are
+        /// called from that many threads.
+        var jobs = 1
     }
 
     /// Counts where the index's facts came from, for the run log.
@@ -100,6 +105,13 @@ public struct ProjectPhase: Sendable {
         ///   - cached: The cache's facts for it, if any.
         mutating func record(reused: FileFacts?, cached: FileFacts?) {
             if reused != nil { self.reused += 1 } else if cached != nil { self.cached += 1 } else { parsed += 1 }
+        }
+
+        /// Adds another tally's counts to this one.
+        ///
+        /// - Parameter other: The other tally.
+        mutating func add(_ other: FactsTally) {
+            (reused, cached, parsed) = (reused + other.reused, cached + other.cached, parsed + other.parsed)
         }
 
         /// The tally as a log note.
@@ -128,24 +140,41 @@ public struct ProjectPhase: Sendable {
         }
     }
 
-    /// Gathers every listed file's facts and saves them to the cache, noting where they came from.
+    /// Gathers every listed file's facts on up to `access.jobs` threads and saves them to the cache, noting where
+    /// they came from.
     ///
     /// - Parameters:
     ///   - urls: The files to index.
     ///   - context: Repo-wide state.
     ///   - access: Reads and parses the files.
-    /// - Returns: The indexed facts.
-    /// - Throws: If a file can't be read or parsed, or the cache can't be saved.
+    /// - Returns: The indexed facts, in the files' order.
+    /// - Throws: If a file can't be read or parsed (the earliest such file's error), or the cache can't be saved.
     private func index(_ urls: [URL], context: AnalysisContext, access: FileAccess) throws -> [FileFacts] {
-        var tally = FactsTally()
-        let facts = try urls.compactMap { url in
+        let indexed = try ParallelMap(jobs: access.jobs).map(urls) { url in
             try AnalysisEvent.timingFile(url, emit: access.onEvent) {
-                (try self.facts(for: url, context: context, access: access, tally: &tally), 0)
+                (try self.indexed(url, context: context, access: access), 0)
             }
         }
-        access.onEvent(.note(tally.note))
+        access.onEvent(.note(indexed.reduce(into: FactsTally()) { $0.add($1.tally) }.note))
+        let facts = indexed.compactMap(\.facts)
         try store.save(facts)
         return facts
+    }
+
+    /// Returns one file's facts with a tally of where they came from, so files can be indexed in parallel.
+    ///
+    /// - Parameters:
+    ///   - url: The file.
+    ///   - context: Repo-wide state.
+    ///   - access: Reads and parses the file.
+    /// - Returns: Its facts, or `nil` as `facts(for:context:access:tally:)` explains, and its one-file tally.
+    /// - Throws: If the file can't be read or parsed.
+    private func indexed(
+        _ url: URL, context: AnalysisContext, access: FileAccess
+    ) throws -> (facts: FileFacts?, tally: FactsTally) {
+        var tally = FactsTally()
+        let found = try facts(for: url, context: context, access: access, tally: &tally)
+        return (found, tally)
     }
 
     /// Returns one file's facts, from the main pass or the cache when possible, otherwise by parsing it,

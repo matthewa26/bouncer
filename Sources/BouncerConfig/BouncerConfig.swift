@@ -16,6 +16,8 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
     public var exclude: [String]?
     public var project: ProjectConfig?
     public var agent: AgentConfig?
+    /// How many files to analyze at once; `nil` means one per active processor core.
+    public var jobs: Int?
 
     /// An empty config, equivalent to "nothing configured at this layer."
     public static let empty = BouncerConfig()
@@ -64,7 +66,7 @@ public struct BouncerConfig: Codable, Sendable, Equatable {
             profile: other.profile ?? profile, exclude: other.exclude ?? exclude,
             project: mergedOptional(project, other.project) { $0.merging($1) }
         )
-        merged.agent = mergedOptional(agent, other.agent) { $0.merging($1) }
+        (merged.agent, merged.jobs) = (mergedOptional(agent, other.agent) { $0.merging($1) }, other.jobs ?? jobs)
         return merged
     }
 

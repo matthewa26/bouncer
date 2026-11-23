@@ -26,6 +26,11 @@ struct AnalysisRunner {
     var onEvent: AnalysisEventHandler = { _ in }
     /// `review`'s saved last run, which this run starts from and saves to, or `nil` for neither.
     var savedRun: SavedRunSession? = nil
+    /// `--jobs`, which beats `.bouncer`'s `jobs`, or `nil` to use the config's.
+    var jobs: Int? = nil
+
+    /// How many files the engine analyzes at once: `--jobs`, else `.bouncer`'s `jobs`, else one per core.
+    var resolvedJobs: Int { mergedConfig.jobs(overriddenBy: jobs) }
 
     /// What one run produced.
     struct Outcome {
@@ -129,12 +134,13 @@ struct AnalysisRunner {
         return recorded
     }
 
-    /// Builds the analysis engine from this runner's resolved dependencies, reporting to `onEvent`.
+    /// Builds the analysis engine from this runner's resolved dependencies, reporting to `onEvent` and running
+    /// `resolvedJobs` files at once.
     ///
     /// - Returns: A fully-configured engine.
     private func makeEngine() -> AnalysisEngine {
         var engine = makeBareEngine()
-        engine.onEvent = onEvent
+        (engine.onEvent, engine.jobs) = (onEvent, resolvedJobs)
         return engine
     }
 

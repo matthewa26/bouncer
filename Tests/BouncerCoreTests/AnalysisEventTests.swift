@@ -44,12 +44,15 @@ final class AnalysisEventTests: XCTestCase {
 
     private let root = URL(fileURLWithPath: "/repo")
 
+    /// One job, so file events come in file order and can be compared exactly; `ParallelAnalysisTests` covers more.
     private func engine(files: [URL], binary: Set<URL> = [], project: ProjectPhase? = nil) -> AnalysisEngine {
-        AnalysisEngine(
+        var engine = AnalysisEngine(
             fileProvider: Files(files: files), contentsProvider: Contents(binary: binary),
             knownAnalyzers: [.swift: TwoFindings()], fallbackAnalyzer: TwoFindings(),
             context: AnalysisContext(repoRoot: root, ruleSettings: [:]), project: project
         )
+        engine.jobs = 1
+        return engine
     }
 
     /// Strips durations so the event sequence can be compared exactly.

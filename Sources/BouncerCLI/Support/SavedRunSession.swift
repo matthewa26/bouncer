@@ -35,8 +35,8 @@ extension SavedRunSession {
         return make(mode: mode, config: config, rootDirectory: rootDirectory, repoRoot: repoRoot)
     }
 
-    /// Builds a session for a mode. The key hashes the config without its `agent` section, which only changes
-    /// how a long-lived session refreshes, so editing it never discards the saved findings.
+    /// Builds a session for a mode. The key hashes the config without its `agent` section and `jobs`, which only
+    /// change how a run goes, never what it finds, so editing them never discards the saved findings.
     ///
     /// - Parameters:
     ///   - mode: What the run does with the saved run.
@@ -47,9 +47,7 @@ extension SavedRunSession {
     private static func make(
         mode: SavedRunMode, config: BouncerConfig, rootDirectory: URL, repoRoot: URL
     ) -> SavedRunSession {
-        var keyed = config
-        keyed.agent = nil
-        let key = SavedRun.Key(version: buildIdentity, config: keyed, root: rootDirectory)
+        let key = SavedRun.Key(version: buildIdentity, config: config.findingSettings, root: rootDirectory)
         return SavedRunSession(store: JSONSavedRunStore(repoRoot: repoRoot), key: key, mode: mode)
     }
 

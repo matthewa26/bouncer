@@ -44,6 +44,7 @@ bouncer review . --rule force-unwrap --path 'Sources/**' --min-severity warning 
 bouncer review . --group-by rule       # group agent or console output by rule instead of file
 bouncer review . --progress plain      # one progress line per phase (auto: a live bar on a terminal)
 bouncer review . --verbose             # log everything the run does to stderr
+bouncer review . --jobs 4              # analyze 4 files at once (default: one per CPU core)
 bouncer review . --changed-since main  # only files changed since a git ref, plus untracked files
 bouncer review . --full                # analyze every file, not just those changed since the saved run
 bouncer configure                      # guided setup: thresholds, coverage, where to save

@@ -80,8 +80,19 @@ public struct AnalysisEngine: Sendable {
         let later: [Finding]
     }
 
-    /// Receives the run's progress events, in order; does nothing unless set.
+    /// Receives the run's progress events, in order and one at a time, though not always on the calling thread
+    /// (see `AnalysisEvent`); does nothing unless set.
     public var onEvent: AnalysisEventHandler = { _ in }
+
+    /// The default for `jobs`: one per active processor core.
+    public static var defaultJobs: Int { ProcessInfo.processInfo.activeProcessorCount }
+
+    /// How many files the main pass, a saved run's re-checks, and the project index analyze at once; one
+    /// analyzes them in turn on the calling thread. Values below one are taken as one. The results are the same,
+    /// in the same order, at any setting.
+    public var jobs = AnalysisEngine.defaultJobs {
+        didSet { jobs = max(1, jobs) }
+    }
 
     /// An earlier run whose per-file findings `runRecordingFiles()` reuses for files that haven't changed, or
     /// `nil` to analyze every file.
@@ -97,7 +108,7 @@ public struct AnalysisEngine: Sendable {
             fallbackAnalyzer: fallbackAnalyzer, context: context
         )
         (pass.extractsFacts, pass.recordsFiles) = (project != nil, recordsFiles)
-        (pass.priorRun, pass.onEvent) = (priorRun, onEvent)
+        (pass.priorRun, pass.onEvent, pass.jobs) = (priorRun, onEvent, jobs)
         return pass
     }
 
@@ -106,7 +117,14 @@ public struct AnalysisEngine: Sendable {
     /// - Returns: The combined findings and coverage report.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func run() throws -> AnalysisResult {
-        try execute().result
+        try serializingEvents.execute().result
+    }
+
+    /// This engine with its event handler made to take turns, since parallel workers report their files at once.
+    private var serializingEvents: AnalysisEngine {
+        var engine = self
+        if jobs > 1 { engine.onEvent = AnalysisEvent.serialized(onEvent) }
+        return engine
     }
 
     /// Runs like `run()`, but also records each target file's stamp, content hash, and per-file findings for a
@@ -115,7 +133,7 @@ public struct AnalysisEngine: Sendable {
     /// - Returns: The result, with each target file's record.
     /// - Throws: If a file can't be read, an analyzer fails, or coverage can't be parsed.
     public func runRecordingFiles() throws -> RecordedRun {
-        var recording = self
+        var recording = serializingEvents
         recording.recordsFiles = true
         return try recording.execute()
     }
@@ -179,6 +197,7 @@ public struct AnalysisEngine: Sendable {
         }
         access.sources = Dictionary(analyzed.map { ($0.loaded.path, $0.file) }) { first, _ in first }
         (access.parsed, access.hashes, access.onEvent) = (parsedFacts(analyzed), contentHashes(analyzed), onEvent)
+        access.jobs = jobs
         return access
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// A target file as the main pass read it, with its analysis.
-struct AnalyzedFile {
+struct AnalyzedFile: Sendable {
     /// The file as the main pass read it.
     let loaded: LoadedFile
     /// Its findings, and its module facts when the project pass needs them.
@@ -36,7 +36,7 @@ struct AnalyzedFile {
 
 /// The engine's main pass: reads each target file and runs its language's analyzer over it, or reuses a prior
 /// run's findings for a file that hasn't changed.
-struct FilePass {
+struct FilePass: Sendable {
     /// Supplies the target files and any per-file rule scope.
     let fileProvider: TargetFileProvider
     /// Reads each file's contents.
@@ -53,24 +53,27 @@ struct FilePass {
     var recordsFiles = false
     /// The earlier run whose findings unchanged files reuse, when `recordsFiles` is set.
     var priorRun: PriorRun?
-    /// Receives the pass's events.
+    /// Receives the pass's events; with more than one job, from several threads, so it must not need one.
     var onEvent: AnalysisEventHandler = { _ in }
+    /// How many files to analyze at once; one analyzes them in turn on the calling thread.
+    var jobs = 1
 
     /// Reads and analyzes every target file, skipping binary ones, and re-analyzes reused files the prior run
-    /// says may be stale.
+    /// says may be stale, both on up to `jobs` threads.
     ///
     /// - Parameter urls: The target files.
-    /// - Returns: The text files and their analyses, in order.
-    /// - Throws: If a file can't be read or its analyzer fails.
+    /// - Returns: The text files and their analyses, in order, whatever order they finished in.
+    /// - Throws: If a file can't be read or its analyzer fails: the earliest such file's error.
     func analyzeAll(_ urls: [URL]) throws -> [AnalyzedFile] {
-        let analyzed = try urls.compactMap(analyzeOne)
+        let parallel = ParallelMap(jobs: jobs)
+        let analyzed = try parallel.map(urls, analyzeOne).compactMap { $0 }
         let skipped = urls.count - analyzed.count
         if skipped > 0 { onEvent(.note("skipped \(skipped) binary file(s)")) }
         guard recordsFiles, let priorRun else { return analyzed }
         let reused = Set(analyzed.filter(\.reused).map(\.loaded.path))
         let check = priorRun.stale(among: analyzed.map(\.loaded), reused: reused)
         onEvent(.note(check.note))
-        return try analyzed.map { check.stale.contains($0.loaded.path) ? try reanalyzed($0) : $0 }
+        return try parallel.map(analyzed) { check.stale.contains($0.loaded.path) ? try reanalyzed($0) : $0 }
     }
 
     /// Reads one target file and analyzes it, or reuses the prior run's findings for it, between its file events.

@@ -5,10 +5,12 @@ import Foundation
 final class ProjectPhaseTests: XCTestCase {
     private final class CountingAnalyzer: LanguageAnalyzer, @unchecked Sendable {
         let supportedLanguage: Language = .typescript
-        var parses = 0
+        private let lock = NSLock()
+        private var count = 0
+        var parses: Int { lock.withLock { count } }
         func analyze(file: SourceFile, context: AnalysisContext) throws -> [Finding] { [] }
         func moduleFacts(file: SourceFile) throws -> ModuleFacts? {
-            parses += 1
+            lock.withLock { count += 1 }
             return ModuleFacts(imports: [ImportFact(specifier: "./x", line: 1)])
         }
     }

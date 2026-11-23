@@ -14,7 +14,7 @@ struct RunAndExitOptions {
     var outputPath: String? = nil
     /// The repository root, which holds the default HTML report location.
     var repoRoot: URL? = nil
-    /// The `--progress` and `--verbose` options.
+    /// The `--progress`, `--verbose`, and `--jobs` options.
     var progress = ProgressArguments()
     /// What the command already knows about the run, such as where its config came from, for the verbose log.
     var context: [String] = []
@@ -32,7 +32,9 @@ enum RunAndExit {
     ///   - options: The update-check and reporting options this run should use.
     /// - Throws: `ExitCode` on completion, or `ExitCode(2)` if a preCheck hook failed.
     static func run(_ runner: AnalysisRunner, options: RunAndExitOptions) async throws {
-        let log = startLog(options)
+        var runner = runner
+        runner.jobs = options.progress.jobs ?? runner.jobs
+        let log = startLog(options, jobs: runner.resolvedJobs)
         do {
             try await attemptRun(runner, options: options, log: log)
         } catch let failure as HookExecutor.PreCheckFailure {
@@ -63,12 +65,15 @@ enum RunAndExit {
     /// Starts the progress display the run's options ask for. Xcode and agent output count as an agent
     /// invocation, so `--progress auto` stays out of the build log and the agent's context.
     ///
-    /// - Parameter options: The run's options.
+    /// - Parameters:
+    ///   - options: The run's options.
+    ///   - jobs: How many files the run analyzes at once, logged when verbose.
     /// - Returns: The running log.
-    private static func startLog(_ options: RunAndExitOptions) -> RunLog {
+    private static func startLog(_ options: RunAndExitOptions, jobs: Int) -> RunLog {
         var invocation = ProgressInvocation()
         invocation.isAgentInvocation = options.isAgentInvocation || [.xcode, .agent].contains(options.format)
-        return RunLog.start(options.progress, invocation: invocation, root: options.repoRoot, context: options.context)
+        let context = options.context + [RunLog.jobsLine(jobs)]
+        return RunLog.start(options.progress, invocation: invocation, root: options.repoRoot, context: context)
     }
 
     /// Runs the analysis with its events going to the progress display, which is cleared however it ends.

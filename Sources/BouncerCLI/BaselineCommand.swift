@@ -33,7 +33,7 @@ struct BaselineCommand: AsyncParsableCommand {
         }
 
         /// Runs analysis with no existing baseline applied, so every finding is captured, showing its progress
-        /// on stderr.
+        /// on stderr, with `--jobs` (else the config's `jobs`) files at once.
         ///
         /// - Parameters:
         ///   - rootDirectory: The directory to analyze.
@@ -42,9 +42,10 @@ struct BaselineCommand: AsyncParsableCommand {
         /// - Throws: If analysis fails.
         private func runFullAnalysis(rootDirectory: URL, repoRoot: URL) throws -> AnalysisResult {
             let resolution = try ConfigResolver.resolve(repoRoot: repoRoot, profile: nil, explicitPath: nil)
-            let engine = FullAnalysisEngineFactory.make(
+            var engine = FullAnalysisEngineFactory.make(
                 rootDirectory: rootDirectory, repoRoot: repoRoot, resolution: resolution
             )
+            engine.jobs = resolution.merged.jobs(overriddenBy: progressArguments.jobs)
             return try run(engine, repoRoot: repoRoot)
         }
 
@@ -57,6 +58,7 @@ struct BaselineCommand: AsyncParsableCommand {
         /// - Throws: If analysis fails.
         private func run(_ engine: AnalysisEngine, repoRoot: URL) throws -> AnalysisResult {
             let context = RunLog.configLines(repoRoot: repoRoot, profile: nil, explicitPath: nil)
+                + [RunLog.jobsLine(engine.jobs)]
             let invocation = ProgressInvocation()
             let log = RunLog.start(progressArguments, invocation: invocation, root: repoRoot, context: context)
             var engine = engine

@@ -49,8 +49,11 @@ public enum AnalysisPhase: String, Sendable, CaseIterable {
 
 /// Something that happened during a run, for progress displays and logs.
 ///
-/// Events arrive on the thread running the analysis, in order: each `phaseStarted` is followed by any file
-/// events and notes for that step and then its `phaseFinished`, unless the step throws.
+/// Events arrive one at a time, never overlapping, and in step order: each `phaseStarted` is followed by any
+/// file events and notes for that step and then its `phaseFinished`, unless the step throws. With
+/// `AnalysisEngine.jobs` above one, a step that goes through files in parallel (`analyzeFiles`, `projectIndex`)
+/// reports them from its worker threads, so different files' `fileStarted` and `fileFinished` events
+/// interleave; every file still gets one of each, and its `fileFinished` follows its `fileStarted`.
 public enum AnalysisEvent: Sendable, Equatable {
     /// A step began, with the number of files it will go through when that's known.
     case phaseStarted(AnalysisPhase, total: Int?)
@@ -65,7 +68,21 @@ public enum AnalysisEvent: Sendable, Equatable {
 }
 
 /// Receives a run's events.
+///
+/// The engine never calls a handler from two threads at once, but it may call it from a thread other than the
+/// one that started the run; see `AnalysisEvent`.
 public typealias AnalysisEventHandler = @Sendable (AnalysisEvent) -> Void
+
+extension AnalysisEvent {
+    /// Wraps a handler so that calls from several threads take turns rather than overlap.
+    ///
+    /// - Parameter handler: The handler.
+    /// - Returns: A handler that passes each event on while holding a lock.
+    static func serialized(_ handler: @escaping AnalysisEventHandler) -> AnalysisEventHandler {
+        let lock = NSLock()
+        return { event in lock.withLock { handler(event) } }
+    }
+}
 
 extension AnalysisEvent {
     /// Times one file's work between its `fileStarted` and `fileFinished` events.

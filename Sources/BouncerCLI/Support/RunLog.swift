@@ -64,6 +64,14 @@ struct RunLog {
         } + tail
     }
 
+    /// Describes how many files a run analyzes at once, for the verbose log.
+    ///
+    /// - Parameter jobs: The thread count.
+    /// - Returns: The log line.
+    static func jobsLine(_ jobs: Int) -> String {
+        "jobs: \(jobs) file(s) at once"
+    }
+
     /// Decides the style, falling back to plain lines where a live line can't be drawn.
     ///
     /// - Parameters:

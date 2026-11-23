@@ -11,8 +11,11 @@ final class ProjectPhaseCloneTests: XCTestCase {
 
     /// Fingerprints every file with a recognizable marker, reporting each file's fingerprint scheme.
     private final class Fingerprinting: ProjectAnalyzer, @unchecked Sendable {
-        var computed: [String] = []
-        var reusedCache: [String] = []
+        private let lock = NSLock()
+        private var computedPaths: [String] = []
+        private var reusedPaths: [String] = []
+        var computed: [String] { lock.withLock { computedPaths } }
+        var reusedCache: [String] { lock.withLock { reusedPaths } }
         func findings(for facts: [FileFacts], targets: Set<String>, context: AnalysisContext) -> [Finding] {
             facts.map {
                 Finding(ruleID: "project", severity: .warning, filePath: RepoPath.url($0.path, in: context.repoRoot),
@@ -21,8 +24,8 @@ final class ProjectPhaseCloneTests: XCTestCase {
         }
         func cloneFacts(for file: SourceFile, cached: CloneFacts?, context: AnalysisContext) -> CloneFacts? {
             let path = RepoPath.relative(file.path, to: context.repoRoot)
-            if let cached { reusedCache.append(path); return cached }
-            computed.append(path)
+            if let cached { lock.withLock { reusedPaths.append(path) }; return cached }
+            lock.withLock { computedPaths.append(path) }
             return CloneFacts(scheme: "fresh", hashes: [1], offsets: [0], lines: [0], endLines: [0], lineNumbers: [1])
         }
     }

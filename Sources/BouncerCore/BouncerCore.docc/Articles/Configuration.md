@@ -112,6 +112,23 @@ Each file's imports and exports are cached in `.bouncer-cache/facts.json` at the
 keyed by the file's content, so unchanged files aren't re-parsed. Add `.bouncer-cache/` to your
 `.gitignore`; deleting it is always safe.
 
+### `agent`
+
+```json
+{ "agent": { "refresh": "next-scan" } }
+```
+
+How Bouncer behaves when a coding agent drives it through `bouncer mcp` (see <doc:Agents>).
+`refresh` decides when the server notices files that changed on disk while the agent works:
+
+- `"next-scan"` (the default): results stay as they were until the agent scans again, or until
+  `verify` re-checks the files it edited.
+- `"immediate"`: before every answer, the server re-checks any file that changed. Always current,
+  but slower on large repos.
+
+`bouncer configure` asks about it, recommending `"immediate"` for repos under 5,000 analyzable
+files and `"next-scan"` above that.
+
 ### `profile`
 
 Selects a profile, a named preset applied as the base layer beneath everything else. It can be

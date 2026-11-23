@@ -34,6 +34,7 @@ symbol reference: `BouncerCore` documents the engine's extensibility surface, no
 - <doc:KirbyMode>
 - <doc:Security>
 - <doc:Hooks>
+- <doc:Agents>
 
 ### The Analysis Engine
 

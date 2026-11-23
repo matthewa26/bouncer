@@ -391,7 +391,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | User profiles: repo `.bouncer-profiles/` (shareable) and global `~/.bouncer-profiles/` | | 1.2.0 |
 | ✅ | `bouncer profile list\|show\|create\|set-default\|delete` | | 1.2.0 |
 | ✅ | Landing page at the site root, with the bouncer mascot | | 1.2.0 |
-| ✅ | Saved runs: `review` saves its result to `.bouncer-cache/` and re-analyzes only changed files next time (`--from-last-run`, `--full`, `--no-save-run`, `output.saveRun`) | identical findings to a full run | 1.3.0 |
+| ✅ | Saved runs: `review` saves its result to `.bouncer-cache/` and re-analyzes only changed files next time (`--from-last-run`, `--full`, `--no-save-run`, `output.saveRun`) | identical findings to a full run | 1.2.0 |
 | ⬜ | FAQ on the landing page | | backlog |
 
 ## 16. Integrations
@@ -404,12 +404,13 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Xcode diagnostics output (`--format xcode`), shown inline in Xcode | | 1.2.0 |
 | ✅ | `bouncer xcode install\|uninstall`: adds a Run Script build phase to `.xcodeproj` targets | macOS | 1.2.0 |
 | ✅ | SwiftPM build-tool and command plugin, prebuilt binary, for Swift without an Xcode project | separate plugin package | 1.2.0 |
-| ✅ | Token-efficient agent output (`--format agent`, `--group-by file\|rule`) | grouped, relative paths, repeated messages dropped | 1.3.0 |
-| ✅ | Report filters and paging (`--rule`, `--path`, `--min-severity`, `--limit`, `--offset`); exit code follows the filtered set | | 1.3.0 |
-| ✅ | Summary-only output (`--summary`), with a hint when one rule is over half the findings | | 1.3.0 |
-| ✅ | Review only files changed since a git ref (`review --changed-since REF`) | project rules still see the whole graph | 1.3.0 |
-| ⬜ | MCP server (`bouncer mcp`): summary-first tools, paged drill-down, next fix batch, verify, check | designed, not built yet | planned 1.3 |
-| ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.3 |
+| ✅ | Token-efficient agent output (`--format agent`, `--group-by file\|rule`) | grouped, relative paths, repeated messages dropped | 1.2.0 |
+| ✅ | Report filters and paging (`--rule`, `--path`, `--min-severity`, `--limit`, `--offset`); exit code follows the filtered set | | 1.2.0 |
+| ✅ | Summary-only output (`--summary`), with a hint when one rule is over half the findings | | 1.2.0 |
+| ✅ | Review only files changed since a git ref (`review --changed-since REF`) | project rules still see the whole graph | 1.2.0 |
+| ✅ | MCP server (`bouncer mcp`): `scan`, `status`, `findings`, `verify`, `check`, `explain_rule`; size caps and cursors; `agent.refresh` (`immediate` or `next-scan`, suggested in setup by repo size) | stdio, no new dependencies; never runs hooks | 1.2.0 |
+| ⬜ | Next fix batch (`next_batch`), fix-cost tags and `agent.workOrder` | designed | planned 1.2 |
+| ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.2 |
 | ⬜ | Symbol-level Swift analysis from the compiler's index store | deferred until there's demand | backlog |
 
 ## 17. Languages

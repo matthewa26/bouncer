@@ -104,6 +104,16 @@ Profiles are named presets in the same format. Keep your own in `~/.bouncer-prof
 
 A repo's `.bouncer` can declare `hooks.preCheck`/`hooks.postCheck` shell commands, most commonly to regenerate a coverage report right before Bouncer reads it. Because a repo-committed `.bouncer` could otherwise auto-execute arbitrary commands the moment you clone and run Bouncer, repo-declared hooks are gated behind trust the same way direnv gates `.envrc`: the first run prompts, `bouncer configure --trust` records a hash of the current hooks, and any edit to them re-prompts. `--allow-hooks` bypasses the prompt for a single CI run. Hooks declared in your own `~/.bouncer` are always trusted.
 
+### Coding agents
+
+`--summary`, `--format agent`, and the `--rule`/`--path`/`--min-severity`/`--limit`/`--offset` filters keep a coding agent's context small, and `bouncer mcp` runs a Model Context Protocol server that keeps results in memory, so an agent can scan, take one slice of findings, fix it, and re-check only the files it edited. Register it with Claude Code:
+
+```
+claude mcp add bouncer -- bouncer mcp
+```
+
+`agent.refresh` in `.bouncer` decides whether the server notices changed files immediately or on the next scan. See [Using Bouncer with coding agents](Sources/BouncerCore/BouncerCore.docc/Articles/Agents.md).
+
 ### Baseline
 
 `bouncer baseline update` snapshots every current finding as accepted, so adopting Bouncer on an existing codebase only ever flags *new* violations from that point on. `bouncer baseline clear` resets it.

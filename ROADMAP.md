@@ -392,6 +392,7 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | `bouncer profile list\|show\|create\|set-default\|delete` | | 1.2.0 |
 | ✅ | Landing page at the site root, with the bouncer mascot | | 1.2.0 |
 | ✅ | Saved runs: `review` saves its result to `.bouncer-cache/` and re-analyzes only changed files next time (`--from-last-run`, `--full`, `--no-save-run`, `output.saveRun`) | identical findings to a full run | 1.2.0 |
+| ✅ | Parallel file analysis (`--jobs`, `.bouncer` `jobs`) | one thread per core by default; identical output at any setting | 1.2.0 |
 | ⬜ | FAQ on the landing page | | backlog |
 
 ## 16. Integrations
@@ -409,8 +410,8 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Summary-only output (`--summary`), with a hint when one rule is over half the findings | | 1.2.0 |
 | ✅ | Review only files changed since a git ref (`review --changed-since REF`) | project rules still see the whole graph | 1.2.0 |
 | ✅ | MCP server (`bouncer mcp`): `scan`, `status`, `findings`, `verify`, `check`, `explain_rule`; size caps and cursors; `agent.refresh` (`immediate` or `next-scan`, suggested in setup by repo size) | stdio, no new dependencies; never runs hooks | 1.2.0 |
-| ⬜ | Next fix batch (`next_batch`), fix-cost tags and `agent.workOrder` | designed | planned 1.2 |
-| ⬜ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | | planned 1.2 |
+| ✅ | Next fix batch (`next_batch`), fix-cost tags and `agent.workOrder` | one file × rule cluster with code around each finding, ranked by the work order, then OWASP, touched files, size | 1.2.0 |
+| ✅ | Agent skills (`SKILL.md`, `AGENTS.md` snippet) for the scan, fix, verify loop | documented in Agents.md | 1.2.0 |
 | ⬜ | Symbol-level Swift analysis from the compiler's index store | deferred until there's demand | backlog |
 
 ## 17. Languages

@@ -115,7 +115,7 @@ keyed by the file's content, so unchanged files aren't re-parsed. Add `.bouncer-
 ### `agent`
 
 ```json
-{ "agent": { "refresh": "next-scan" } }
+{ "agent": { "refresh": "next-scan", "workOrder": "quick-fixes-first" } }
 ```
 
 How Bouncer behaves when a coding agent drives it through `bouncer mcp` (see <doc:Agents>).
@@ -128,6 +128,32 @@ How Bouncer behaves when a coding agent drives it through `bouncer mcp` (see <do
 
 `bouncer configure` asks about it, recommending `"immediate"` for repos under 5,000 analyzable
 files and `"next-scan"` above that.
+
+`workOrder` decides what the server recommends an agent fix first. Each rule has a fix cost,
+`mechanical` (a local fix, such as a force unwrap or a missing doc comment) or `refactor` (the code
+has to be restructured, such as a long function or duplicated code):
+
+- `"quick-fixes-first"` (the default): every mechanical finding before any refactor; within each,
+  errors before warnings before info.
+- `"severity-first"`: errors before warnings before info, whatever the effort; within each
+  severity, mechanical before refactor.
+
+`bouncer configure` asks about it right after `refresh`, recommending `"quick-fixes-first"`.
+
+### `jobs`
+
+```json
+{ "jobs": 4 }
+```
+
+How many files to analyze at once. Without it, Bouncer uses one thread per active processor
+core. The per-file pass, a saved run's re-checks, and the project pass's parsing of files outside
+the target set all spread across that many threads; the project rules themselves, and every
+other step, run in turn. Results don't depend on it: the report is the same, in the same order,
+at any setting, and changing it never discards a saved run. Set `1` to analyze one file at a
+time, such as on a shared CI machine. It must be at least `1`. The `--jobs`/`-j` flag on
+`check`, `review`, and `baseline update` overrides it for one run; `bouncer mcp`, which takes no
+flags, reads it from here.
 
 ### `profile`
 
@@ -175,6 +201,6 @@ baseline, so `baseline update` doesn't record it.
 Most settings can also be set per-invocation with a flag, which takes precedence over both
 config layers for that one run: `--severity-threshold`, `--format` (`console`, `table`, `json`, or
 `html`; see <doc:GettingStarted>), `--output`, `--verbosity`,
-`--profile`, `--progress`, `--verbose`, and (on `review`) `--coverage-report`/`--coverage-format`
+`--profile`, `--progress`, `--verbose`, `--jobs`, and (on `review`) `--coverage-report`/`--coverage-format`
 and `--full`/`--from-last-run`/`--no-save-run`. Run `bouncer check --help`
 or `bouncer review --help` for the complete flag list.

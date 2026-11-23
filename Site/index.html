@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bouncer: only clean code gets in</title>
-<meta name="description" content="Bouncer is a configurable coding-standards and code-smell checker for pre-commit hooks, full-repo audits, and coding agents.">
+<meta name="description" content="Bouncer is a configurable coding-standards and code-smell checker for any language, with real parse trees for TypeScript, JavaScript, Swift, Objective-C, Rust, PHP, Python, and Go, for pre-commit hooks, full-repo audits, and coding agents.">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <style>
 :root {
@@ -80,9 +80,11 @@ footer .wrap { padding-top: 24px; padding-bottom: 24px; display: flex; flex-wrap
     <div class="hero-copy">
       <p class="eyebrow">Coding standards, enforced at the door</p>
       <h1>Only clean code<br><span>gets in.</span></h1>
-      <p class="lede">Bouncer is a configurable coding-standards and code-smell checker. It reads TypeScript, JavaScript,
-        Swift, Python and Go with real parse trees, everything else heuristically, and turns away what breaks your
-        rules: as a pre-commit hook, a full-repo audit, or a coding agent's self-check.</p>
+      <p class="lede">Bouncer is a configurable coding-standards and code-smell checker for any codebase. It reads
+        TypeScript, JavaScript, Swift, Objective-C, Rust, PHP, Python and Go with real parse trees, checks shell,
+        PowerShell, C, C++, Java and SQL with dedicated heuristics, gives every other language a best-effort pass,
+        and turns away what breaks your rules: as a pre-commit hook, a full-repo audit, or a coding agent's
+        self-check.</p>
       <div class="install">
         <div class="tabs" role="tablist" aria-label="Install command">
           <button role="tab" aria-selected="true" data-command="curl -fsSL https://matthewa26.github.io/bouncer/install.ps1 | sh">macOS, Linux, WSL</button>

@@ -4,11 +4,10 @@ A configurable, multi-language coding-standards and code-smell checker.
 
 ## Overview
 
-Bouncer analyzes Swift with a real syntax tree (via SwiftSyntax) and TypeScript (including
-TSX), JavaScript (including JSX), Python, and Go with real parse trees (via tree-sitter).
-Every other supported language (zsh, bash, PowerShell, C++, Java, SQL, and C) is analyzed
-heuristically, and anything
-unrecognized still gets a best-effort pass rather than being skipped outright. All of it runs
+Bouncer works on codebases in any language. It analyzes Swift with a real syntax tree (via SwiftSyntax) and
+TypeScript (including TSX), JavaScript (including JSX), Objective-C, Rust, PHP, Python, and Go with real parse trees
+(via tree-sitter). zsh, bash, PowerShell, C, C++, Java, and SQL get dedicated heuristics, and anything unrecognized
+still gets a best-effort pass rather than being skipped outright. All of it runs
 through the same dependency-injected rule engine, whether you're calling it from a Husky
 pre-commit hook, running an ad-hoc audit of an unfamiliar codebase, or having a coding agent
 check its own edits before committing them.

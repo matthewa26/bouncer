@@ -107,15 +107,26 @@ struct AnalysisRunner {
 
     /// Runs the engine, starting from the saved last run and saving this one when there's a saved-run session.
     ///
+    /// Unlike `run()`, it runs no hooks and renders nothing, so `bouncer mcp` can call it directly.
+    ///
     /// - Returns: The analysis result.
     /// - Throws: An error from the engine.
-    private func analyze() throws -> AnalysisResult {
+    func analyze() throws -> AnalysisResult {
+        guard savedRun != nil else { return try makeEngine().run() }
+        return try analyzeRecordingFiles().result
+    }
+
+    /// Runs the engine like `analyze()`, also recording each target file's stamp and per-file findings, for a
+    /// session that keeps the result and later re-checks some of its files, such as `bouncer mcp`.
+    ///
+    /// - Returns: The result, with each target file's record.
+    /// - Throws: An error from the engine.
+    func analyzeRecordingFiles() throws -> RecordedRun {
         var engine = makeEngine()
-        guard let savedRun else { return try engine.run() }
-        engine.priorRun = savedRun.prior()
+        engine.priorRun = savedRun?.prior()
         let recorded = try engine.runRecordingFiles()
-        savedRun.save(recorded, repoRoot: repoRoot, emit: onEvent)
-        return recorded.result
+        savedRun?.save(recorded, repoRoot: repoRoot, emit: onEvent)
+        return recorded
     }
 
     /// Builds the analysis engine from this runner's resolved dependencies, reporting to `onEvent`.

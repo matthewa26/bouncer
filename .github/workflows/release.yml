@@ -24,7 +24,16 @@ env:
   STATIC_SDK_CHECKSUM: "3786b179936d9cc9e266dd506bd1654176358d7b25288e243359f4d17cc4dc5a"
 
 jobs:
+  # Fails the release before anything builds if ReleaseNotes/<version>.md is missing; publish uses it as the
+  # release description.
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh Scripts/check-release-notes.sh "${GITHUB_REF_NAME#v}"
+
   macos:
+    needs: notes
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
@@ -44,6 +53,7 @@ jobs:
           path: dist/*
 
   linux:
+    needs: notes
     runs-on: ubuntu-24.04
     # Job containers can't read env, so this tag repeats SWIFT_VERSION; keep them in sync.
     container: swift:6.4.2-noble
@@ -75,6 +85,7 @@ jobs:
           path: dist/*
 
   windows:
+    needs: notes
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -118,9 +129,12 @@ jobs:
         working-directory: dist
         # The installer looks up its own archive's line, so the bundle's extra line doesn't affect it.
         run: sha256sum bouncer-* bouncer.artifactbundle.zip > SHA256SUMS && cat SHA256SUMS
+      - name: Name the release notes file
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: dist/*
+          body_path: source/ReleaseNotes/${{ env.VERSION }}.md
   # Publishes the formula for this release to the Homebrew tap. Writing to another repo needs a token this
   # workflow's own doesn't have: HOMEBREW_TAP_TOKEN, a fine-grained token with Contents read and write on
   # the tap (and on bouncer-plugin, for the plugin job). Without it the job prints the formula instead, to commit by hand.

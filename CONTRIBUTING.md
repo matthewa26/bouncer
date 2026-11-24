@@ -22,6 +22,12 @@ a complete `///` doc comment on every function, and lines of at most 120 charact
 [rule catalog](https://matthewa26.github.io/bouncer/documentation/bouncercore/rulecatalog)
 for what each rule checks.
 
+## Releasing
+
+Write the release notes in `ReleaseNotes/<version>.md` before tagging, and check them with
+`sh Scripts/check-release-notes.sh <version>`. Pushing a `v<version>` tag runs the release workflow, which fails
+before building if that file is missing and publishes it as the release description.
+
 By contributing, you agree that your contribution is licensed under the project's
 [GPL-3.0-or-later](LICENSE) license.
 

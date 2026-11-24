@@ -1,4 +1,5 @@
 import Foundation
+import BouncerCore
 
 /// What a structured doc comment documents.
 public struct ParsedDoc: Sendable, Equatable {
@@ -22,7 +23,7 @@ public enum DocCommentParser {
         switch style {
         case .swift: return SwiftDocParser.parse(lines(of: text))
         case .jsdoc: return JSDocParser.parse(lines(of: text).joined(separator: "\n"))
-        case .python: return PythonDocParser.parse(text.components(separatedBy: "\n"))
+        case .python: return PythonDocParser.parse(SourceFile.lines(of: text).map(String.init))
         }
     }
 
@@ -31,7 +32,7 @@ public enum DocCommentParser {
     /// - Parameter text: The comment's raw text.
     /// - Returns: Its lines, with their remaining indentation.
     static func lines(of text: String) -> [String] {
-        text.components(separatedBy: "\n").map { line in
+        SourceFile.lines(of: text).map { line in
             var body = Substring(line.drop { $0 == " " || $0 == "\t" })
             for marker in ["///", "/**", "*/", "*"] where body.hasPrefix(marker) { body = body.dropFirst(marker.count) }
             if body.hasSuffix("*/") { body = body.dropLast(2) }

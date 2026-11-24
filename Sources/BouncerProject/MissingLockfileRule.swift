@@ -77,7 +77,7 @@ public struct MissingLockfileRule: ProjectRule {
     /// - Returns: The message, or `nil` for a library or a crate with a lockfile.
     private func cargo(_ path: String, disk: LockfileDisk) -> String? {
         guard let text = disk.read(path), !disk.hasAny(["Cargo.lock"], atOrAbove: path) else { return nil }
-        let headers = Set(text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) })
+        let headers = Set(SourceFile.lines(of: text).map { $0.trimmingCharacters(in: .whitespaces) })
         let isWorkspace = headers.contains("[workspace]")
         let isBinary = headers.contains("[[bin]]") || disk.exists(path, sibling: "src/main.rs")
         guard isWorkspace || isBinary else { return nil }

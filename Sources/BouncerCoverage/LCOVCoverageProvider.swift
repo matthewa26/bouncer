@@ -39,7 +39,7 @@ public struct LCOVCoverageProvider: CoverageProvider {
     ///   - linesFound: Accumulates the total instrumented line count.
     ///   - linesHit: Accumulates the total covered line count.
     private func accumulate(contents: String, linesFound: inout Int, linesHit: inout Int) {
-        for line in contents.split(separator: "\n") {
+        for line in SourceFile.lines(of: contents) {
             if let value = intValue(after: "LF:", in: line) { linesFound += value }
             if let value = intValue(after: "LH:", in: line) { linesHit += value }
         }

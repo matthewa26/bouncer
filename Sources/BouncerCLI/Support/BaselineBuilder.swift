@@ -43,7 +43,7 @@ enum BaselineBuilder {
     private static func cachedLines(of url: URL, cache: inout [URL: [Substring]]) -> [Substring] {
         if let cached = cache[url] { return cached }
         let text = try? String(contentsOf: url, encoding: .utf8)
-        let lines = text?.split(separator: "\n", omittingEmptySubsequences: false) ?? []
+        let lines = text.map(SourceFile.lines(of:)) ?? []
         cache[url] = lines
         return lines
     }

@@ -186,7 +186,7 @@ struct NPMManifest {
     ///   - text: The manifest's text.
     /// - Returns: Each dependency with its line.
     private static func located(_ names: [String], in text: String) -> [DeclaredDependency] {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let lines = SourceFile.lines(of: text)
         let block = lines.firstIndex { $0.contains("\"dependencies\"") } ?? 0
         return names.map { name in
             let line = lines[block...].firstIndex { $0.contains("\"\(name)\"") }.map { $0 + 1 } ?? 1

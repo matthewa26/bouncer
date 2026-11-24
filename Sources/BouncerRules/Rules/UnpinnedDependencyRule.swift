@@ -85,7 +85,7 @@ enum NPMPins {
         in text: String, sections: [String], judge: (String, String) -> String?
     ) -> [PinProblem] {
         guard let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else { return [] }
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let lines = SourceFile.lines(of: text)
         return sections.flatMap { section in
             problems(in: json[section] as? [String: Any] ?? [:], section: section, lines: lines, judge: judge)
         }

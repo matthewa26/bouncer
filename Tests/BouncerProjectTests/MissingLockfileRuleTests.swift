@@ -58,6 +58,11 @@ final class MissingLockfileRuleTests: XCTestCase {
         XCTAssertEqual(flagged(targets), ["app/Cargo.toml:1", "tool/Cargo.toml:1"])
     }
 
+    func testReadsCRLFManifestsLineByLine() throws {
+        try write("tool/Cargo.toml", "[package]\r\nname = \"tool\"\r\n\r\n[[bin]]\r\nname = \"tool\"\r\n")
+        XCTAssertEqual(flagged(["tool/Cargo.toml"]), ["tool/Cargo.toml:1"])
+    }
+
     func testFlagsAComposerPackageRequiringPackagesWithoutAComposerLock() throws {
         try write("app/composer.json", #"{"require": {"php": ">=8.2", "vendor/lib": "^1.0"}}"#)
         try write("dev/composer.json", #"{"require-dev": {"phpunit/phpunit": "^11.0"}}"#)

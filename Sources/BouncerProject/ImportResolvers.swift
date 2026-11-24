@@ -191,7 +191,7 @@ struct GoImportResolver: ImportResolver {
     static func modulePath(repoRoot: URL) -> String? {
         let url = repoRoot.appendingPathComponent("go.mod")
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        let line = text.split(separator: "\n").first { $0.hasPrefix("module ") }
+        let line = SourceFile.lines(of: text).first { $0.hasPrefix("module ") }
         return line.map { $0.dropFirst("module ".count).trimmingCharacters(in: .whitespaces) }
     }
 

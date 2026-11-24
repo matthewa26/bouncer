@@ -150,7 +150,7 @@ enum ManifestText {
     /// - Parameter text: The comment text.
     /// - Returns: Blank text of the same shape.
     private static func blanked(_ text: String) -> String {
-        let characters: [Character] = text.map { $0 == "\n" ? "\n" : " " }
+        let characters: [Character] = text.map { $0 == "\n" || $0 == "\r\n" ? $0 : " " }
         return String(characters)
     }
 
@@ -223,7 +223,7 @@ enum ManifestText {
     ///   - code: The source.
     /// - Returns: The line.
     static func line(of index: String.Index, in code: String) -> Int {
-        code[..<index].reduce(1) { $1 == "\n" ? $0 + 1 : $0 }
+        code[..<index].reduce(1) { $1 == "\n" || $1 == "\r\n" ? $0 + 1 : $0 }
     }
 }
 
@@ -241,7 +241,7 @@ struct GoModule {
     ///   - text: Its contents.
     init(path: String, text: String) {
         self.path = path
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let lines = SourceFile.lines(of: text)
             .map { $0.trimmingCharacters(in: .whitespaces) }
         module = lines.first { $0.hasPrefix("module ") }.map { String($0.dropFirst("module ".count)) } ?? ""
         var inBlock = false

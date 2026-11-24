@@ -10,13 +10,16 @@ public struct MissingFinalNewlineRule: Rule {
 
     /// Flags the file's last line if the file doesn't end with a newline.
     ///
+    /// A file ends with one exactly when its last line is empty, which holds for `\r\n` too; Swift treats `"\r\n"`
+    /// as one `Character`, so `hasSuffix("\n")` misses it.
+    ///
     /// - Parameters:
     ///   - file: The file to check.
     ///   - context: Repo-wide state, including this rule's resolved settings.
     /// - Returns: A single finding, or none.
     public func evaluate(file: SourceFile, context: AnalysisContext) -> [Finding] {
         let settings = context.settings(for: id)
-        guard settings.enabled, !file.contents.isEmpty, !file.contents.hasSuffix("\n") else { return [] }
+        guard settings.enabled, !file.contents.isEmpty, file.lines.last?.isEmpty == false else { return [] }
         let message = "File doesn't end with a newline."
         let line = file.lines.count
         return [Finding(ruleID: id, severity: settings.severity, filePath: file.path, line: line, message: message)]

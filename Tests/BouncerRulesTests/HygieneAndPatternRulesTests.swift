@@ -16,6 +16,8 @@ final class HygieneAndPatternRulesTests: XCTestCase {
         XCTAssertTrue(ids("let a = 1", .swift).contains("missing-final-newline"))
         XCTAssertFalse(ids("let a = 1\n", .swift).contains("missing-final-newline"))
         XCTAssertFalse(ids("", .swift).contains("missing-final-newline"))
+        XCTAssertFalse(ids("let a = 1\r\n", .swift).contains("missing-final-newline"))
+        XCTAssertTrue(ids("let a = 1\r\nlet b = 2", .swift).contains("missing-final-newline"))
     }
 
     func testFlagsCrlfOncePerFile() {

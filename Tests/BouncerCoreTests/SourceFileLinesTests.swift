@@ -14,4 +14,10 @@ final class SourceFileLinesTests: XCTestCase {
         let file = SourceFile(path: URL(fileURLWithPath: "/repo/a.ts"), language: .typescript, contents: "x\r\ny\n")
         XCTAssertEqual(file.lines, SourceFile.lines(of: file.contents))
     }
+
+    func testLooksForAGeneratedMarkerOnlyInTheFirstTenCRLFLines() {
+        let body = String(repeating: "x\r\n", count: 12)
+        XCTAssertTrue(FactText.isGenerated("// @generated\r\n" + body))
+        XCTAssertFalse(FactText.isGenerated(body + "// DO NOT EDIT\r\n"))
+    }
 }

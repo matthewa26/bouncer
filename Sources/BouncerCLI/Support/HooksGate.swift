@@ -65,8 +65,7 @@ enum HooksGate {
         print("This repository's .bouncer declares hooks:")
         (repoHooks.preCheck ?? []).forEach { print("  preCheck: \($0)") }
         (repoHooks.postCheck ?? []).forEach { print("  postCheck: \($0)") }
-        print("Trust and run them? [y/N]: ", terminator: "")
-        return readLine()?.lowercased().hasPrefix("y") == true
+        return (try? Prompt.standard.yesNo("Trust and run them?", default: false)) ?? false
     }
 
     /// Reports whether standard input is an interactive terminal.

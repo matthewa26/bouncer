@@ -1,4 +1,7 @@
 import Foundation
+#if os(Windows)
+import ucrt
+#endif
 
 /// Why an interactive prompt stopped without an answer.
 public enum PromptError: Error, Equatable, CustomStringConvertible {
@@ -47,8 +50,12 @@ public struct Prompt {
     }
 
     /// A prompt over standard input and standard output.
+    ///
+    /// Every write is flushed, so a question that doesn't end in a newline shows before the read that waits for its
+    /// answer. glibc and Darwin flush standard output before reading a terminal, but musl, which the static Linux
+    /// build uses, doesn't, so on Linux and WSL the wizard looked hung.
     public static var standard: Prompt {
-        Prompt(readLine: { Swift.readLine() }, write: { print($0, terminator: "") })
+        Prompt(readLine: { Swift.readLine() }, write: { print($0, terminator: ""); fflush(nil) })
     }
 
     /// Writes one line of text.

@@ -160,7 +160,8 @@ final class TreeSitterSummaryBuilder {
     /// - Parameter node: The function/method declaration node.
     private func collectFunction(_ node: Node) {
         guard let body = functionBody(of: node) else { return }
-        let function = makeCollectedFunction(node, body: body)
+        var function = makeCollectedFunction(node, body: body)
+        function.isObjectKey = isObjectKey(node)
         functions.append(function)
         if quality?.isTestWithoutAssertions(node, name: function.name) == true {
             markers.append(CollectedMarker(kind: .testWithoutAssertions, line: function.startLine))

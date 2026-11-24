@@ -72,6 +72,27 @@ final class JavaScriptFamilyAnalyzerTests: XCTestCase {
         XCTAssertEqual(named, [1, 2])
     }
 
+    func testLeavesObjectKeysHoldingFunctionsToTheirOwnContract() throws {
+        let contents = """
+            const routes = {
+              "GET /users": () => 1,
+              user_created: (id) => id,
+              [Symbol.iterator]: () => 2,
+              OnSave: function () {},
+            };
+            const load_user = () => 3;
+
+            """
+        let named = try findings(contents).filter { $0.ruleID == "naming-convention" }.map(\.line)
+        XCTAssertEqual(named, [7])
+    }
+
+    func testNamesAFunctionByItsWholeObjectKey() throws {
+        let all = strict("missing-documentation", ["scope": .string("all")])
+        let contents = "const events = { \"user.created\": function () {}, 'on-save': () => {} };\n"
+        XCTAssertEqual(undocumentedNames(try findings(contents, context: all)), ["user.created", "on-save"])
+    }
+
     func testCountsTernariesAndLogicalOperatorsTowardComplexity() throws {
         let contents = "function f(a, b) { return a && b ? a : b ?? a; }\n"
         let found = try findings(contents, context: strict("cyclomatic-complexity", ["max": .int(3)]))

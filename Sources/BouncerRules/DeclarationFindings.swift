@@ -285,7 +285,7 @@ public enum DeclarationFindings {
         let settings = context.settings(for: NamingConventionRule.ruleID)
         guard settings.enabled else { return [] }
         let severity = settings.severity
-        let functions = summary.functions.compactMap {
+        let functions = summary.functions.filter { !$0.isObjectKey }.compactMap {
             badlyNamed($0.name, naming.function, "function", $0.startLine, file, severity)
         }
         return functions + badlyNamedTypes(summary, naming: naming, file: file, severity: severity)

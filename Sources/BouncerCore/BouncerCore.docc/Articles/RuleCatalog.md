@@ -130,7 +130,7 @@ These six come from the design-pattern and code-quality catalog taught in OSU CS
 | Rule ID | Checks | Default severity | Parameters |
 |---|---|---|---|
 | `cyclomatic-complexity` | A function's branch count (an approximation of McCabe complexity) | warning | `max` (10) |
-| `naming-convention` | A declaration's name against its language's expected pattern | warning | none (patterns are built in per language) |
+| `naming-convention` | A declaration's name against its language's expected pattern; a function held in an object literal's key isn't checked, since keys often follow an outside contract such as a route or API field | warning | none (patterns are built in per language) |
 | `high-coupling` | A file's import/using/require count, as a coupling proxy | warning | `maxImports` (15) |
 | `switch-on-type-smell` | A switch/match statement's branch count | warning | `maxBranches` (6) |
 | `missing-documentation` | Whether a declaration has a doc comment | warning | `scope` (`public`), see below |

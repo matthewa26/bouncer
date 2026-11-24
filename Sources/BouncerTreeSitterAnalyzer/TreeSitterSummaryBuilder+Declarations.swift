@@ -9,19 +9,43 @@ extension TreeSitterSummaryBuilder {
     /// Resolves a function's name from its own `name` field, or from the node that binds it.
     ///
     /// A member binding such as `module.exports.load = function () {}` resolves to its last
-    /// component, `load`.
+    /// component, `load`. An object key resolves to the key as written, without quotes, so `"user.created"`
+    /// stays whole.
     ///
     /// - Parameter node: The function node.
     /// - Returns: The name, or `CollectedFunction.anonymousName` for an unbound expression.
     func functionName(of node: Node) -> String {
-        if let name = node.child(byFieldName: "name").flatMap(text) ?? spec.cDeclarations?.name(of: node, text: text) {
-            return name
-        }
-        let anonymous = CollectedFunction.anonymousName
+        node.child(byFieldName: "name").flatMap(text) ?? spec.cDeclarations?.name(of: node, text: text)
+            ?? boundName(of: node) ?? CollectedFunction.anonymousName
+    }
+
+    /// Resolves the name an anonymous function gets from the node that binds it.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: The name, or `nil` when nothing binds one.
+    private func boundName(of node: Node) -> String? {
         guard let parent = node.parent, let parentType = parent.nodeType,
-              let field = spec.nameSourceParents[parentType] else { return anonymous }
-        guard let binding = parent.child(byFieldName: field).flatMap(text) else { return anonymous }
+              let field = spec.nameSourceParents[parentType],
+              let binding = parent.child(byFieldName: field).flatMap(text) else { return nil }
+        if parentType == "pair" { return Self.unquoted(binding) }
         return binding.split(separator: ".").last.map(String.init) ?? binding
+    }
+
+    /// Reports whether a function is the value of an object literal's key, such as `{ "GET /users": () => {} }`.
+    ///
+    /// - Parameter node: The function node.
+    /// - Returns: Whether its parent is a key-value pair.
+    func isObjectKey(_ node: Node) -> Bool {
+        node.parent?.nodeType == "pair"
+    }
+
+    /// Removes the quotes around a string key.
+    ///
+    /// - Parameter key: The key as written.
+    /// - Returns: The key without its surrounding quotes, or unchanged if it isn't quoted.
+    private static func unquoted(_ key: String) -> String {
+        guard key.count > 1, let first = key.first, "\"'`".contains(first), key.last == first else { return key }
+        return String(key.dropFirst().dropLast())
     }
 
     /// Walks outward through declaration wrappers, such as `const` and `export`, to the outermost one.

@@ -17,6 +17,9 @@ public struct CollectedFunction: Sendable {
     public let documentation: DocumentationFacts?
     /// Its parameters with their explicitly declared types (`nil` where unannotated), for `primitive-obsession`.
     public let parameters: [CollectedName]
+    /// Whether it's the value of an object literal's key, such as `{ "GET /users": () => {} }`. A key often follows
+    /// an outside contract, such as a route, an event name, or an API field, so `naming-convention` doesn't check it.
+    public var isObjectKey = false
 
     /// Creates a collected function.
     ///

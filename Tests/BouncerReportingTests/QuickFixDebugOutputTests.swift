@@ -25,13 +25,6 @@ final class QuickFixDebugOutputTests: XCTestCase {
         }
     }
 
-    func testKeepsAPythonProgramsOwnOutput() {
-        let script = ["def main():", "    print(\"SKIP  a\")", "", "if __name__ == \"__main__\":", "    main()"]
-        XCTAssertNil(quickFix("python-debug-print", at: 2, in: script, file: "scripts/gate.py"))
-        let module = ["def main():", "    print(\"SKIP  a\")", "    return 1"]
-        XCTAssertEqual(quickFix("python-debug-print", at: 2, in: module, file: "a.py"), removal(2, of: module))
-    }
-
     func testLeavesALineThatIsMoreThanTheCall() {
         XCTAssertNil(quickFix("js-console-log", at: 1, in: ["promise.then((x) => console.log(x));"]))
         XCTAssertNil(quickFix("js-console-log", at: 1, in: ["console.log(a); save(a);"]))

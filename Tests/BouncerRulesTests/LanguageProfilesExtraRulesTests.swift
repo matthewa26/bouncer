@@ -34,6 +34,26 @@ final class LanguageProfilesExtraRulesTests: XCTestCase {
         XCTAssertTrue(ids.contains("c-unsafe-string-function"))
     }
 
+    func testLeavesAPythonProgramsOwnOutput() {
+        let guarded = "def main():\n    print(\"done\")\n\nif __name__ == \"__main__\":\n    main()\n"
+        XCTAssertEqual(findings(guarded, path: "/repo/scripts/gate.py", language: .python).map(\.ruleID), [])
+        let shebang = "#!/usr/bin/env python3\nprint(\"done\")\n"
+        XCTAssertEqual(findings(shebang, path: "/repo/scripts/gate", language: .python).map(\.ruleID), [])
+        let module = "def load():\n    print(\"done\")\n# if __name__ == \"__main__\":\n"
+        XCTAssertEqual(findings(module, path: "/repo/a.py", language: .python).map(\.ruleID), ["python-debug-print"])
+    }
+
+    func testFlagsGoDiscardedReturnValuesOfPackageAndMethodCalls() {
+        let contents = "_ = os.Remove(path)\n\t_ = f.Close()\n_ = cleanup()\nerr := os.Remove(path)\n"
+        let lines = findings(contents, path: "/repo/a.go", language: .go)
+            .filter { $0.ruleID == "go-discarded-return-value" }.map(\.line)
+        XCTAssertEqual(lines, [1, 2, 3])
+    }
+
+    func testRefusesASpecWhoseExemptionDoesNotCompile() {
+        XCTAssertNil(PatternRule(spec: PatternRuleSpec(id: "x", pattern: "a", message: "m", exemptFilePattern: "(")))
+    }
+
     func testFlagsCppRawNewAndUsingNamespaceStd() {
         let contents = "using namespace std;\nint* p = new int(5);\n"
         let ids = findings(contents, path: "/repo/a.cpp", language: .cpp).map(\.ruleID)

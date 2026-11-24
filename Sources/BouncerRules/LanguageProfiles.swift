@@ -50,7 +50,8 @@ public enum LanguageProfiles {
             ),
             PatternRuleSpec(
                 id: "python-debug-print", pattern: #"^\s*print\("#,
-                message: "Remove debug output, or use the logging module."
+                message: "Remove debug output, or use the logging module.",
+                exemptFilePattern: #"^if\s+__name__\s*==\s*["']__main__["']\s*:|\A#!.*\bpython"#
             ),
             PatternRuleSpec(
                 id: "python-eval-exec", pattern: #"\b(eval|exec)\s*\("#,
@@ -334,7 +335,7 @@ public enum LanguageProfiles {
         ],
         extraPatternRules: [
             PatternRuleSpec(
-                id: "go-discarded-return-value", pattern: #"^\s*_\s*=\s*\w+\("#,
+                id: "go-discarded-return-value", pattern: #"^\s*_\s*=\s*\w+(\.\w+)*\("#,
                 message: "Discarding a return value with _ may silently ignore an error; check it explicitly."
             ),
             PatternRuleSpec(

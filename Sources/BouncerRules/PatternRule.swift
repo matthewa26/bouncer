@@ -9,18 +9,25 @@ public struct PatternRule: Rule {
     public let id: String
     private let regex: NSRegularExpression
     private let message: String
+    /// Exempts a whole file when it matches anywhere, or `nil` to check every file.
+    private let exemptFile: NSRegularExpression?
 
-    /// Creates a pattern rule, or returns `nil` if the pattern doesn't compile.
+    /// Creates a pattern rule, or returns `nil` if a pattern doesn't compile.
     ///
-    /// - Parameter spec: The rule's identifier, pattern, and message.
+    /// - Parameter spec: The rule's identifier, patterns, and message.
     public init?(spec: PatternRuleSpec) {
-        guard let regex = try? NSRegularExpression(pattern: spec.pattern) else { return nil }
+        let exemptFile = spec.exemptFilePattern.flatMap {
+            try? NSRegularExpression(pattern: $0, options: .anchorsMatchLines)
+        }
+        guard let regex = try? NSRegularExpression(pattern: spec.pattern),
+              (exemptFile == nil) == (spec.exemptFilePattern == nil) else { return nil }
         self.id = spec.id
         self.regex = regex
         self.message = spec.message
+        self.exemptFile = exemptFile
     }
 
-    /// Flags every line that contains a match for this rule's pattern.
+    /// Flags every line that contains a match for this rule's pattern, unless the file is exempt.
     ///
     /// - Parameters:
     ///   - file: The file to inspect.
@@ -28,10 +35,20 @@ public struct PatternRule: Rule {
     /// - Returns: One finding per matching line.
     public func evaluate(file: SourceFile, context: AnalysisContext) -> [Finding] {
         let settings = context.settings(for: id)
-        guard settings.enabled else { return [] }
+        guard settings.enabled, !isExempt(file) else { return [] }
         return file.lines.enumerated().compactMap { index, line in
             finding(forLine: line, index: index, file: file, severity: settings.severity)
         }
+    }
+
+    /// Reports whether a file matches the exemption pattern.
+    ///
+    /// - Parameter file: The file.
+    /// - Returns: Whether the rule skips it.
+    private func isExempt(_ file: SourceFile) -> Bool {
+        guard let exemptFile else { return false }
+        return exemptFile.firstMatch(in: file.contents, range: NSRange(file.contents.startIndex..., in: file.contents))
+            != nil
     }
 
     /// Builds a finding for one line if it matches this rule's pattern.

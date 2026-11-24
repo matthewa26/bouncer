@@ -63,15 +63,15 @@ enum DebugOutputFixes {
     /// - Parameters:
     ///   - call: The rule's debug call.
     ///   - site: The finding's site.
-    /// - Returns: The edit, or `nil` when the line is anything but that one statement, deleting it could break
-    ///   the code around it, or it's a Python program's own output.
+    /// - Returns: The edit, or `nil` when the line is anything but that one statement
+    ///   or deleting it could break the code around it.
     @Sendable static func removal(of call: DebugCall, at site: FixSite) -> QuickFix? {
         guard call.languages.contains(site.language), let code = site.code else { return nil }
         if call.callees == ["console.log"], ["debugger", "debugger;"].contains(code.masked.trimmed) {
             return site.removingLine()
         }
-        guard call.isWholeStatement(code), site.language != .go || GoUsage.survivesRemoval(of: site, code: code),
-              site.language != .python || !PythonProgram.isProgram(site.lines) else { return nil }
+        guard call.isWholeStatement(code), site.language != .go || GoUsage.survivesRemoval(of: site, code: code)
+        else { return nil }
         return site.removingLine()
     }
 
@@ -111,20 +111,6 @@ enum DbgUnwrap {
               slotStart.matches(code.code(0..<call.lowerBound).trimmed),
               slotEnd.matches(code.code((close + 1)..<code.original.count).trimmed) else { return nil }
         return site.replacingLine(with: code.replacing(call.lowerBound..<(close + 1), with: code.text(inner).trimmed))
-    }
-}
-
-/// Recognizes a Python file that runs as a program, whose `print` calls are its output rather than leftovers.
-enum PythonProgram {
-    /// The top-level `if __name__ == "__main__":` guard a script runs under.
-    private static let mainGuard = TextPattern(#"^if\s+__name__\s*==\s*["']__main__["']\s*:"#)
-
-    /// Checks whether a file has a top-level `__main__` guard.
-    ///
-    /// - Parameter lines: The file's lines.
-    /// - Returns: Whether the file runs as a program.
-    static func isProgram(_ lines: [String]) -> Bool {
-        lines.contains { mainGuard.matches($0) }
     }
 }
 

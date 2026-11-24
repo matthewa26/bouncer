@@ -351,7 +351,7 @@ mistake in that language, layered on top of the shared rules above:
 | bash/zsh | `shell-debug-trace` | `set -x` tracing left on |
 | Python | `python-bare-except` | A bare `except:` clause (OWASP A10:2025) |
 | Python | `python-mutable-default-arg` | A mutable (`[]`/`{}`) default argument |
-| Python | `python-debug-print` | A `print(...)` statement |
+| Python | `python-debug-print` | A `print(...)` statement, except in a program: a file with a top-level `if __name__ == "__main__":` guard or a `python` shebang, whose prints are its output |
 | Python | `python-eval-exec` | `eval(...)`/`exec(...)` (OWASP A05:2025) |
 | Python | `python-unsafe-deserialization` | `pickle`/`marshal`/`cPickle`/`dill` loads, `pickle.Unpickler`, `jsonpickle.decode`, `yaml.unsafe_load`, or `yaml.load` without `SafeLoader` (OWASP A08:2025) |
 | Python | `python-shell-injection` | `subprocess` with `shell=True`, or `os.system` (OWASP A05:2025) |
@@ -388,7 +388,7 @@ mistake in that language, layered on top of the shared rules above:
 | Java | `java-print-stack-trace` | `.printStackTrace()` instead of a logger |
 | Java | `java-system-out` | `System.out`/`System.err` printing |
 | Java | `skipped-test` | `@Disabled`/`@Ignore` |
-| Go | `go-discarded-return-value` | A return value discarded with `_ =` |
+| Go | `go-discarded-return-value` | A return value discarded with `_ =`, from a function, package, or method call such as `_ = os.Remove(path)` |
 | Go | `go-panic-usage` | `panic()` usage |
 | Go | `go-debug-print` | A `fmt.Print`/`Println`/`Printf` statement |
 | Go | `go-shell-injection` | `exec.Command("sh", "-c", …)` (OWASP A05:2025) |
@@ -415,7 +415,7 @@ mistake in that language, layered on top of the shared rules above:
 | Rust | `skipped-test` | `#[ignore]` |
 | PHP | `php-debug-output` | `var_dump`, `print_r`, `dd`, or `dump` left in |
 | PHP | `php-eval` | `eval` or `create_function` (OWASP A05:2025) |
-| PHP | `php-error-suppression` | The `@` error-suppression operator (OWASP A10:2025) |
+| PHP | `php-error-suppression` | The `@` error-suppression operator, except the race-safe `!@mkdir($dir) && !is_dir($dir)` idiom (OWASP A10:2025) |
 | PHP | `php-extract` | `extract()` on a superglobal (`$_GET`, `$_POST`, `$_REQUEST`, …), which lets a request overwrite local variables (OWASP A08:2025) |
 | PHP | `php-loose-comparison` | `==`/`!=` on a hash, token, or password value; use `hash_equals` or `===` (OWASP A07:2025) |
 | PHP | `php-shell-injection` | `exec`, `shell_exec`, `system`, `passthru`, `proc_open`, or `popen` whose first argument holds a variable or superglobal, or a backtick command holding a `$`; a call whose line uses `escapeshellarg` is skipped (OWASP A05:2025) |

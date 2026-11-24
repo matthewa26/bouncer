@@ -8,7 +8,8 @@ import BouncerCore
 ///   returns the dump as a string instead of printing it, so it isn't flagged, and neither is a dump after an
 ///   `ob_start()` in the same function, whose output is captured on purpose.
 /// - `php-eval`: `eval(…)` or `create_function(…)`, which run a string as code.
-/// - `php-error-suppression`: the `@` operator, which hides every error its expression raises.
+/// - `php-error-suppression`: the `@` operator, which hides every error its expression raises. The race-safe
+///   `!@mkdir($dir) && !is_dir($dir)` idiom isn't flagged, since it checks the failure itself.
 /// - `php-extract`: `extract()` of a superglobal (`$_GET`, `$_POST`, …), which lets a request set any local.
 /// - `php-loose-comparison`: `==`, `!=`, or `<>` with a variable, property, or call named like a hash, token,
 ///   password, signature, secret, nonce, or HMAC on either side, which type juggling and timing can defeat. A
@@ -37,6 +38,8 @@ struct PHPSmellCheck {
         "$_GET", "$_POST", "$_REQUEST", "$_COOKIE", "$_FILES", "$_SERVER", "$_ENV"
     ]
     private static let looseOperators: Set<String> = ["==", "!=", "<>"]
+    /// The nodes that can sit between a suppressed `mkdir()` and the `&&` or `||` that checks it.
+    private static let conditionWrappers: Set<String> = ["unary_op_expression", "parenthesized_expression"]
     private static let secretName = #"(?i)hash|token|passw(or)?d|signature|secret|nonce|hmac"#
     /// Calls and property reads, mapped to the field naming what they call or read.
     private static let namedAccess = [
@@ -65,13 +68,35 @@ struct PHPSmellCheck {
     func findings(at node: Node) -> [Finding] {
         switch node.nodeType {
         case "function_call_expression": return callFinding(node).map { [$0] } ?? []
-        case "error_suppression_expression":
-            return [tree.finding("php-error-suppression", at: node,
-                                 "The @ operator hides every error this expression raises; handle the failure.")]
-                .compactMap { $0 }
+        case "error_suppression_expression": return errorSuppression(node).map { [$0] } ?? []
         case PHPNode.binaryExpression: return looseComparison(node).map { [$0] } ?? []
         default: return []
         }
+    }
+
+    /// Flags the `@` operator, unless it guards a `mkdir()` that the same condition checks with `is_dir()`.
+    ///
+    /// - Parameter node: An error-suppression expression.
+    /// - Returns: Its finding, or `nil`.
+    private func errorSuppression(_ node: Node) -> Finding? {
+        guard !isCheckedMkdir(node) else { return nil }
+        return tree.finding("php-error-suppression", at: node,
+                            "The @ operator hides every error this expression raises; handle the failure.")
+    }
+
+    /// Reports whether `@` guards a `mkdir()` whose failure the same condition checks with `is_dir()`, as in
+    /// `!@mkdir($dir) && !is_dir($dir)`: the race-safe way to create a folder another process may create first,
+    /// where the warning `mkdir()` raises for an existing folder is expected.
+    ///
+    /// - Parameter node: An error-suppression expression.
+    /// - Returns: Whether it's that idiom.
+    private func isCheckedMkdir(_ node: Node) -> Bool {
+        guard let call = node.namedChild(at: 0), call.nodeType == "function_call_expression",
+              globalName(of: call) == "mkdir" else { return false }
+        var operand = node
+        while let parent = operand.parent, Self.conditionWrappers.contains(parent.nodeType ?? "") { operand = parent }
+        guard let condition = operand.parent, condition.nodeType == PHPNode.binaryExpression else { return false }
+        return tree.text(of: condition)?.contains("is_dir(") == true
     }
 
     /// Flags a call to a debug-output, `eval`-like, or `extract` function.

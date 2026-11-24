@@ -536,6 +536,19 @@ final class PHPAnalyzerTests: XCTestCase {
         XCTAssertEqual(try lines(of: "php-error-suppression", in: contents), [2])
     }
 
+    func testLetsAMkdirThatTheSameConditionChecksWithIsDirSuppressItsWarning() throws {
+        let contents = """
+            <?php
+            if (!@mkdir($dir, 0777, true) && !is_dir($dir)) { throw new RuntimeException($dir); }
+            if (!(@mkdir($dir)) && !is_dir($dir)) { return; }
+            $made = @mkdir($dir) || is_dir($dir);
+            if (!@mkdir($dir)) { return; }
+            @mkdir($dir);
+            if (!@rmdir($dir) && !is_dir($dir)) { return; }
+            """
+        XCTAssertEqual(try lines(of: "php-error-suppression", in: contents), [5, 6, 7])
+    }
+
     func testFlagsExtractOfSuperglobalsOnly() throws {
         let contents = """
             <?php

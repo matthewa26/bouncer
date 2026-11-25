@@ -38,7 +38,7 @@ final class HygieneAndPatternRulesTests: XCTestCase {
         let contents = """
             const h = crypto.createHash("md5");
             const agent = new https.Agent({ rejectUnauthorized: false });
-            fetch("http://api.example.org/users");
+            fetch("http://api.vendor.io/users");
             db.query("SELECT * FROM users WHERE id = " + id);
             """
         let found = Set(ids(contents + "\n", .typescript))
@@ -48,6 +48,33 @@ final class HygieneAndPatternRulesTests: XCTestCase {
     func testAllowsLocalHttpAndXmlNamespaces() {
         let contents = "a = \"http://localhost:3000\"\nb = \"http://www.w3.org/2000/svg\"\nc = \"http://dev.test/x\"\n"
         XCTAssertFalse(ids(contents, .typescript).contains("insecure-http-url"))
+    }
+
+    func testAllowsSingleLabelHostsDTDsAndNamespaceDeclarations() {
+        let allowed = [
+            "url = \"http://wordpress\"", "url = \"http://ollama:11434/api\"", "a = 'http://nextjs/health'",
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">",
+            "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+            "<urlset xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\">",
+            "\"example\": \"<urlset xmlns=\\\"http://www.sitemaps.org/schemas/sitemap/0.9\\\">\"",
+            "proxy_pass http://wordpress;", "http://host.docker.internal:8000", "http://api.example.com/x",
+            "`http://<any-host>:5174/api`", "ENDPOINT=\"http://queue.invalid/run\"", "HOST=\"${HOST#http://}\""
+        ]
+        for line in allowed {
+            XCTAssertFalse(ids(line + "\n", .typescript).contains("insecure-http-url"), line)
+        }
+        XCTAssertTrue(ids("fetch(\"http://api.vendor.io/x\")\n", .typescript).contains("insecure-http-url"))
+        XCTAssertTrue(ids("<a href=\"http://vendor.io/a.dtd.html\">\n", .typescript).contains("insecure-http-url"))
+    }
+
+    func testWeakCryptoReadsDESAndECBOnlyAsCipherNames() {
+        let prose = "\"description\": \"Beschreibung des Projekts\"\nconst title = \"La liste des ECBs\";\n"
+        XCTAssertFalse(ids(prose, .typescript).contains("weak-crypto"))
+        let ciphers = ["Cipher.getInstance(\"DES\");", "createCipheriv('des-ede3', key, iv);",
+                       "openssl_encrypt($d, 'aes-128-ecb', $k);", "AES.new(key, AES.MODE_ECB)"]
+        for line in ciphers {
+            XCTAssertTrue(ids(line + "\n", .typescript).contains("weak-crypto"), line)
+        }
     }
 
     func testFlagsPythonEvalPickleAndShellTrue() {

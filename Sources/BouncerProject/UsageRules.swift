@@ -4,12 +4,21 @@ import BouncerCore
 /// Flags a TypeScript or JavaScript named export that nothing else in the project imports.
 ///
 /// Default exports are skipped, since frameworks load them by convention (pages, stories, configs), and so
-/// are entry points: `index` files, declaration files, tests, and anything matching `entryPoints`.
+/// are entry points: `index` files, declaration files, tests, Next.js files the framework loads by name (the App
+/// Router's `page`, `layout`, `route`, and other convention files under `app/`, and `middleware` and
+/// `instrumentation`), and anything matching `entryPoints`.
 public struct UnusedExportRule: ProjectRule {
     public let id = "unused-export"
     private static let extensions = Set(JavaScriptImportResolver.extensions)
     private static let defaultEntryPoints = [
         "**/index.*", "**/*.d.ts", "**/*.test.*", "**/*.spec.*", "**/*.stories.*", "**/*.config.*"
+    ] + nextConventionFiles.map { "**/app/**/\($0).*" } + ["**/middleware.*", "**/instrumentation.*"]
+
+    /// The Next.js App Router's convention files, whose exports (`GET`, `generateMetadata`, `revalidate`, …) the
+    /// framework reads by name.
+    private static let nextConventionFiles = [
+        "page", "layout", "route", "template", "default", "loading", "error", "global-error", "not-found",
+        "sitemap", "robots", "manifest", "icon", "apple-icon", "opengraph-image", "twitter-image"
     ]
 
     /// Creates the rule.

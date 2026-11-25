@@ -352,7 +352,7 @@ final class RustAnalyzerTests: XCTestCase {
             fn client() {
                 let c = reqwest::Client::builder().danger_accept_invalid_certs(true).build();
                 let q = format!("SELECT * FROM users WHERE id = {}", id);
-                let url = "http://example.org/api";
+                let url = "http://api.vendor.io/v1";
                 let hash = md5::compute(b"x");
                 let key = "AKIAABCDEFGHIJKLMNOP";
                 let host = "192.168.1.20";

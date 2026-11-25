@@ -58,6 +58,16 @@ final class DependencyRulesTests: XCTestCase {
         XCTAssertTrue(findings("unused-export", files, params: ["entryPoints": .stringList(["pages/**"])]).isEmpty)
     }
 
+    func testNextJsConventionFilesAreEntryPoints() {
+        let files = [
+            facts("app/api/stats/route.ts", exports: ["GET", "revalidate"]),
+            facts("app/[lang]/blog/[slug]/page.tsx", exports: ["generateMetadata"]),
+            facts("app/layout.tsx", exports: ["metadata"]), facts("src/middleware.ts", exports: ["config"]),
+            facts("src/routes/page.ts", exports: ["unused"])
+        ]
+        XCTAssertEqual(findings("unused-export", files).map(\.filePath.lastPathComponent), ["page.ts"])
+    }
+
     func testFlagsHighFanOutAndHubs() {
         let leaves = (0..<3).map { facts("leaf\($0).ts") }
         let hub = facts("hub.ts")

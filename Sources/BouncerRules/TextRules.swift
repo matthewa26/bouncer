@@ -62,7 +62,8 @@ public enum UniversalPatterns {
         PatternRuleSpec(
             id: "weak-crypto",
             pattern: #"(?i)^(?!.*"# + LanguageProfiles.phpWeakPasswordHash
-                + #").*?(?:\b(md5|sha1)\b|\bInsecure\.(MD5|SHA1)\b|\bDES\b|\bECB\b)"#,
+                + #").*?(?:\b(md5|sha1)\b|\bInsecure\.(MD5|SHA1)\b|"#
+                + #"(?-i:(?<![A-Za-z0-9])(?:DES|ECB)(?![A-Za-z0-9])|\bdes-\w|-ecb\b))"#,
             message: "Weak cryptography (MD5, SHA-1, DES, or ECB mode); use SHA-256+ or an AEAD cipher."
         ),
         PatternRuleSpec(
@@ -73,8 +74,11 @@ public enum UniversalPatterns {
         ),
         PatternRuleSpec(
             id: "insecure-http-url",
-            pattern: #"http://(?!localhost\b|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|www\.w3\.org|schemas\.|purl\.org|"#
-                + #"ns\.adobe\.com|[^/\s"'`]*\.(local|localhost|test|example)(?=[:/"'`\s]|$))"#,
+            pattern: #"(?<!xmlns(?::[\w.-]{1,30})?=\\?["'])http://"#
+                + #"(?!localhost\b|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|www\.w3\.org|schemas\.|purl\.org|"#
+                + #"ns\.adobe\.com|host\.docker\.internal\b|(?:[\w-]+\.)*example\.(?:com|org|net)\b|<|"#
+                + #"[\w-]+(?![\w.-])|[}"'`\s]|$|[^\s"'`]*\.dtd(?=["'`\s>]|$)|"#
+                + #"[^/\s"'`]*\.(local|localhost|test|example|invalid)(?=[:/"'`\s]|$))"#,
             message: "Plain http:// URL; use https://."
         ),
         PatternRuleSpec(

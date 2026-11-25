@@ -63,9 +63,9 @@ These run on every language.
 | `crlf-line-endings` | A file using Windows (CRLF) line endings, reported once per file | warning | none |
 | `mixed-indentation` | A file indenting some lines with tabs and others with spaces | warning | none |
 | `consecutive-blank-lines` | A run of blank lines longer than the limit | warning | `maxBlankLines` (2) |
-| `weak-crypto` | MD5, SHA-1, DES, or ECB mode (OWASP A04:2025) | warning | none |
+| `weak-crypto` | MD5, SHA-1, DES, or ECB mode; DES and ECB only as cipher names (`DES`, `MODE_ECB`, `des-ede3`, `aes-128-ecb`), so the word "des" in prose isn't one (OWASP A04:2025) | warning | none |
 | `disabled-tls-verification` | `rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `verify=False`, `InsecureSkipVerify: true`, `curl -k` (OWASP A04:2025) | warning | none |
-| `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example` hosts, and XML namespaces (OWASP A02:2025) | warning | none |
+| `insecure-http-url` | A plain `http://` URL, except localhost, `.local`/`.test`/`.example`/`.invalid` hosts, the reserved `example.com`, `example.org`, and `example.net`, `host.docker.internal`, single-label hosts such as a Docker service (`http://wordpress`, `http://ollama:11434`), DTDs, and XML namespaces, including any `xmlns` declaration (OWASP A02:2025) | warning | none |
 | `sql-string-building` | SQL built by concatenation or interpolation (`"SELECT … " + x`, `${x}`, `\(x)`, f-strings) (OWASP A05:2025) | warning | none |
 | `unpinned-dependency` | A `package.json`, `Cargo.toml`, `Package.swift`, or `composer.json` dependency without a reproducible version: `*`/`latest`/an unbounded `>=` range, a Composer development branch (`dev-main`, `2.x-dev`) not pinned with `#<commit>`, a git source without a commit, a tarball URL, a Cargo `git` dependency without `rev`, or a SwiftPM `branch:` (OWASP A03:2025) | warning | none |
 | `pipe-to-shell` | A download piped straight into a shell or interpreter (`curl … \| sh`, `bash <(curl …)`, `irm … \| iex`) in scripts, Dockerfiles, Makefiles, and YAML; not Markdown (OWASP A03:2025) | warning | none |
@@ -534,7 +534,7 @@ These look across files, using each file's imports and exports. `bouncer review`
 |---|---|---|---|
 | `import-cycle` | A cycle of imports, reported once at an import inside it with the full path | warning | none |
 | `layer-violation` | A file in a lower layer importing a higher one (a later `layers` entry importing an earlier one, such as domain code importing UI) | warning | `layers`: path globs, top layer first (none, so off) |
-| `unused-export` | A TS/JS named export nothing in the project imports | warning | `entryPoints`: globs whose exports are used externally |
+| `unused-export` | A TS/JS named export nothing in the project imports; Next.js App Router convention files (`page`, `layout`, `route`, and the rest under `app/`), `middleware`, and `instrumentation` count as entry points | warning | `entryPoints`: globs whose exports are used externally |
 | `high-fan-out` | A file, Swift target, or Go package depending on too many others in the project | warning | `maxDependencies` (15) |
 | `hub-module` | A file, target, or package too much of the project depends on | warning | `maxDependents` (30) |
 | `unstable-dependency` | A stable module importing a less stable one (Stable Dependencies Principle) | warning | `minDifference` (30, a percentage) |

@@ -23,4 +23,14 @@ final class ExcludeFilterTests: XCTestCase {
         )
         XCTAssertEqual(try provider.targetFiles().map(\.path), ["/repo/a.swift"])
     }
+
+    func testExcludesLockfilesAnywhereInTheTree() {
+        let filter = ExcludeFilter(root: root, globs: [])
+        for path in ["/repo/package-lock.json", "/repo/web/composer.lock", "/repo/infra/.terraform.lock.hcl",
+                     "/repo/cdk/cdk.context.json"] {
+            XCTAssertTrue(filter.excludes(URL(fileURLWithPath: path)), path)
+        }
+        XCTAssertFalse(filter.excludes(URL(fileURLWithPath: "/repo/package.json")))
+        XCTAssertFalse(filter.excludes(URL(fileURLWithPath: "/repo/infra/main.tf")))
+    }
 }

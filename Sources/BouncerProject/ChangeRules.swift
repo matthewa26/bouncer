@@ -59,10 +59,7 @@ public struct ChangeRules: ChangeAnalyzer {
 /// `maxChangedLines` or the file count exceeds `maxFiles`.
 public struct OversizedChangeRule: Sendable {
     public let id = "oversized-change"
-    static let defaultIgnore = [
-        "**/package-lock.json", "**/yarn.lock", "**/pnpm-lock.yaml", "**/Package.resolved", "**/go.sum",
-        "**/Cargo.lock", "**/poetry.lock", "**/Gemfile.lock", "**/composer.lock", "**/*.snap"
-    ]
+    static let defaultIgnore = Lockfiles.names.sorted().map { "**/" + $0 } + ["**/*.snap"]
     private let exclude: [String]
 
     /// Creates the rule.

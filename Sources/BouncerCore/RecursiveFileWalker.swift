@@ -9,7 +9,8 @@ import Foundation
 /// `HiddenCIFiles` report in.
 public struct RecursiveFileWalker: TargetFileProvider {
     private static let alwaysSkippedDirectories: Set<String> = [
-        ".git", "node_modules", ".build", "dist", "build", ".venv", "__pycache__", ".git-baseline"
+        ".git", "node_modules", ".build", "dist", "build", ".venv", "__pycache__", ".git-baseline", "cdk.out",
+        "cdktf.out"
     ]
 
     private let rootDirectory: URL

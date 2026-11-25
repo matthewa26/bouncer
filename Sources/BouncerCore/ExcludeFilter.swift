@@ -1,7 +1,8 @@
 import Foundation
 
 /// Decides whether a file is left out of analysis: a license or notice file, which is legal text rather than
-/// code, or a path matching a configured `exclude` glob, relative to a root directory.
+/// code, a dependency lockfile, which is generated, or a path matching a configured `exclude` glob, relative to
+/// a root directory.
 ///
 /// Shared by every way Bouncer picks its target files, so `review`'s directory
 /// walk and `check`'s staged or explicit file lists honor `exclude` identically.
@@ -20,12 +21,12 @@ public struct ExcludeFilter: Sendable {
         self.globs = globs
     }
 
-    /// Checks whether a path is a license or notice file, or matches any exclude glob.
+    /// Checks whether a path is a license or notice file, a lockfile, or matches any exclude glob.
     ///
     /// - Parameter url: The path to check.
     /// - Returns: Whether the path should be excluded.
     public func excludes(_ url: URL) -> Bool {
-        if Self.isLegalFile(url) { return true }
+        if Self.isLegalFile(url) || Lockfiles.contains(url) { return true }
         guard !globs.isEmpty else { return false }
         let relative = relativePath(of: url)
         return globs.contains { GlobMatcher.matches(path: relative, pattern: $0) }

@@ -749,8 +749,7 @@ imports to `.py` files or packages at the root or under `src/`. Go resolves impo
 
 `oversized-change` only applies to staged files (not `--files` or `--stdin`). It counts added
 plus deleted lines from `git diff --cached`, so a pure rename counts 0, and leaves out lockfiles
-(`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Package.resolved`, `go.sum`, `Cargo.lock`,
-`poetry.lock`, `Gemfile.lock`, `composer.lock`), `*.snap` files, `exclude`, and `ignore`.
+(the ones listed under `exclude` in <doc:Configuration>), `*.snap` files, `exclude`, and `ignore`.
 `complexity-ratchet` compares each checked file with its version at the merge base of `HEAD` and
 `base`, by default the first of `origin/main`, `main`, `origin/master`, and `master` that exists;
 with none, it does nothing. Functions are matched by name, and a function is reported only if it

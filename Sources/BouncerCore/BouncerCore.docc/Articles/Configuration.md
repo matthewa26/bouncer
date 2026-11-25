@@ -91,10 +91,15 @@ a real trust boundary and Bouncer gates it accordingly.
 
 Glob patterns, relative to the repo root, excluded from every check. Bouncer already skips a
 handful of conventionally-noisy directories (`.git`, `node_modules`, `.build`, and similar) on
-its own, and license and notice files anywhere in the tree: `LICENSE`, `LICENCE`, `COPYING`,
-`NOTICE`, and `UNLICENSE`, in any case, alone or with an extension or suffix (`LICENSE.md`,
-`COPYING.txt`, `LICENSE-MIT`), since they're legal text rather than code. `exclude` is for
-anything else you want left alone, such as vendored code or generated files.
+its own, along with the AWS CDK's synthesized output (`cdk.out`, `cdktf.out`). It also skips license and
+notice files anywhere in the tree: `LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, and `UNLICENSE`, in any
+case, alone or with an extension or suffix (`LICENSE.md`, `COPYING.txt`, `LICENSE-MIT`), since they're
+legal text rather than code. And it skips dependency lockfiles, which are generated: `package-lock.json`,
+`npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, `composer.lock`,
+`Gemfile.lock`, `poetry.lock`, `Pipfile.lock`, `uv.lock`, `Cargo.lock`, `go.sum`, `Package.resolved`,
+`packages.lock.json`, `pubspec.lock`, `mise.lock`, `flake.lock`, Terraform and OpenTofu's
+`.terraform.lock.hcl`, and the CDK's `cdk.context.json`. `exclude` is for anything else you want left
+alone, such as vendored code or other generated files.
 
 ### `project`
 

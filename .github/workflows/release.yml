@@ -45,8 +45,10 @@ jobs:
           bin="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/bouncer"
           lipo -archs "$bin" | grep -q x86_64 && lipo -archs "$bin" | grep -q arm64
           "$bin" --version
-          mkdir -p dist
-          tar -czf dist/bouncer-macos-universal.tar.gz -C "$(dirname "$bin")" bouncer
+          mkdir -p dist man
+          sh Scripts/generate-manual.sh man
+          cp "$bin" man/bouncer
+          tar -czf dist/bouncer-macos-universal.tar.gz -C man bouncer bouncer.1
       - uses: actions/upload-artifact@v4
         with:
           name: bouncer-macos-universal
@@ -69,14 +71,16 @@ jobs:
         run: sh Scripts/generate-version.sh "${GITHUB_REF_NAME#v}"
       - name: Build and package both architectures
         run: |
-          mkdir -p dist
+          mkdir -p dist man
+          sh Scripts/generate-manual.sh man
           for pair in x86_64:x86_64 aarch64:arm64; do
             triple="${pair%%:*}-swift-linux-musl"
             swift build -c release --swift-sdk "$triple"
             bin="$(swift build -c release --swift-sdk "$triple" --show-bin-path)"
             # Debug info triples the size; llvm-objcopy strips either architecture from this host.
             llvm-objcopy --strip-all "$bin/bouncer"
-            tar -czf "dist/bouncer-linux-${pair##*:}.tar.gz" -C "$bin" bouncer
+            cp man/bouncer.1 "$bin/"
+            tar -czf "dist/bouncer-linux-${pair##*:}.tar.gz" -C "$bin" bouncer bouncer.1
           done
           "$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)/bouncer" --version
       - uses: actions/upload-artifact@v4

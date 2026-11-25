@@ -90,6 +90,11 @@ tar -xzf "$tmp/$asset" -C "$tmp"
 mkdir -p "$install_dir"
 cp "$tmp/bouncer" "$install_dir/bouncer"
 chmod 755 "$install_dir/bouncer"
+if [ -f "$tmp/bouncer.1" ]; then
+  # man looks for pages in the share/man beside each bin directory on PATH.
+  man_dir="$(dirname "$install_dir")/share/man/man1"
+  mkdir -p "$man_dir" && cp "$tmp/bouncer.1" "$man_dir/bouncer.1"
+fi
 echo "Installed $("$install_dir/bouncer" --version 2>/dev/null || echo bouncer) to $install_dir/bouncer"
 
 case ":$PATH:" in

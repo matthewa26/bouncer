@@ -39,6 +39,7 @@ class Bouncer < Formula
 
   def install
     bin.install "bouncer"
+    man1.install "bouncer.1"
   end
 
   test do

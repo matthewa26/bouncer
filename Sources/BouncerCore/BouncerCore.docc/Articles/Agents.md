@@ -86,7 +86,8 @@ with a `cursor`; pass it back to `findings` for the rest.
 
 When the budget runs out, report what's left from the summary `status` returns. `findings` lists any other
 slice, such as one rule in one folder. Before committing, `check` shows exactly what the pre-commit hook would
-block, and `explain_rule` covers any rule the agent doesn't recognize.
+block, and `explain_rule` covers any rule the agent doesn't recognize. Without MCP, `bouncer rules <id>` prints the
+same explanation, and `bouncer rules` lists every rule.
 
 ### What next_batch picks
 

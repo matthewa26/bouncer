@@ -8,8 +8,8 @@ struct Bouncer: AsyncParsableCommand {
         abstract: "Enforces coding standards, detects code smells, and checks coverage thresholds.",
         version: GeneratedVersion.versionString,
         subcommands: [
-            Check.self, Review.self, Configure.self, ProfileCommand.self, BaselineCommand.self, XcodeCommand.self,
-            MCPCommand.self
+            Check.self, Review.self, Configure.self, ProfileCommand.self, BaselineCommand.self, RulesCommand.self,
+            XcodeCommand.self, MCPCommand.self
         ],
         defaultSubcommand: Check.self
     )

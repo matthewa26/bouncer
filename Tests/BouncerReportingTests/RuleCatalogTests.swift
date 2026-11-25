@@ -146,4 +146,12 @@ final class RuleCatalogTests: XCTestCase {
         XCTAssertTrue(text.hasPrefix("long-function (rule catalog: Code smells)\nWhy it matters: "), text)
         XCTAssertEqual(text.components(separatedBy: "\n- ").count, 2, "Exactly one documenting row")
     }
+
+    func testSummariesListEveryRuleOnceWithItsFirstSectionAndSeverity() throws {
+        let summaries = RuleCatalog.summaries
+        XCTAssertEqual(summaries.map(\.id).sorted(), RuleCatalog.ruleIDs)
+        let longFunction = try XCTUnwrap(summaries.first { $0.id == "long-function" })
+        XCTAssertEqual(longFunction, RuleSummary(id: "long-function", section: "Code smells", severity: "warning"))
+        XCTAssertEqual(summaries.first?.id, "file-length", "Summaries keep the article's order")
+    }
 }

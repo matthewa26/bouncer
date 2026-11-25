@@ -54,6 +54,7 @@ bouncer profile set-default strict     # use a profile by default in this repo
 bouncer configure --set coverage.threshold=90
 bouncer configure --husky              # wire 'bouncer check' into .husky/pre-commit
 bouncer baseline update                # accept every current finding, so only new ones are flagged
+bouncer rules                          # list every rule; bouncer rules long-function explains one
 bouncer xcode install                  # add a Bouncer build phase to an Xcode project (macOS)
 bouncer review . --format xcode        # compiler-style diagnostics that Xcode shows inline
 ```

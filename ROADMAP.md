@@ -410,6 +410,8 @@ The existing error-handling rules in section 9 (`empty-catch`, `force-try`, swal
 | ✅ | Landing page at the site root, with the bouncer mascot | | 1.2.0 |
 | ✅ | Saved runs: `review` saves its result to `.bouncer-cache/` and re-analyzes only changed files next time (`--from-last-run`, `--full`, `--no-save-run`, `output.saveRun`) | identical findings to a full run | 1.2.0 |
 | ✅ | Parallel file analysis (`--jobs`, `.bouncer` `jobs`) | one thread per core by default; identical output at any setting | 1.2.0 |
+| ✅ | `bouncer rules`: every rule by catalog section with its default severity; `bouncer rules <id>` explains one | same text as the MCP `explain_rule` | 1.4.0 |
+| ✅ | Man page (`man bouncer`), generated from the CLI's help, in the macOS and Linux archives | installed by Homebrew and the install script | 1.4.0 |
 | ⬜ | FAQ on the landing page | | backlog |
 
 ## 16. Integrations

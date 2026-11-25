@@ -107,7 +107,7 @@ enum RuleExplainer {
     ///
     /// - Parameter id: The unknown ID.
     /// - Returns: The message.
-    private static func unknown(_ id: String) -> String {
+    static func unknown(_ id: String) -> String {
         let close = NameSuggestions.closest(to: id, among: RuleCatalog.ruleIDs)
         guard !close.isEmpty else { return "Unknown rule \(id). Rule IDs look like force-unwrap or long-function." }
         return "Unknown rule \(id). Did you mean: \(close.joined(separator: ", "))?"
